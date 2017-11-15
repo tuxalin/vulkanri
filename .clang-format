@@ -1,0 +1,86 @@
+Language:        Cpp
+BasedOnStyle:  Webkit
+AccessModifierOffset: -4
+AlignAfterOpenBracket: true
+AlignConsecutiveAssignments: true
+AlignConsecutiveDeclarations: true
+AlignEscapedNewlinesLeft: true
+AlignOperands:   true
+AlignTrailingComments: true
+AllowAllParametersOfDeclarationOnNextLine: true
+AllowShortBlocksOnASingleLine: false
+AllowShortCaseLabelsOnASingleLine: false
+AllowShortFunctionsOnASingleLine: Empty
+AllowShortIfStatementsOnASingleLine: false
+AllowShortLoopsOnASingleLine: false
+AlwaysBreakAfterDefinitionReturnType: None
+AlwaysBreakBeforeMultilineStrings: true
+AlwaysBreakTemplateDeclarations: true
+BinPackArguments: true
+BinPackParameters: true
+BreakBeforeBinaryOperators: None
+BreakBeforeBraces: Attach
+BreakBeforeTernaryOperators: true
+BreakConstructorInitializersBeforeComma: true
+DerivePointerAlignment: false
+ColumnLimit:     120
+CommentPragmas:  '^ IWYU pragma:'
+ConstructorInitializerAllOnOneLineOrOnePerLine: false
+ConstructorInitializerIndentWidth: 4
+ContinuationIndentWidth: 4
+Cpp11BracedListStyle: true
+DisableFormat:   false
+ExperimentalAutoDetectBinPacking: true
+IndentCaseLabels: true
+IndentWidth:     4
+IndentWrappedFunctionNames: false
+KeepEmptyLinesAtTheStartOfBlocks: false
+MacroBlockBegin: ''
+MacroBlockEnd:   ''
+BreakBeforeBraces: Allman
+MaxEmptyLinesToKeep: 1
+NamespaceIndentation: Inner
+ObjCBlockIndentWidth: 4
+ObjCSpaceAfterProperty: false
+ObjCSpaceBeforeProtocolList: false
+PenaltyBreakBeforeFirstCallParameter: 1
+PenaltyBreakComment: 300
+PenaltyBreakFirstLessLess: 120
+PenaltyBreakString: 1000
+PenaltyExcessCharacter: 1000000
+PenaltyReturnTypeOnItsOwnLine: 200
+BreakStringLiterals: false
+SpaceAfterCStyleCast: false
+SpaceBeforeAssignmentOperators: true
+SpaceBeforeParens: ControlStatements
+SpaceInEmptyParentheses: false
+SpacesBeforeTrailingComments: 2
+SpacesInAngles:  false
+SpacesInContainerLiterals: true
+SpacesInCStyleCastParentheses: false
+SpacesInParentheses: false
+SpacesInSquareBrackets: false
+Standard:        Cpp03
+TabWidth:        4
+UseTab:          Never
+SortIncludes: true
+
+IncludeCategories:
+# render interface
+  - Regex: 		'^(<|")(ri)\/'
+    Priority: 	6
+# utility 
+  - Regex: 		'^(<|")(util)\/'
+    Priority: 	5
+# Other libraries
+  - Regex: 		'^(<|")(vulkan|glfw)'
+    Priority: 	4
+# C++ headers
+  - Regex: 		'(<cstddef>|<limits>|<climits>|<cfloat>|<cstdint>|<new>|<typeinfo>|<exception>|<ciso646>|<exception_list>|<initializer_list>|<csignal>|<csetjmp>|<cstdalign>|<cstdarg>|<cstdbool>|<ctime>|<stdexcept>|<cassert>|<cerrno>|<system_error>|<utility>|<tuple>|<optional>|<any>|<memory>|<memory_resource>|<scoped_allocator>|<cstdlib>|<bitset>|<functional>|<type_traits>|<ratio>|<chrono>|<ctime>|<typeindex>|<string>|<cctype>|<cwctype>|<cstring>|<string_view>|<cwchar>|<cuchar>|<locale>|<codecvt>|<clocale>|<array>|<deque>|<forward_list>|<list>|<vector>|<map>|<set>|<unordered_map>|<unordered_set>|<queue>|<stack>|<iterator>|<algorithm>|<execution_policy>|<cfenv>|<complex>|<random>|<valarray>|<numeric>|<cmath>|<ctgmath>|<iosfwd>|<iostream>|<ios>|<streambuf>|<istream>|<ostream>|<iomanip>|<sstream>|<fstream>|<filesystem>|<cstdio>|<cinttypes>|<regex>|<thread>|<mutex>|<atomic>|<shared_mutex>|<condition_variable>|<future>|<cstdlib>|<csignal>|<csetjmp>|<cstdarg>|<typeinfo>|<typeindex>|<type_traits>|<bitset>|<functional>|<utility>|<ctime>|<chrono>|<cstddef>|<initializer_list>|<tuple>|<any>|<optional>|<variant>|<new>|<memory>|<scoped_allocator>|<memory_resource>|<climits>|<cfloat>|<cstdint>|<cinttypes>|<limits>|<exception>|<stdexcept>|<cassert>|<system_error>|<cerrno>|<cctype>|<cwctype>|<cstring>|<cwchar>|<cuchar>|<string>|<string_view>|<array>|<vector>|<deque>|<list>|<forward_list>|<set>|<map>|<unordered_set>|<unordered_map>|<stack>|<queue>|<algorithm>|<execution>|<iterator>|<cmath>|<complex>|<valarray>|<random>|<numeric>|<ratio>|<cfenv>|<iosfwd>|<ios>|<istream>|<ostream>|<iostream>|<fstream>|<sstream>|<strstream>|<iomanip>|<streambuf>|<cstdio>|<locale>|<clocale>|<codecvt>|<regex>|<atomic>|<thread>|<mutex>|<shared_mutex>|<future>|<condition_variable>|<filesystem>|<experimental\/algorithm>|<experimental\/any>|<experimental\/chrono>|<experimental\/deque>|<experimental\/execution_policy>|<experimental\/exception_list>|<experimental\/filesystem>|<experimental\/forward_list>|<experimental\/future>|<experimental\/list>|<experimental\/functional>|<experimental\/map>|<experimental\/memory>|<experimental\/memory_resource>|<experimental\/numeric>|<experimental\/optional>|<experimental\/ratio>|<experimental\/regex>|<experimental\/set>|<experimental\/string>|<experimental\/string_view>|<experimental\/system_error>|<experimental\/tuple>|<experimental\/type_traits>|<experimental\/unordered_map>|<experimental\/unordered_set>|<experimental\/utility>|<experimental\/vector>|<ciso646>|<ccomplex>|<ctgmath>|<cstdalign>|<cstdbool>|<cassert>|<ccomplex>|<cctype>|<cerrno>|<cfenv>|<cfloat>|<cinttypes>|<ciso646>|<climits>|<clocale>|<cmath>|<csetjmp>|<csignal>|<cstdalign>|<cstdarg>|<cstdbool>|<cstddef>|<cstdint>|<cstdio>|<cstdlib>|<cstring>|<ctgmath>|<ctime>|<cuchar>|<cwchar>|<cwctype>)'
+    Priority: 	3
+# C headers
+  - Regex: 		'^[<|"](aio.h|libgen.h|spawn.h|sys\/time.h|arpa\/inet.h|limits.h|stdarg.h|sys\/times.h|assert.h|locale.h|stdbool.h|sys\/types.h|complex.h|math.h|stddef.h|sys\/uio.h|cpio.h|monetary.h|stdint.h|sys\/un.h|ctype.h|mqueue.h|stdio.h|sys\/utsname.h|dirent.h|ndbm.h|stdlib.h|sys\/wait.h|dlfcn.h|net\/if.h|string.h|syslog.h|errno.h|netdb.h|strings.h|tar.h|fcntl.h|netinet\/in.h|stropts.h|termios.h|fenv.h|netinet\/tcp.h|sys\/ipc.h|tgmath.h|float.h|nl_types.h|sys\/mman.h|time.h|fmtmsg.h|poll.h|sys\/msg.h|trace.h|fnmatch.h|pthread.h|sys\/resource.h|ulimit.h|ftw.h|pwd.h|sys\/select.h|unistd.h|glob.h|regex.h|sys\/sem.h|utime.h|grp.h|sched.h|sys\/shm.h|utmpx.h|iconv.h|search.h|sys\/socket.h|wchar.h|inttypes.h|semaphore.h|sys\/stat.h|wctype.h|iso646.h|setjmp.h|sys\/statvfs.h|wordexp.h|langinfo.h|signal.h)'
+    Priority: 	2
+# Local/relative headers
+  - Regex:      '\".*'
+    Priority: 	1
