@@ -11,7 +11,9 @@
 
 #include <ri/ApplicationInstance.h>
 #include <ri/DeviceContext.h>
-#include <ri/ShaderModule.h>
+#include <ri/RenderPass.h>
+#include <ri/RenderPipeline.h>
+#include <ri/ShaderPipeline.h>
 #include <ri/Surface.h>
 #include <ri/ValidationReport.h>
 
@@ -50,7 +52,7 @@ private:
         initWindow();
 
         m_instance.reset(new ri::ApplicationInstance("Hello Triangle"));
-        m_validation.reset(new ri::ValidationReport(*m_instance));
+        m_validation.reset(new ri::ValidationReport(*m_instance, ri::ReportLevel::eInfo));
 
         m_context.reset(new ri::DeviceContext(*m_instance));
         m_surface[0].reset(  //
@@ -66,14 +68,30 @@ private:
         const std::vector<ri::Surface*> surfaces = {m_surface[0].get(), m_surface[1].get()};
         m_context->create(surfaces, requiredFeatures, requiredOperations);
 
-        const std::string shadersPath = "../hello_world/shaders/";
-        m_fragShader.reset(new ri::ShaderModule(*m_context, shadersPath + "shader.frag", ri::ShaderStage::eFragment));
-        m_vertShader.reset(new ri::ShaderModule(*m_context, shadersPath + "shader.vert", ri::ShaderStage::eVertex));
+        // create a shader pipeline and let it own the shader modules
+        {
+            const std::string shadersPath = "../hello_world/shaders/";
+            m_shaderPipeline.reset(new ri::ShaderPipeline());
+            m_shaderPipeline->addStage(
+                new ri::ShaderModule(*m_context, shadersPath + "shader.frag", ri::ShaderStage::eFragment));
+            m_shaderPipeline->addStage(
+                new ri::ShaderModule(*m_context, shadersPath + "shader.vert", ri::ShaderStage::eVertex));
+        }
+
+        // create the render/graphics pipeline
+        {
+            ri::RenderPass::AttachmentParams params;
+            params.format        = m_surface[0]->format();
+            ri::RenderPass* pass = new ri::RenderPass(*m_context, params);
+
+            m_renderPipeline.reset(new ri::RenderPipeline(
+                *m_context, pass, *m_shaderPipeline, ri::RenderPipeline::CreateParams(), ri::Sizei(kWidth, kHeight)));
+        }
     }
 
     void mainLoop()
     {
-        while (!glfwWindowShouldClose(m_window[0]))
+        while (!glfwWindowShouldClose(m_window[0]) && !glfwWindowShouldClose(m_window[1]))
         {
             glfwPollEvents();
         }
@@ -81,11 +99,13 @@ private:
 
     void cleanup()
     {
-        m_context.release();
-        m_surface[0].release();
-        m_surface[1].release();
-        m_validation.release();
-        m_validation.release();
+        m_renderPipeline.reset();
+        m_shaderPipeline.reset();
+        m_surface[0].reset();
+        m_surface[1].reset();
+        m_context.reset();
+        m_validation.reset();
+        m_instance.reset();
 
         glfwDestroyWindow(m_window[0]);
         glfwDestroyWindow(m_window[1]);
@@ -98,8 +118,8 @@ private:
     std::unique_ptr<ri::ValidationReport>    m_validation;
     std::unique_ptr<ri::DeviceContext>       m_context;
     std::unique_ptr<ri::Surface>             m_surface[2];
-    std::unique_ptr<ri::ShaderModule>        m_fragShader;
-    std::unique_ptr<ri::ShaderModule>        m_vertShader;
+    std::unique_ptr<ri::ShaderPipeline>      m_shaderPipeline;
+    std::unique_ptr<ri::RenderPipeline>      m_renderPipeline;
 };
 
 int main()
