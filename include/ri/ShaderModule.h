@@ -15,10 +15,17 @@ public:
 
     ShaderStage stage() const;
 
+#ifndef NDEBUG
+    bool hasProcedure(const std::string& name) const;
+#endif
+
 private:
     VkShaderModule m_shaderModule  = VK_NULL_HANDLE;
     VkDevice       m_logicalDevice = VK_NULL_HANDLE;
     ShaderStage    m_stage;
+#ifndef NDEBUG
+    std::vector<char> m_code;
+#endif  // !NDEBUG
 };
 
 inline ShaderStage ShaderModule::stage() const

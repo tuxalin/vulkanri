@@ -42,7 +42,7 @@ private:
     VkQueue                    m_presentQueue;
     Sizei                      m_size;
     PresentMode                m_presentMode;
-    VkSurfaceFormatKHR         m_format;
+    ColorFormat                m_format;
     VkExtent2D                 m_extent;
 
     friend VkDeviceQueueCreateInfo ri::detail::attachSurfaceTo(Surface& surface, const DeviceContext& device);
@@ -56,6 +56,6 @@ inline Sizei Surface::size() const
 
 inline ColorFormat Surface::format() const
 {
-    return ColorFormat::from(m_format.format);
+    return m_format;
 }
 }

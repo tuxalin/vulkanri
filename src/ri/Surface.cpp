@@ -95,9 +95,11 @@ Surface::Surface(const ApplicationInstance& instance, const Sizei& size, void* w
 
 Surface::~Surface()
 {
+    if (!m_logicalDevice)
+        return;
+
+    vkDestroySwapchainKHR(m_logicalDevice, m_swapchain, nullptr);
     vkDestroySurfaceKHR(detail::getVkHandle(m_instance), m_surface, nullptr);
-    if (m_logicalDevice)
-        vkDestroySwapchainKHR(m_logicalDevice, m_swapchain, nullptr);
     for (size_t i = 0; i < m_swapChainImageViews.size(); i++)
         vkDestroyImageView(m_logicalDevice, m_swapChainImageViews[i], nullptr);
 }
@@ -162,7 +164,7 @@ void Surface::initialize(const ri::DeviceContext& device)
     auto res = vkCreateSwapchainKHR(m_logicalDevice, &createInfo, nullptr, &m_swapchain);
     assert(!res);
     m_extent = extent;
-    m_format = surfaceFormat;
+    m_format = ColorFormat::from((int)surfaceFormat.format);
 
     std::vector<VkImage> swapChainImages;
     vkGetSwapchainImagesKHR(m_logicalDevice, m_swapchain, &imageCount, nullptr);
@@ -176,7 +178,7 @@ void Surface::initialize(const ri::DeviceContext& device)
         createInfo.sType                 = VK_STRUCTURE_TYPE_IMAGE_VIEW_CREATE_INFO;
         createInfo.image                 = swapChainImages[i];
         createInfo.viewType              = VK_IMAGE_VIEW_TYPE_2D;
-        createInfo.format                = m_format.format;
+        createInfo.format                = surfaceFormat.format;
         createInfo.components.r          = VK_COMPONENT_SWIZZLE_IDENTITY;
         createInfo.components.g          = VK_COMPONENT_SWIZZLE_IDENTITY;
         createInfo.components.b          = VK_COMPONENT_SWIZZLE_IDENTITY;
