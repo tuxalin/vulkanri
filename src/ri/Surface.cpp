@@ -47,7 +47,7 @@ namespace detail
         return availableFormats[0];
     }
 
-    VkExtent2D chooseSurfaceExtent(const VkSurfaceCapabilitiesKHR& capabilities, const ri::Size& size)
+    VkExtent2D chooseSurfaceExtent(const VkSurfaceCapabilitiesKHR& capabilities, const ri::Sizei& size)
     {
         if (capabilities.currentExtent.width != std::numeric_limits<uint32_t>::max())
             return capabilities.currentExtent;
@@ -78,7 +78,7 @@ namespace detail
     }
 }
 
-Surface::Surface(const ApplicationInstance& instance, const Size& size, void* window, PresentMode mode)
+Surface::Surface(const ApplicationInstance& instance, const Sizei& size, void* window, PresentMode mode)
     : m_instance(instance)
     , m_size(size)
     , m_presentMode(mode)

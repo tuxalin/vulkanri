@@ -1,6 +1,7 @@
 #pragma once
 
 #include "ApplicationInstance.h"
+#include "Size.h"
 #include "Types.h"
 
 namespace ri
@@ -11,9 +12,12 @@ class Surface
 {
 public:
     // @note If the present mode is not available it'll fallback to the PresentMode::eNormal mode.
-    Surface(const ApplicationInstance& instance, const Size& size, void* window,
+    Surface(const ApplicationInstance& instance, const Sizei& size, void* window,
             PresentMode mode = PresentMode::eNormal);
     ~Surface();
+
+    Sizei       size() const;
+    ColorFormat format() const;
 
 private:
     struct SwapChainSupport
@@ -35,7 +39,7 @@ private:
     std::vector<VkImageView>   m_swapChainImageViews;
     int                        m_presentQueueIndex = -1;
     VkQueue                    m_presentQueue;
-    Size                       m_size;
+    Sizei                      m_size;
     PresentMode                m_presentMode;
     VkSurfaceFormatKHR         m_format;
     VkExtent2D                 m_extent;
@@ -43,4 +47,14 @@ private:
     friend VkDeviceQueueCreateInfo ri::detail::attachSurfaceTo(Surface& surface, const DeviceContext& device);
     friend void                    ri::detail::initializeSurface(const DeviceContext& device, Surface& surface);
 };
+
+inline Sizei Surface::size() const
+{
+    return Sizei(m_extent.width, m_extent.height);
+}
+
+inline ColorFormat Surface::format() const
+{
+    return ColorFormat::from(m_format.format);
+}
 }

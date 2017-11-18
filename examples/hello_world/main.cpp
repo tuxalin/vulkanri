@@ -54,9 +54,9 @@ private:
 
         m_context.reset(new ri::DeviceContext(*m_instance));
         m_surface[0].reset(  //
-            new ri::Surface(*m_instance, ri::Size(kWidth, kHeight), m_window[0], ri::PresentMode::eMailbox));
+            new ri::Surface(*m_instance, ri::Sizei(kWidth, kHeight), m_window[0], ri::PresentMode::eMailbox));
         m_surface[1].reset(  //
-            new ri::Surface(*m_instance, ri::Size(kWidth / 2, kHeight / 2), m_window[1], ri::PresentMode::eNormal));
+            new ri::Surface(*m_instance, ri::Sizei(kWidth / 2, kHeight / 2), m_window[1], ri::PresentMode::eNormal));
 
         const std::vector<ri::DeviceFeatures>   requiredFeatures   = {ri::DeviceFeatures::eGeometryShader,
                                                                   ri::DeviceFeatures::eSwapchain};

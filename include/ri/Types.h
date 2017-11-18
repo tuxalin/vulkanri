@@ -28,15 +28,50 @@ SAFE_ENUM_DECLARE(ShaderStage,
                   eFragment = VK_SHADER_STAGE_FRAGMENT_BIT,
                   eCompute  = VK_SHADER_STAGE_COMPUTE_BIT);
 
-struct Size
-{
-    uint32_t width;
-    uint32_t height;
+SAFE_ENUM_DECLARE(PrimitiveTopology,
+                  eTriangles     = VK_PRIMITIVE_TOPOLOGY_TRIANGLE_LIST,   //
+                  eTriangleStrip = VK_PRIMITIVE_TOPOLOGY_TRIANGLE_STRIP,  //
+                  eLines         = VK_PRIMITIVE_TOPOLOGY_LINE_LIST,       //
+                  eLineStrip     = VK_PRIMITIVE_TOPOLOGY_LINE_STRIP,      //
+                  ePoints        = VK_PRIMITIVE_TOPOLOGY_POINT_LIST);
 
-    Size(uint32_t width, uint32_t height)
-        : width(width)
-        , height(height)
-    {
-    }
-};
-}
+SAFE_ENUM_DECLARE(CullMode,
+                  eNone  = VK_CULL_MODE_NONE,      //
+                  eBack  = VK_CULL_MODE_BACK_BIT,  //
+                  eFront = VK_CULL_MODE_FRONT_BIT);
+
+SAFE_ENUM_DECLARE(PolygonMode,
+                  eNormal    = VK_POLYGON_MODE_FILL,  //
+                  eWireframe = VK_POLYGON_MODE_LINE);
+
+SAFE_ENUM_DECLARE(BlendFactor,
+                  eZero                     = VK_BLEND_FACTOR_ZERO,
+                  eOne                      = VK_BLEND_FACTOR_ONE,
+                  eSrc_Color                = VK_BLEND_FACTOR_SRC_COLOR,
+                  eOne_Minus_Src_Color      = VK_BLEND_FACTOR_ONE_MINUS_SRC_COLOR,
+                  eDst_Color                = VK_BLEND_FACTOR_DST_COLOR,
+                  eOne_Minus_Dst_Color      = VK_BLEND_FACTOR_ONE_MINUS_DST_COLOR,
+                  eSrc_Alpha                = VK_BLEND_FACTOR_SRC_ALPHA,
+                  eOne_Minus_Src_Alpha      = VK_BLEND_FACTOR_ONE_MINUS_SRC_ALPHA,
+                  eDst_Alpha                = VK_BLEND_FACTOR_DST_ALPHA,
+                  eOne_Minus_Dst_Alpha      = VK_BLEND_FACTOR_ONE_MINUS_DST_ALPHA,
+                  eConstant_Color           = VK_BLEND_FACTOR_CONSTANT_COLOR,
+                  eOne_Minus_Constant_Color = VK_BLEND_FACTOR_ONE_MINUS_CONSTANT_COLOR,
+                  eConstant_Alpha           = VK_BLEND_FACTOR_CONSTANT_ALPHA,
+                  eOne_Minus_Constant_Alpha = VK_BLEND_FACTOR_ONE_MINUS_CONSTANT_ALPHA,
+                  eSrc_Alpha_Saturate       = VK_BLEND_FACTOR_SRC_ALPHA_SATURATE);
+
+SAFE_ENUM_DECLARE(BlendOperation,
+                  eAdd         = VK_BLEND_OP_ADD,               //
+                  eSubtract    = VK_BLEND_OP_SUBTRACT,          //
+                  eRevSubtract = VK_BLEND_OP_REVERSE_SUBTRACT,  //
+                  eMin         = VK_BLEND_OP_MIN,               //
+                  eMax         = VK_BLEND_OP_MAX,               //
+                  eZero        = VK_BLEND_OP_ZERO_EXT);
+
+SAFE_ENUM_DECLARE(ColorFormat,
+                  eRed    = VK_FORMAT_R8G8_UNORM,           //
+                  eRGB565 = VK_FORMAT_R5G6B5_UNORM_PACK16,  //
+                  eBGRA   = VK_FORMAT_B8G8R8A8_UNORM,       //
+                  eRGBA   = VK_FORMAT_R8G8B8A8_UNORM);
+}  // namespace ri

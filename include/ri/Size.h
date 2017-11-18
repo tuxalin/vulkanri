@@ -5,7 +5,7 @@
 
 #include <util/math.h>
 
-namespace tn
+namespace ri
 {
 /// Defines the resolution size, eg. of a texture.
 template <typename T = uint32_t>
