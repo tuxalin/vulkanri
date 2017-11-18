@@ -1,10 +1,9 @@
 
 #include <ri/ApplicationInstance.h>
 
+#include "ri_internal_get_handle.h"
 #include <cassert>
 #include <iostream>
-
-#include "ri_internal_get_handle.h"
 #include <ri/ValidationReport.h>
 
 namespace ri

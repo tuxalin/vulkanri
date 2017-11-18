@@ -2,11 +2,9 @@
 
 #include <array>
 #include <vector>
-
-#include <util\noncopyable.h>
-
-#include "ApplicationInstance.h"
-#include "Types.h"
+#include <util/noncopyable.h>
+#include <ri/ApplicationInstance.h>
+#include <ri/Types.h>
 
 namespace ri
 {

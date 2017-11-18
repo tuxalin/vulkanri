@@ -1,9 +1,8 @@
 #pragma once
 
 #include "Config.h"
-
 #include <vector>
-#include <util\noncopyable.h>
+#include <util/noncopyable.h>
 
 namespace ri
 {

@@ -1,8 +1,7 @@
 #pragma once
 
-#include <util/safe_enum.h>
-
 #include "Config.h"
+#include <util/safe_enum.h>
 
 namespace ri
 {

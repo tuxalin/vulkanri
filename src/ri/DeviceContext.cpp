@@ -1,17 +1,14 @@
 
 #include <ri/DeviceContext.h>
 
+#include "ri_internal_get_handle.h"
 #include <algorithm>
 #include <cassert>
 #include <iostream>
 #include <unordered_set>
-
 #include <util/common.h>
 #include <util/iterator.h>
-
 #include <ri/ValidationReport.h>
-
-#include "ri_internal_get_handle.h"
 
 namespace ri
 {

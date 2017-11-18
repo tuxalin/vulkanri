@@ -1,14 +1,15 @@
 #pragma once
 
-#include "ApplicationInstance.h"
-#include "Size.h"
-#include "Types.h"
+#include <util/noncopyable.h>
+#include <ri/Size.h>
+#include <ri/Types.h>
 
 namespace ri
 {
+class ApplicationInstance;
 class DeviceContext;
 
-class Surface
+class Surface : util::noncopyable
 {
 public:
     // @note If the present mode is not available it'll fallback to the PresentMode::eNormal mode.

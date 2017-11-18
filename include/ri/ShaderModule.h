@@ -1,8 +1,7 @@
 #pragma once
 
-#include "Types.h"
-
-#include <util\noncopyable.h>
+#include <util/noncopyable.h>
+#include <ri/Types.h>
 
 namespace ri
 {

@@ -1,11 +1,10 @@
 
 #include <ri/Surface.h>
 
-#include <cassert>
-
-#include <util/math.h>
-
 #include "ri_internal_get_handle.h"
+#include <cassert>
+#include <util/math.h>
+#include <ri/ApplicationInstance.h>
 
 namespace ri
 {

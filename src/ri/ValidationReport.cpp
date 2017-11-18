@@ -1,12 +1,11 @@
 
 #include <ri/ValidationReport.h>
 
+#include "ri_internal_get_handle.h"
 #include <cassert>
 #include <iostream>
-
 #include <util/common.h>
-
-#include "ri_internal_get_handle.h"
+#include <ri/ApplicationInstance.h>
 
 const std::vector<std::string> kValidationLayers = {"VK_LAYER_LUNARG_standard_validation"};
 

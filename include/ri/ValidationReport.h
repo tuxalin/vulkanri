@@ -1,11 +1,12 @@
 #pragma once
 
+#include "Config.h"
 #include <vector>
-
-#include "ApplicationInstance.h"
 
 namespace ri
 {
+class ApplicationInstance;
+
 class ValidationReport
 {
 public:
