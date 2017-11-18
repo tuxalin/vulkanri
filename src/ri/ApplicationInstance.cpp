@@ -4,6 +4,7 @@
 #include <cassert>
 #include <iostream>
 
+#include "ri_internal_get_handle.h"
 #include <ri/ValidationReport.h>
 
 namespace ri
@@ -37,6 +38,9 @@ namespace
 
 ApplicationInstance::ApplicationInstance(const std::string& name, const std::string& engineName)
 {
+    static_assert(
+        offsetof(ri::ApplicationInstance, m_instance) == offsetof(ri::detail::ApplicationInstance, m_instance),
+        "INVALID_CLASS_LAYOUT");
     assert(!name.empty());
 
     VkApplicationInfo appInfo  = {};

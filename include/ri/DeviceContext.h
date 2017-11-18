@@ -3,6 +3,8 @@
 #include <array>
 #include <vector>
 
+#include <util\noncopyable.h>
+
 #include "ApplicationInstance.h"
 #include "Types.h"
 
@@ -10,7 +12,7 @@ namespace ri
 {
 class Surface;
 
-class DeviceContext
+class DeviceContext : util::noncopyable
 {
 public:
     DeviceContext(const ApplicationInstance& instance);

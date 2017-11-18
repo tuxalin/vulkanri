@@ -67,6 +67,11 @@ namespace
 DeviceContext::DeviceContext(const ApplicationInstance& instance)
     : m_instance(instance)
 {
+    static_assert(
+        offsetof(ri::DeviceContext, m_physicalDevice) == offsetof(ri::detail::DeviceContext, m_physicalDevice),
+        "INVALID_CLASS_LAYOUT");
+    static_assert(offsetof(ri::DeviceContext, m_device) == offsetof(ri::detail::DeviceContext, m_device),
+                  "INVALID_CLASS_LAYOUT");
 }
 
 DeviceContext::~DeviceContext()
