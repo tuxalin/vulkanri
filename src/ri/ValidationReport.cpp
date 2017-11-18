@@ -5,13 +5,24 @@
 #include <cassert>
 #include <iostream>
 #include <util/common.h>
+#include <util/safe_enum.h>
 #include <ri/ApplicationInstance.h>
-
-const std::vector<std::string> kValidationLayers = {"VK_LAYER_LUNARG_standard_validation"};
 
 namespace ri
 {
+namespace
+{
+    const std::vector<std::string> kValidationLayers = {"VK_LAYER_LUNARG_standard_validation"};
+
+    SAFE_ENUM_DECLARE(DebugReportFlags,                                            //
+                      eInfo        = VK_DEBUG_REPORT_INFORMATION_BIT_EXT,          //
+                      eWarning     = VK_DEBUG_REPORT_WARNING_BIT_EXT,              //
+                      ePerformance = VK_DEBUG_REPORT_PERFORMANCE_WARNING_BIT_EXT,  //
+                      eError       = VK_DEBUG_REPORT_ERROR_BIT_EXT,                //
+                      eDebug       = VK_DEBUG_REPORT_DEBUG_BIT_EXT);
+}
 ValidationReport::ValidationReport(const ApplicationInstance&   instance,
+                                   ReportLevel                  level /*= ReportFlags::eError*/,
                                    const VkAllocationCallbacks* allocator /*= nullptr*/)
     : m_instance(instance)
     , m_allocator(allocator)
@@ -22,9 +33,9 @@ ValidationReport::ValidationReport(const ApplicationInstance&   instance,
         return;
 
     VkDebugReportCallbackCreateInfoEXT createInfo = {};
-    createInfo.sType                              = VK_STRUCTURE_TYPE_DEBUG_REPORT_CALLBACK_CREATE_INFO_EXT;
-    createInfo.flags =
-        VK_DEBUG_REPORT_ERROR_BIT_EXT | VK_DEBUG_REPORT_WARNING_BIT_EXT | VK_DEBUG_REPORT_INFORMATION_BIT_EXT;
+
+    createInfo.sType       = VK_STRUCTURE_TYPE_DEBUG_REPORT_CALLBACK_CREATE_INFO_EXT;
+    createInfo.flags       = (VkDebugReportFlagsEXT)level;
     createInfo.pfnCallback = debugCallback;
 
     auto func = (PFN_vkCreateDebugReportCallbackEXT)vkGetInstanceProcAddr(detail::getVkHandle(m_instance),
@@ -103,7 +114,8 @@ VKAPI_ATTR VkBool32 VKAPI_CALL ValidationReport::debugCallback(VkDebugReportFlag
                                                                const char*                msg,
                                                                void*                      userData)
 {
-    std::cerr << "validation layer: " << msg << std::endl;
+    std::cerr << "Validation layer: " << DebugReportFlags::from(flags).str() << ": " << msg << std::endl;
+    assert(DebugReportFlags::from(flags) != DebugReportFlags::eError);
     return VK_FALSE;
 }
 }

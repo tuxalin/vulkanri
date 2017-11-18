@@ -1,7 +1,7 @@
 #pragma once
 
-#include "Config.h"
 #include <vector>
+#include <ri/Types.h>
 
 namespace ri
 {
@@ -16,7 +16,9 @@ public:
     static const bool kEnabled = true;
 #endif
 
-    ValidationReport(const ApplicationInstance& instance, const VkAllocationCallbacks* allocator = nullptr);
+    ValidationReport(const ApplicationInstance&   instance,
+                     ReportLevel                  level     = ReportLevel::eError,
+                     const VkAllocationCallbacks* allocator = nullptr);
     ~ValidationReport();
 
     static std::vector<const char*> getActiveLayers();

@@ -50,6 +50,8 @@ namespace
                 case DeviceFeatures::eFloat64:
                     deviceFeatures.shaderFloat64 = VK_TRUE;
                     break;
+                case DeviceFeatures::eWireframe:
+                    deviceFeatures.fillModeNonSolid = VK_TRUE;
                 default:
                     auto found = kDeviceStringMap.find(feature);
                     assert(found != kDeviceStringMap.end());
@@ -183,7 +185,6 @@ DeviceContext::OperationIndices DeviceContext::searchQueueFamilies(
     indices.fill(-1);
     for (DeviceOperations type : requiredOperations)
     {
-        std::cout << type.str();
         int i = 0;
         for (const auto& queueFamily : queueFamilies)
         {

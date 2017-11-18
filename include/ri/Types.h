@@ -7,7 +7,7 @@ namespace ri
 {
 SAFE_ENUM_DECLARE(DeviceOperations, eGraphics = 0, eTransfer, eCompute);
 
-SAFE_ENUM_DECLARE(DeviceFeatures, eFloat64 = 0, eGeometryShader, eSwapchain);
+SAFE_ENUM_DECLARE(DeviceFeatures, eFloat64 = 0, eGeometryShader, eSwapchain, eWireframe);
 
 SAFE_ENUM_DECLARE(
     PresentMode,
@@ -69,8 +69,16 @@ SAFE_ENUM_DECLARE(BlendOperation,
                   eZero        = VK_BLEND_OP_ZERO_EXT);
 
 SAFE_ENUM_DECLARE(ColorFormat,
-                  eRed    = VK_FORMAT_R8G8_UNORM,           //
-                  eRGB565 = VK_FORMAT_R5G6B5_UNORM_PACK16,  //
-                  eBGRA   = VK_FORMAT_B8G8R8A8_UNORM,       //
-                  eRGBA   = VK_FORMAT_R8G8B8A8_UNORM);
+                  eRed       = VK_FORMAT_R8G8_UNORM,           //
+                  eRGB565    = VK_FORMAT_R5G6B5_UNORM_PACK16,  //
+                  eBGRA      = VK_FORMAT_B8G8R8A8_UNORM,       //
+                  eRGBA      = VK_FORMAT_R8G8B8A8_UNORM,       //
+                  eUndefined = VK_FORMAT_UNDEFINED);
+
+SAFE_ENUM_DECLARE(ReportLevel,
+                  eError       = VK_DEBUG_REPORT_ERROR_BIT_EXT,                            //
+                  eWarning     = eError | VK_DEBUG_REPORT_WARNING_BIT_EXT,                 //
+                  eInfo        = eError | eWarning | VK_DEBUG_REPORT_INFORMATION_BIT_EXT,  //
+                  ePerformance = VK_DEBUG_REPORT_PERFORMANCE_WARNING_BIT_EXT,              //
+                  eDebug       = eInfo | VK_DEBUG_REPORT_DEBUG_BIT_EXT);
 }  // namespace ri
