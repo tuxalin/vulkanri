@@ -81,4 +81,18 @@ SAFE_ENUM_DECLARE(ReportLevel,
                   eInfo        = eError | eWarning | VK_DEBUG_REPORT_INFORMATION_BIT_EXT,  //
                   ePerformance = VK_DEBUG_REPORT_PERFORMANCE_WARNING_BIT_EXT,              //
                   eDebug       = eInfo | VK_DEBUG_REPORT_DEBUG_BIT_EXT);
+
+SAFE_ENUM_DECLARE(DeviceCommandHint,
+                  // Hint that  device command buffers are prerecorded.
+                  eRecord = 0,
+                  // Hint that device command buffers are rerecorded with new commands very often.
+                  eTransient = VK_COMMAND_POOL_CREATE_TRANSIENT_BIT);
+
+SAFE_ENUM_DECLARE(RecordFlags,
+                  // The command buffer will be rerecorded right after executing it once.
+                  eOneTime = VK_COMMAND_BUFFER_USAGE_ONE_TIME_SUBMIT_BIT,
+                  // This is a secondary command buffer that will be entirely within a single render pass.
+                  eSecondary = VK_COMMAND_BUFFER_USAGE_RENDER_PASS_CONTINUE_BIT,
+                  // The command buffer can be resubmitted while it is also already pending execution.
+                  eResubmit = VK_COMMAND_BUFFER_USAGE_SIMULTANEOUS_USE_BIT);
 }  // namespace ri
