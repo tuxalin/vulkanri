@@ -7,7 +7,7 @@
 namespace ri
 {
 ShaderModule::ShaderModule(const DeviceContext& device, const std::string& filename, ShaderStage stage)
-    : m_logicalDevice(detail::getVkLogicalHandle(device))
+    : m_logicalDevice(detail::getVkHandle(device))
     , m_stage(stage)
 {
     std::ifstream file(filename + ".spv", std::ios::ate | std::ios::binary);
@@ -30,14 +30,14 @@ ShaderModule::ShaderModule(const DeviceContext& device, const std::string& filen
     createInfo.codeSize = code.size();
     createInfo.pCode    = reinterpret_cast<const uint32_t*>(code.data());
 
-    auto res = vkCreateShaderModule(m_logicalDevice, &createInfo, nullptr, &m_shaderModule);
+    auto res = vkCreateShaderModule(m_logicalDevice, &createInfo, nullptr, &m_handle);
     assert(!res);
 }
 
 ShaderModule::~ShaderModule()
 {
     assert(m_logicalDevice);
-    vkDestroyShaderModule(m_logicalDevice, m_shaderModule, nullptr);
+    vkDestroyShaderModule(m_logicalDevice, m_handle, nullptr);
 }
 
 #ifndef NDEBUG

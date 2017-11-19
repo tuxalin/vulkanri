@@ -35,7 +35,7 @@ public:
     uint32_t subpassCount() const;
 
 private:
-    VkRenderPass m_renderPass    = VK_NULL_HANDLE;
+    VkRenderPass m_handle        = VK_NULL_HANDLE;
     VkDevice     m_logicalDevice = VK_NULL_HANDLE;
 };
 

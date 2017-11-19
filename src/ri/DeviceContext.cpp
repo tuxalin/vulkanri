@@ -71,13 +71,13 @@ DeviceContext::DeviceContext(const ApplicationInstance& instance,
     static_assert(
         offsetof(ri::DeviceContext, m_physicalDevice) == offsetof(ri::detail::DeviceContext, m_physicalDevice),
         "INVALID_CLASS_LAYOUT");
-    static_assert(offsetof(ri::DeviceContext, m_device) == offsetof(ri::detail::DeviceContext, m_device),
+    static_assert(offsetof(ri::DeviceContext, m_handle) == offsetof(ri::detail::DeviceContext, m_handle),
                   "INVALID_CLASS_LAYOUT");
 }
 
 DeviceContext::~DeviceContext()
 {
-    vkDestroyDevice(m_device, nullptr);
+    vkDestroyDevice(m_handle, nullptr);
 }
 
 void DeviceContext::initialize(const std::vector<Surface*>&         surfaces,
@@ -111,9 +111,9 @@ void DeviceContext::initialize(const std::vector<Surface*>&         surfaces,
     m_requiredOperations = requiredOperations;
     const auto& features = getDevicesFeatures(requiredFeatures);
     createDevice(surfaces, features.first, features.second);
-    assert(m_device != VK_NULL_HANDLE);
+    assert(m_handle != VK_NULL_HANDLE);
 
-    m_commandPool.initialize(m_device, m_queueIndices[static_cast<size_t>(DeviceOperations::eGraphics)]);
+    m_commandPool.initialize(m_handle, m_queueIndices[static_cast<size_t>(DeviceOperations::eGraphics)]);
 
     for (Surface* surface : surfaces)
     {
@@ -123,7 +123,7 @@ void DeviceContext::initialize(const std::vector<Surface*>&         surfaces,
 
 void DeviceContext::waitIdle()
 {
-    vkDeviceWaitIdle(m_device);
+    vkDeviceWaitIdle(m_handle);
 }
 
 uint32_t DeviceContext::deviceScore(VkPhysicalDevice device, const std::vector<DeviceFeatures>& requiredFeatures)
@@ -285,7 +285,7 @@ void DeviceContext::createDevice(const std::vector<Surface*>&    surfaces,
             createInfo.enabledLayerCount = 0;
         }
 
-        RI_CHECK_RESULT() = vkCreateDevice(m_physicalDevice, &createInfo, nullptr, &m_device);
+        RI_CHECK_RESULT() = vkCreateDevice(m_physicalDevice, &createInfo, nullptr, &m_handle);
 
         m_queues.fill(VK_NULL_HANDLE);
         for (size_t i = 0; i < m_queueIndices.size(); ++i)
@@ -294,7 +294,7 @@ void DeviceContext::createDevice(const std::vector<Surface*>&    surfaces,
             if (index < 0)
                 continue;
 
-            vkGetDeviceQueue(m_device, index, 0, &m_queues[i]);
+            vkGetDeviceQueue(m_handle, index, 0, &m_queues[i]);
         }
     }
 }

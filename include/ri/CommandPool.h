@@ -20,8 +20,8 @@ private:
     void initialize(VkDevice device, int queueIndex);
 
 private:
-    VkDevice          m_device      = VK_NULL_HANDLE;
-    VkCommandPool     m_commandPool = VK_NULL_HANDLE;
+    VkDevice          m_device = VK_NULL_HANDLE;
+    VkCommandPool     m_handle = VK_NULL_HANDLE;
     DeviceCommandHint m_commandHint;
 
     friend class DeviceContext;  // pool is owned by the device

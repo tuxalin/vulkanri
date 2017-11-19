@@ -45,7 +45,7 @@ private:
     const ApplicationInstance&    m_instance;
     std::vector<DeviceOperations> m_requiredOperations;
     VkPhysicalDevice              m_physicalDevice = VK_NULL_HANDLE;
-    VkDevice                      m_device         = VK_NULL_HANDLE;
+    VkDevice                      m_handle         = VK_NULL_HANDLE;
     OperationQueues               m_queues;
     OperationIndices              m_queueIndices;
     CommandPool                   m_commandPool;

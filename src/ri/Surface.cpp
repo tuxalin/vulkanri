@@ -112,7 +112,7 @@ void Surface::initialize(ri::DeviceContext& device)
     assert(!m_logicalDevice);
     assert(m_presentQueueIndex >= 0);
 
-    m_logicalDevice = detail::getVkLogicalHandle(device);
+    m_logicalDevice = detail::getVkHandle(device);
     // set presentation queue
     vkGetDeviceQueue(m_logicalDevice, m_presentQueueIndex, 0, &m_presentQueue);
     assert(m_presentQueue);
@@ -275,7 +275,7 @@ void Surface::waitIdle()
 void Surface::setPresentationQueue(const ri::DeviceContext& device)
 {
     assert(m_presentQueueIndex == -1);
-    auto deviceHandle = detail::getVkHandle(device);
+    auto deviceHandle = detail::getVkPhysicalHandle(device);
 
     uint32_t queueFamilyCount = 0;
     vkGetPhysicalDeviceQueueFamilyProperties(deviceHandle, &queueFamilyCount, nullptr);
@@ -301,7 +301,7 @@ void Surface::setPresentationQueue(const ri::DeviceContext& device)
 
 Surface::SwapChainSupport Surface::determineSupport(const ri::DeviceContext& device)
 {
-    auto deviceHandle = detail::getVkHandle(device);
+    auto deviceHandle = detail::getVkPhysicalHandle(device);
 
     SwapChainSupport support;
     vkGetPhysicalDeviceSurfaceCapabilitiesKHR(deviceHandle, m_surface, &support.capabilities);

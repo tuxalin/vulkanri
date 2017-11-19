@@ -11,7 +11,7 @@ RenderPipeline::RenderPipeline(const ri::DeviceContext&  device,          //
                                const ri::ShaderPipeline& shaderPipeline,  //
                                const CreateParams&       params,          //
                                const Sizei& viewportSize, int32_t viewportX /*= 0*/, int32_t viewportY /*= 0*/)
-    : m_logicalDevice(detail::getVkLogicalHandle(device))
+    : m_logicalDevice(detail::getVkHandle(device))
     , m_renderPass(pass)
 {
     setViewport(viewportSize, viewportX, viewportY);
@@ -23,7 +23,7 @@ RenderPipeline::RenderPipeline(const ri::DeviceContext&  device,          //
                                const ri::ShaderPipeline& shaderPipeline,  //
                                const CreateParams&       params,          //
                                const Sizei& viewportSize, int32_t viewportX /*= 0*/, int32_t viewportY /*= 0*/)
-    : m_logicalDevice(detail::getVkLogicalHandle(device))
+    : m_logicalDevice(detail::getVkHandle(device))
 {
     setViewport(viewportSize, viewportX, viewportY);
     create(pass, shaderPipeline, params);

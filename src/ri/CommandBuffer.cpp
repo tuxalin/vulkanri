@@ -1,10 +1,15 @@
 
 #include <ri/CommandBuffer.h>
 
+#include "ri_internal_get_handle.h"
+
 namespace ri
 {
 CommandBuffer::CommandBuffer(VkDevice device, VkCommandPool commandPool, bool isPrimary)
 {
+    static_assert(offsetof(ri::CommandBuffer, m_handle) == offsetof(ri::detail::CommandBuffer, m_handle),
+                  "INVALID_CLASS_LAYOUT");
+
     VkCommandBufferAllocateInfo allocInfo = {};
     allocInfo.sType                       = VK_STRUCTURE_TYPE_COMMAND_BUFFER_ALLOCATE_INFO;
     allocInfo.commandPool                 = commandPool;

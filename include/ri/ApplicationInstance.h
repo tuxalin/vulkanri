@@ -16,6 +16,6 @@ private:
     std::vector<const char*> getRequiredExtensions();
 
 private:
-    VkInstance m_instance;
+    VkInstance m_handle;
 };
 }

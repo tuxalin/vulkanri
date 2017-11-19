@@ -14,26 +14,26 @@ CommandPool::CommandPool(DeviceCommandHint commandHint)
 CommandPool::~CommandPool()
 {
     if (m_device)
-        vkDestroyCommandPool(m_device, m_commandPool, nullptr);
+        vkDestroyCommandPool(m_device, m_handle, nullptr);
 }
 
 CommandBuffer* CommandPool::create(bool isPrimary /*= true*/)
 {
-    assert(m_device && m_commandPool);
+    assert(m_device && m_handle);
 
-    return new CommandBuffer(m_device, m_commandPool, isPrimary);
+    return new CommandBuffer(m_device, m_handle, isPrimary);
 }
 
 void CommandPool::create(std::vector<CommandBuffer*>& buffers, bool isPrimary /*= true*/)
 {
-    assert(m_device && m_commandPool);
+    assert(m_device && m_handle);
     assert(!buffers.empty());
 
     std::vector<VkCommandBuffer> bufferHandles(buffers.size());
 
     VkCommandBufferAllocateInfo allocInfo = {};
     allocInfo.sType                       = VK_STRUCTURE_TYPE_COMMAND_BUFFER_ALLOCATE_INFO;
-    allocInfo.commandPool                 = m_commandPool;
+    allocInfo.commandPool                 = m_handle;
     allocInfo.level              = isPrimary ? VK_COMMAND_BUFFER_LEVEL_PRIMARY : VK_COMMAND_BUFFER_LEVEL_SECONDARY;
     allocInfo.commandBufferCount = bufferHandles.size();
 
@@ -58,7 +58,7 @@ void CommandPool::initialize(VkDevice device, int queueIndex)
     poolInfo.queueFamilyIndex        = queueIndex;
     poolInfo.flags                   = (VkCommandPoolCreateFlags)m_commandHint;
 
-    auto res = vkCreateCommandPool(m_device, &poolInfo, nullptr, &m_commandPool);
+    auto res = vkCreateCommandPool(m_device, &poolInfo, nullptr, &m_handle);
     assert(!res);
 }
 }  // namespace ri

@@ -12,7 +12,7 @@ namespace detail
 {
     struct ApplicationInstance
     {
-        VkInstance m_instance;
+        VkInstance m_handle;
     };
 
     struct CommandBuffer
@@ -22,8 +22,8 @@ namespace detail
 
     struct CommandPool
     {
-        VkDevice          m_device      = VK_NULL_HANDLE;
-        VkCommandPool     m_commandPool = VK_NULL_HANDLE;
+        VkDevice          m_device = VK_NULL_HANDLE;
+        VkCommandPool     m_handle = VK_NULL_HANDLE;
         DeviceCommandHint m_commandHint;
     };
 
@@ -35,7 +35,7 @@ namespace detail
         const ApplicationInstance&    m_instance;
         std::vector<DeviceOperations> m_requiredOperations;
         VkPhysicalDevice              m_physicalDevice;
-        VkDevice                      m_device;
+        VkDevice                      m_handle;
         OperationQueues               m_queues;
         OperationIndices              m_queueIndices;
         CommandPool                   m_commandPool;
@@ -43,7 +43,7 @@ namespace detail
 
     struct RenderPass
     {
-        VkRenderPass m_renderPass;
+        VkRenderPass m_handle;
         VkDevice     m_logicalDevice;
     };
 
@@ -56,25 +56,25 @@ namespace detail
     inline VkRenderPass getVkHandle(const ri::RenderPass& obj)
     {
         static_assert(sizeof(ri::RenderPass) == sizeof(ri::detail::RenderPass), "INVALID_SIZES");
-        return reinterpret_cast<const detail::RenderPass&>(obj).m_renderPass;
+        return reinterpret_cast<const detail::RenderPass&>(obj).m_handle;
     }
 
     inline VkInstance getVkHandle(const ri::ApplicationInstance& obj)
     {
         static_assert(sizeof(ri::ApplicationInstance) == sizeof(ri::detail::ApplicationInstance), "INVALID_SIZES");
-        return reinterpret_cast<const detail::ApplicationInstance&>(obj).m_instance;
+        return reinterpret_cast<const detail::ApplicationInstance&>(obj).m_handle;
     }
 
-    inline VkPhysicalDevice getVkHandle(const ri::DeviceContext& obj)
+    inline VkPhysicalDevice getVkPhysicalHandle(const ri::DeviceContext& obj)
     {
         static_assert(sizeof(ri::DeviceContext) == sizeof(ri::detail::DeviceContext), "INVALID_SIZES");
         return reinterpret_cast<const detail::DeviceContext&>(obj).m_physicalDevice;
     }
 
-    inline VkDevice getVkLogicalHandle(const ri::DeviceContext& obj)
+    inline VkDevice getVkHandle(const ri::DeviceContext& obj)
     {
         static_assert(sizeof(ri::DeviceContext) == sizeof(ri::detail::DeviceContext), "INVALID_SIZES");
-        return reinterpret_cast<const detail::DeviceContext&>(obj).m_device;
+        return reinterpret_cast<const detail::DeviceContext&>(obj).m_handle;
     }
 }
 }

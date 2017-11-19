@@ -20,7 +20,7 @@ public:
 #endif
 
 private:
-    VkShaderModule m_shaderModule  = VK_NULL_HANDLE;
+    VkShaderModule m_handle        = VK_NULL_HANDLE;
     VkDevice       m_logicalDevice = VK_NULL_HANDLE;
     ShaderStage    m_stage;
 #ifndef NDEBUG

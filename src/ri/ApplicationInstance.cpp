@@ -37,9 +37,8 @@ namespace
 
 ApplicationInstance::ApplicationInstance(const std::string& name, const std::string& engineName)
 {
-    static_assert(
-        offsetof(ri::ApplicationInstance, m_instance) == offsetof(ri::detail::ApplicationInstance, m_instance),
-        "INVALID_CLASS_LAYOUT");
+    static_assert(offsetof(ri::ApplicationInstance, m_handle) == offsetof(ri::detail::ApplicationInstance, m_handle),
+                  "INVALID_CLASS_LAYOUT");
     assert(!name.empty());
 
     VkApplicationInfo appInfo  = {};
@@ -74,13 +73,13 @@ ApplicationInstance::ApplicationInstance(const std::string& name, const std::str
     }
 #endif  // ! NDEBUG
 
-    VkResult res = vkCreateInstance(&createInfo, nullptr, &m_instance);
+    VkResult res = vkCreateInstance(&createInfo, nullptr, &m_handle);
     assert(!res);
 }
 
 ApplicationInstance::~ApplicationInstance()
 {
-    vkDestroyInstance(m_instance, nullptr);
+    vkDestroyInstance(m_handle, nullptr);
 }
 
 std::vector<const char*> ApplicationInstance::getRequiredExtensions()
