@@ -3,24 +3,30 @@
 #include <array>
 #include <vector>
 #include <util/noncopyable.h>
-#include <ri/ApplicationInstance.h>
+#include <ri/CommandPool.h>
 #include <ri/Types.h>
 
 namespace ri
 {
+class ApplicationInstance;
 class Surface;
 
 class DeviceContext : util::noncopyable
 {
 public:
-    DeviceContext(const ApplicationInstance& instance);
+    DeviceContext(const ApplicationInstance& instance, DeviceCommandHint commandHint = DeviceCommandHint::eRecord);
     ~DeviceContext();
 
-    void create(Surface& surface, const std::vector<DeviceFeatures>& requiredFeatures,
-                const std::vector<DeviceOperations>& requiredOperations);
+    void initialize(Surface& surface, const std::vector<DeviceFeatures>& requiredFeatures,
+                    const std::vector<DeviceOperations>& requiredOperations);
     //@note Will attach the surfaces to the context.
-    void create(const std::vector<Surface*>& surfaces, const std::vector<DeviceFeatures>& requiredFeatures,
-                const std::vector<DeviceOperations>& requiredOperations);
+    void initialize(const std::vector<Surface*>& surfaces, const std::vector<DeviceFeatures>& requiredFeatures,
+                    const std::vector<DeviceOperations>& requiredOperations);
+
+    CommandPool&       commandPool();
+    const CommandPool& commandPool() const;
+
+    void waitIdle();
 
     const std::vector<DeviceOperations>& requiredOperations() const;
 
@@ -33,6 +39,7 @@ private:
     OperationIndices searchQueueFamilies(const std::vector<DeviceOperations>& requiredOperations);
     void             createDevice(const std::vector<Surface*>& surfaces, const VkPhysicalDeviceFeatures& deviceFeatures,
                                   const std::vector<const char*>& deviceExtensions);
+    std::vector<VkDeviceQueueCreateInfo> determineQueueCreation(const std::vector<Surface*>& surfaces);
 
 private:
     const ApplicationInstance&    m_instance;
@@ -41,13 +48,14 @@ private:
     VkDevice                      m_device         = VK_NULL_HANDLE;
     OperationQueues               m_queues;
     OperationIndices              m_queueIndices;
+    CommandPool                   m_commandPool;
 };
 
-inline void DeviceContext::create(Surface& surface, const std::vector<DeviceFeatures>& requiredFeatures,
-                                  const std::vector<DeviceOperations>& requiredOperations)
+inline void DeviceContext::initialize(Surface& surface, const std::vector<DeviceFeatures>& requiredFeatures,
+                                      const std::vector<DeviceOperations>& requiredOperations)
 {
     const std::vector<Surface*> data(1, &surface);
-    create(data, requiredFeatures, requiredOperations);
+    initialize(data, requiredFeatures, requiredOperations);
 }
 
 inline const std::vector<DeviceOperations>& DeviceContext::requiredOperations() const
@@ -55,4 +63,14 @@ inline const std::vector<DeviceOperations>& DeviceContext::requiredOperations() 
     assert(!m_requiredOperations.empty());
     return m_requiredOperations;
 }
+
+inline CommandPool& DeviceContext::commandPool()
+{
+    return m_commandPool;
 }
+inline const CommandPool& DeviceContext::commandPool() const
+{
+    return m_commandPool;
+}
+
+}  // namespace ri

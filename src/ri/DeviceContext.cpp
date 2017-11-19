@@ -63,8 +63,10 @@ namespace
     }
 }  // namespace
 
-DeviceContext::DeviceContext(const ApplicationInstance& instance)
+DeviceContext::DeviceContext(const ApplicationInstance& instance,
+                             DeviceCommandHint          commandHint /*= DeviceCommandHint::eNormal*/)
     : m_instance(instance)
+    , m_commandPool(commandHint)
 {
     static_assert(
         offsetof(ri::DeviceContext, m_physicalDevice) == offsetof(ri::detail::DeviceContext, m_physicalDevice),
@@ -78,9 +80,9 @@ DeviceContext::~DeviceContext()
     vkDestroyDevice(m_device, nullptr);
 }
 
-void DeviceContext::create(const std::vector<Surface*>&         surfaces,
-                           const std::vector<DeviceFeatures>&   requiredFeatures,
-                           const std::vector<DeviceOperations>& requiredOperations)
+void DeviceContext::initialize(const std::vector<Surface*>&         surfaces,
+                               const std::vector<DeviceFeatures>&   requiredFeatures,
+                               const std::vector<DeviceOperations>& requiredOperations)
 {
     uint32_t deviceCount = 0;
     vkEnumeratePhysicalDevices(detail::getVkHandle(m_instance), &deviceCount, nullptr);
@@ -110,6 +112,18 @@ void DeviceContext::create(const std::vector<Surface*>&         surfaces,
     const auto& features = getDevicesFeatures(requiredFeatures);
     createDevice(surfaces, features.first, features.second);
     assert(m_device != VK_NULL_HANDLE);
+
+    m_commandPool.initialize(m_device, m_queueIndices[static_cast<size_t>(DeviceOperations::eGraphics)]);
+
+    for (Surface* surface : surfaces)
+    {
+        ri::detail::initializeSurface(*this, *surface);
+    }
+}
+
+void DeviceContext::waitIdle()
+{
+    vkDeviceWaitIdle(m_device);
 }
 
 uint32_t DeviceContext::deviceScore(VkPhysicalDevice device, const std::vector<DeviceFeatures>& requiredFeatures)
@@ -204,13 +218,11 @@ DeviceContext::OperationIndices DeviceContext::searchQueueFamilies(
     return indices;
 }
 
-void DeviceContext::createDevice(const std::vector<Surface*>&    surfaces,
-                                 const VkPhysicalDeviceFeatures& deviceFeatures,
-                                 const std::vector<const char*>& deviceExtensions)
+inline std::vector<VkDeviceQueueCreateInfo> DeviceContext::determineQueueCreation(const std::vector<Surface*>& surfaces)
 {
     m_queueIndices = searchQueueFamilies(m_requiredOperations);
 
-    // queues to create
+    // determine queues to create
     std::vector<VkDeviceQueueCreateInfo> queueCreateInfos;
     std::unordered_set<FamilyQueueIndex> queueFamilies;
     for (size_t i = 0; i < m_queueIndices.size(); ++i)
@@ -242,44 +254,49 @@ void DeviceContext::createDevice(const std::vector<Surface*>&    surfaces,
             queueCreateInfos.push_back(queueCreateInfo);
         }
     }
+    return queueCreateInfos;
+}
+
+void DeviceContext::createDevice(const std::vector<Surface*>&    surfaces,
+                                 const VkPhysicalDeviceFeatures& deviceFeatures,
+                                 const std::vector<const char*>& deviceExtensions)
+{
+    const std::vector<VkDeviceQueueCreateInfo> queueCreateInfos = determineQueueCreation(surfaces);
 
     // create logical device
-    VkDeviceCreateInfo createInfo   = {};
-    createInfo.sType                = VK_STRUCTURE_TYPE_DEVICE_CREATE_INFO;
-    createInfo.pQueueCreateInfos    = queueCreateInfos.data();
-    createInfo.queueCreateInfoCount = queueCreateInfos.size();
-    // device specific extensions
-    createInfo.pEnabledFeatures        = &deviceFeatures;
-    createInfo.enabledExtensionCount   = deviceExtensions.size();
-    createInfo.ppEnabledExtensionNames = deviceExtensions.data();
-
-    std::vector<const char*> layers = ValidationReport::getActiveLayers();
-    if (ValidationReport::kEnabled)
     {
-        createInfo.enabledLayerCount   = layers.size();
-        createInfo.ppEnabledLayerNames = layers.data();
-    }
-    else
-    {
-        createInfo.enabledLayerCount = 0;
-    }
+        VkDeviceCreateInfo createInfo   = {};
+        createInfo.sType                = VK_STRUCTURE_TYPE_DEVICE_CREATE_INFO;
+        createInfo.pQueueCreateInfos    = queueCreateInfos.data();
+        createInfo.queueCreateInfoCount = queueCreateInfos.size();
+        // device specific extensions
+        createInfo.pEnabledFeatures        = &deviceFeatures;
+        createInfo.enabledExtensionCount   = deviceExtensions.size();
+        createInfo.ppEnabledExtensionNames = deviceExtensions.data();
 
-    VkResult res = vkCreateDevice(m_physicalDevice, &createInfo, nullptr, &m_device);
-    assert(!res);
+        std::vector<const char*> layers = ValidationReport::getActiveLayers();
+        if (ValidationReport::kEnabled)
+        {
+            createInfo.enabledLayerCount   = layers.size();
+            createInfo.ppEnabledLayerNames = layers.data();
+        }
+        else
+        {
+            createInfo.enabledLayerCount = 0;
+        }
 
-    m_queues.fill(VK_NULL_HANDLE);
-    for (size_t i = 0; i < m_queueIndices.size(); ++i)
-    {
-        FamilyQueueIndex index = m_queueIndices[i];
-        if (index < 0)
-            continue;
+        RI_CHECK_RESULT() = vkCreateDevice(m_physicalDevice, &createInfo, nullptr, &m_device);
 
-        vkGetDeviceQueue(m_device, index, 0, &m_queues[i]);
-    }
+        m_queues.fill(VK_NULL_HANDLE);
+        for (size_t i = 0; i < m_queueIndices.size(); ++i)
+        {
+            FamilyQueueIndex index = m_queueIndices[i];
+            if (index < 0)
+                continue;
 
-    for (Surface* surface : surfaces)
-    {
-        ri::detail::initializeSurface(*this, *surface);
+            vkGetDeviceQueue(m_device, index, 0, &m_queues[i]);
+        }
     }
 }
+
 }  // namespace ri
