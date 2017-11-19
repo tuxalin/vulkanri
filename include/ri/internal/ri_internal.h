@@ -11,7 +11,9 @@ class DeviceContext;
 class ShaderPipeline;
 class CommandPool;
 
-#define RI_CHECK_RESULT() const detail::CheckRes res
+#define RI_TOKENPASTE(x, y) x##y
+#define RI_TOKENPASTE2(x, y) RI_TOKENPASTE(x, y)
+#define RI_CHECK_RESULT() const detail::CheckRes RI_TOKENPASTE2(res, __LINE__)
 
 namespace detail
 {

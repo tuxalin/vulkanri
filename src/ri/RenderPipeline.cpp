@@ -137,8 +137,7 @@ inline void RenderPipeline::create(const ri::RenderPass& pass, const ri::ShaderP
     pipelineLayoutInfo.pPushConstantRanges        = 0;
 
     assert(!m_pipelineLayout);
-    auto res = vkCreatePipelineLayout(m_logicalDevice, &pipelineLayoutInfo, nullptr, &m_pipelineLayout);
-    assert(!res);
+    RI_CHECK_RESULT() = vkCreatePipelineLayout(m_logicalDevice, &pipelineLayoutInfo, nullptr, &m_pipelineLayout);
 
     VkGraphicsPipelineCreateInfo pipelineInfo = {};
     pipelineInfo.sType                        = VK_STRUCTURE_TYPE_GRAPHICS_PIPELINE_CREATE_INFO;
@@ -164,7 +163,7 @@ inline void RenderPipeline::create(const ri::RenderPass& pass, const ri::ShaderP
     pipelineInfo.basePipelineIndex  = -1;
 
     assert(!m_pipeline);
-    res = vkCreateGraphicsPipelines(m_logicalDevice, VK_NULL_HANDLE, 1, &pipelineInfo, nullptr, &m_pipeline);
-    assert(!res);
+    RI_CHECK_RESULT() =
+        vkCreateGraphicsPipelines(m_logicalDevice, VK_NULL_HANDLE, 1, &pipelineInfo, nullptr, &m_pipeline);
 }
 }

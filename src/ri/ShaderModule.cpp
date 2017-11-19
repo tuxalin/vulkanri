@@ -30,8 +30,7 @@ ShaderModule::ShaderModule(const DeviceContext& device, const std::string& filen
     createInfo.codeSize = code.size();
     createInfo.pCode    = reinterpret_cast<const uint32_t*>(code.data());
 
-    auto res = vkCreateShaderModule(m_logicalDevice, &createInfo, nullptr, &m_handle);
-    assert(!res);
+    RI_CHECK_RESULT() = vkCreateShaderModule(m_logicalDevice, &createInfo, nullptr, &m_handle);
 }
 
 ShaderModule::~ShaderModule()

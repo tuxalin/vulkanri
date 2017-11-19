@@ -85,9 +85,8 @@ Surface::Surface(const ApplicationInstance& instance, const Sizei& size, void* w
     assert(window);
 
 #if RI_PLATFORM == RI_PLATFORM_GLFW
-    auto res = glfwCreateWindowSurface(detail::getVkHandle(m_instance), reinterpret_cast<GLFWwindow*>(window), nullptr,
-                                       &m_surface);
-    assert(!res);
+    RI_CHECK_RESULT() = glfwCreateWindowSurface(detail::getVkHandle(m_instance), reinterpret_cast<GLFWwindow*>(window),
+                                                nullptr, &m_surface);
 #else
 #error "Unknown platform!"
 #endif
@@ -132,10 +131,8 @@ void Surface::initialize(ri::DeviceContext& device)
     // create semaphores
     VkSemaphoreCreateInfo semaphoreInfo = {};
     semaphoreInfo.sType                 = VK_STRUCTURE_TYPE_SEMAPHORE_CREATE_INFO;
-    auto res = vkCreateSemaphore(m_logicalDevice, &semaphoreInfo, nullptr, &m_imageAvailableSemaphore);
-    assert(!res);
-    res = vkCreateSemaphore(m_logicalDevice, &semaphoreInfo, nullptr, &m_renderFinishedSemaphore);
-    assert(!res);
+    RI_CHECK_RESULT() = vkCreateSemaphore(m_logicalDevice, &semaphoreInfo, nullptr, &m_imageAvailableSemaphore);
+    RI_CHECK_RESULT() = vkCreateSemaphore(m_logicalDevice, &semaphoreInfo, nullptr, &m_renderFinishedSemaphore);
 }
 
 void Surface::createSwapchain(const SwapChainSupport& support, const VkSurfaceFormatKHR& surfaceFormat,
@@ -182,8 +179,7 @@ void Surface::createSwapchain(const SwapChainSupport& support, const VkSurfaceFo
         createInfo.pQueueFamilyIndices   = nullptr;
     }
 
-    auto res = vkCreateSwapchainKHR(m_logicalDevice, &createInfo, nullptr, &m_swapchain);
-    assert(!res);
+    RI_CHECK_RESULT() = vkCreateSwapchainKHR(m_logicalDevice, &createInfo, nullptr, &m_swapchain);
 }
 
 inline void Surface::createImageViews()
@@ -212,8 +208,7 @@ inline void Surface::createImageViews()
         createInfo.subresourceRange.baseArrayLayer = 0;
         createInfo.subresourceRange.layerCount     = 1;
 
-        auto res = vkCreateImageView(m_logicalDevice, &createInfo, nullptr, &m_swapchainImageViews[i]);
-        assert(!res);
+        RI_CHECK_RESULT() = vkCreateImageView(m_logicalDevice, &createInfo, nullptr, &m_swapchainImageViews[i]);
     }
 }
 

@@ -58,7 +58,6 @@ void CommandPool::initialize(VkDevice device, int queueIndex)
     poolInfo.queueFamilyIndex        = queueIndex;
     poolInfo.flags                   = (VkCommandPoolCreateFlags)m_commandHint;
 
-    auto res = vkCreateCommandPool(m_device, &poolInfo, nullptr, &m_handle);
-    assert(!res);
+    RI_CHECK_RESULT() = vkCreateCommandPool(m_device, &poolInfo, nullptr, &m_handle);
 }
 }  // namespace ri

@@ -7,9 +7,9 @@
 namespace ri
 {
 RenderPass::RenderPass(const ri::DeviceContext& device, const std::vector<AttachmentParams>& attachments)
-    : m_logicalDevice(detail::getVkLogicalHandle(device))
+    : m_logicalDevice(detail::getVkHandle(device))
 {
-    static_assert(offsetof(ri::RenderPass, m_renderPass) == offsetof(ri::detail::RenderPass, m_renderPass),
+    static_assert(offsetof(ri::RenderPass, m_handle) == offsetof(ri::detail::RenderPass, m_handle),
                   "INVALID_CLASS_LAYOUT");
 
     std::vector<VkAttachmentDescription> colorAttachments(attachments.size());
@@ -53,12 +53,21 @@ RenderPass::RenderPass(const ri::DeviceContext& device, const std::vector<Attach
     renderPassInfo.subpassCount           = 1;
     renderPassInfo.pSubpasses             = &subpass;
 
-    auto res = vkCreateRenderPass(m_logicalDevice, &renderPassInfo, nullptr, &m_renderPass);
-    assert(!res);
+    VkSubpassDependency dependency = {};
+    dependency.srcSubpass          = VK_SUBPASS_EXTERNAL;
+    dependency.dstSubpass          = 0;
+    dependency.srcStageMask        = VK_PIPELINE_STAGE_COLOR_ATTACHMENT_OUTPUT_BIT;
+    dependency.srcAccessMask       = 0;
+    dependency.dstStageMask        = VK_PIPELINE_STAGE_COLOR_ATTACHMENT_OUTPUT_BIT;
+    dependency.dstAccessMask       = VK_ACCESS_COLOR_ATTACHMENT_READ_BIT | VK_ACCESS_COLOR_ATTACHMENT_WRITE_BIT;
+    renderPassInfo.dependencyCount = 1;
+    renderPassInfo.pDependencies   = &dependency;
+
+    RI_CHECK_RESULT() = vkCreateRenderPass(m_logicalDevice, &renderPassInfo, nullptr, &m_handle);
 }
 
 RenderPass::~RenderPass()
 {
-    vkDestroyRenderPass(m_logicalDevice, m_renderPass, nullptr);
+    vkDestroyRenderPass(m_logicalDevice, m_handle, nullptr);
 }
-}
+}  // namespace ri

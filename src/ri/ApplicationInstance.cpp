@@ -73,8 +73,7 @@ ApplicationInstance::ApplicationInstance(const std::string& name, const std::str
     }
 #endif  // ! NDEBUG
 
-    VkResult res = vkCreateInstance(&createInfo, nullptr, &m_handle);
-    assert(!res);
+    RI_CHECK_RESULT() = vkCreateInstance(&createInfo, nullptr, &m_handle);
 }
 
 ApplicationInstance::~ApplicationInstance()
