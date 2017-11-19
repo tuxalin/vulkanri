@@ -49,4 +49,4 @@ inline uint32_t RenderPass::subpassCount() const
     // TODO: add support for multi subpasses
     return 1;
 }
-}
+}  // namespace ri

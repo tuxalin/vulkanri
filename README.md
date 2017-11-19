@@ -1,4 +1,4 @@
-# VulkanInterface
+# VulkanRI
 An OOP render interface over Vulkan for personal projects.
 	
 ## Installation
@@ -14,7 +14,7 @@ cmake ..
 
 ## Usage
 
-You can check the examples folder to see how it's used.
+Check the examples folder to see how it's used.
 
 ## Contributing
 

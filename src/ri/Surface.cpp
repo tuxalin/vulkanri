@@ -26,14 +26,14 @@ namespace detail
         return queueCreateInfo;
     }
 
-    void initializeSurface(const ri::DeviceContext& device, ri::Surface& surface)
+    void initializeSurface(ri::DeviceContext& device, ri::Surface& surface)
     {
         surface.initialize(device);
     }
 
     VkSurfaceFormatKHR chooseSurfaceFormat(const std::vector<VkSurfaceFormatKHR>& availableFormats)
     {
-        // surface has no preffered format, so use sRGB and BGRA storage by default
+        // surface has no preferred format, so use sRGB and BGRA storage by default
         if (availableFormats.size() == 1 && availableFormats[0].format == VK_FORMAT_UNDEFINED)
             return {VK_FORMAT_B8G8R8A8_UNORM, VK_COLOR_SPACE_SRGB_NONLINEAR_KHR};
 
@@ -100,11 +100,14 @@ Surface::~Surface()
 
     vkDestroySwapchainKHR(m_logicalDevice, m_swapchain, nullptr);
     vkDestroySurfaceKHR(detail::getVkHandle(m_instance), m_surface, nullptr);
-    for (size_t i = 0; i < m_swapChainImageViews.size(); i++)
-        vkDestroyImageView(m_logicalDevice, m_swapChainImageViews[i], nullptr);
+    for (size_t i = 0; i < m_swapchainImageViews.size(); i++)
+        vkDestroyImageView(m_logicalDevice, m_swapchainImageViews[i], nullptr);
+
+    vkDestroySemaphore(m_logicalDevice, m_renderFinishedSemaphore, nullptr);
+    vkDestroySemaphore(m_logicalDevice, m_imageAvailableSemaphore, nullptr);
 }
 
-void Surface::initialize(const ri::DeviceContext& device)
+void Surface::initialize(ri::DeviceContext& device)
 {
     assert(!m_logicalDevice);
     assert(m_presentQueueIndex >= 0);
@@ -116,10 +119,29 @@ void Surface::initialize(const ri::DeviceContext& device)
 
     const SwapChainSupport   support       = determineSupport(device);
     const VkSurfaceFormatKHR surfaceFormat = detail::chooseSurfaceFormat(support.formats);
-    const VkExtent2D         extent        = detail::chooseSurfaceExtent(support.capabilities, m_size);
-    const VkPresentModeKHR   presentMode =
-        detail::choosePresentMode(support.presentModes, static_cast<VkPresentModeKHR>(m_presentMode.get()));
+    m_extent                               = detail::chooseSurfaceExtent(support.capabilities, m_size);
+    m_format                               = ColorFormat::from((int)surfaceFormat.format);
 
+    // TODO: review this
+    const auto&    deviceDetail       = reinterpret_cast<const detail::DeviceContext&>(device);
+    const uint32_t graphicsQueueIndex = deviceDetail.m_queueIndices[DeviceOperations::eGraphics];
+    createSwapchain(support, surfaceFormat, graphicsQueueIndex);
+    createImageViews();
+    createCommandBuffers(device);
+
+    // create semaphores
+    VkSemaphoreCreateInfo semaphoreInfo = {};
+    semaphoreInfo.sType                 = VK_STRUCTURE_TYPE_SEMAPHORE_CREATE_INFO;
+    auto res = vkCreateSemaphore(m_logicalDevice, &semaphoreInfo, nullptr, &m_imageAvailableSemaphore);
+    assert(!res);
+    res = vkCreateSemaphore(m_logicalDevice, &semaphoreInfo, nullptr, &m_renderFinishedSemaphore);
+    assert(!res);
+}
+
+void Surface::createSwapchain(const SwapChainSupport& support, const VkSurfaceFormatKHR& surfaceFormat,
+                              uint32_t graphicsQueueIndex)
+{
+    // get supported image count
     uint32_t imageCount = support.capabilities.minImageCount + 1;
     if (support.capabilities.maxImageCount)
         imageCount = std::min(imageCount, support.capabilities.maxImageCount);
@@ -127,14 +149,16 @@ void Surface::initialize(const ri::DeviceContext& device)
         // unlimited, so use at least 3
         imageCount = std::max(imageCount, 3u);
 
-    // create the swapchain
+    const VkPresentModeKHR presentMode =
+        detail::choosePresentMode(support.presentModes, static_cast<VkPresentModeKHR>(m_presentMode.get()));
+
     VkSwapchainCreateInfoKHR createInfo = {};
     createInfo.sType                    = VK_STRUCTURE_TYPE_SWAPCHAIN_CREATE_INFO_KHR;
     createInfo.surface                  = m_surface;
     createInfo.minImageCount            = imageCount;
     createInfo.imageFormat              = surfaceFormat.format;
     createInfo.imageColorSpace          = surfaceFormat.colorSpace;
-    createInfo.imageExtent              = extent;
+    createInfo.imageExtent              = m_extent;
     createInfo.imageArrayLayers         = 1;
     createInfo.imageUsage               = VK_IMAGE_USAGE_COLOR_ATTACHMENT_BIT;
     createInfo.preTransform             = support.capabilities.currentTransform;
@@ -144,10 +168,7 @@ void Surface::initialize(const ri::DeviceContext& device)
     // TODO: support swapchain recreation, eg. on resize
     createInfo.oldSwapchain = VK_NULL_HANDLE;
 
-    // TODO: review this
-    const auto& deviceDetail         = reinterpret_cast<const detail::DeviceContext&>(device);
-    uint32_t    queueFamilyIndices[] = {(uint32_t)deviceDetail.m_queueIndices[DeviceOperations::eGraphics],
-                                     (uint32_t)m_presentQueueIndex};
+    uint32_t queueFamilyIndices[] = {graphicsQueueIndex, (uint32_t)m_presentQueueIndex};
     if (queueFamilyIndices[0] != queueFamilyIndices[1] && queueFamilyIndices[0] >= 0)
     {
         createInfo.imageSharingMode      = VK_SHARING_MODE_CONCURRENT;
@@ -163,22 +184,23 @@ void Surface::initialize(const ri::DeviceContext& device)
 
     auto res = vkCreateSwapchainKHR(m_logicalDevice, &createInfo, nullptr, &m_swapchain);
     assert(!res);
-    m_extent = extent;
-    m_format = ColorFormat::from((int)surfaceFormat.format);
+}
 
-    std::vector<VkImage> swapChainImages;
+inline void Surface::createImageViews()
+{
+    uint32_t imageCount = 0;
     vkGetSwapchainImagesKHR(m_logicalDevice, m_swapchain, &imageCount, nullptr);
-    swapChainImages.resize(imageCount);
-    vkGetSwapchainImagesKHR(m_logicalDevice, m_swapchain, &imageCount, swapChainImages.data());
+    std::vector<VkImage> swapchainImages(imageCount);
+    vkGetSwapchainImagesKHR(m_logicalDevice, m_swapchain, &imageCount, swapchainImages.data());
 
-    m_swapChainImageViews.resize(imageCount);
-    for (size_t i = 0; i < swapChainImages.size(); ++i)
+    m_swapchainImageViews.resize(imageCount);
+    for (size_t i = 0; i < swapchainImages.size(); ++i)
     {
         VkImageViewCreateInfo createInfo = {};
         createInfo.sType                 = VK_STRUCTURE_TYPE_IMAGE_VIEW_CREATE_INFO;
-        createInfo.image                 = swapChainImages[i];
+        createInfo.image                 = swapchainImages[i];
         createInfo.viewType              = VK_IMAGE_VIEW_TYPE_2D;
-        createInfo.format                = surfaceFormat.format;
+        createInfo.format                = (VkFormat)m_format;
         createInfo.components.r          = VK_COMPONENT_SWIZZLE_IDENTITY;
         createInfo.components.g          = VK_COMPONENT_SWIZZLE_IDENTITY;
         createInfo.components.b          = VK_COMPONENT_SWIZZLE_IDENTITY;
@@ -190,9 +212,64 @@ void Surface::initialize(const ri::DeviceContext& device)
         createInfo.subresourceRange.baseArrayLayer = 0;
         createInfo.subresourceRange.layerCount     = 1;
 
-        auto res = vkCreateImageView(m_logicalDevice, &createInfo, nullptr, &m_swapChainImageViews[i]);
+        auto res = vkCreateImageView(m_logicalDevice, &createInfo, nullptr, &m_swapchainImageViews[i]);
         assert(!res);
     }
+}
+
+inline void Surface::createCommandBuffers(ri::DeviceContext& device)
+{
+    m_imageCommandBuffers.resize(m_swapchainImageViews.size(), nullptr);
+    assert(!m_imageCommandBuffers.empty());
+    device.commandPool().create(m_imageCommandBuffers);
+}
+
+void Surface::acquire(uint64_t timeout /*= std::numeric_limits<uint64_t>::max()*/)
+{
+    vkAcquireNextImageKHR(m_logicalDevice, m_swapchain, timeout, m_imageAvailableSemaphore, VK_NULL_HANDLE,
+                          &m_currentImageIndex);
+}
+
+bool Surface::present(const ri::DeviceContext& device)
+{
+    assert(m_currentImageIndex != 0xFFFF);
+
+    VkSubmitInfo submitInfo = {};
+    submitInfo.sType        = VK_STRUCTURE_TYPE_SUBMIT_INFO;
+
+    VkSemaphore          waitSemaphores[] = {m_imageAvailableSemaphore};
+    VkPipelineStageFlags waitStages[]     = {VK_PIPELINE_STAGE_COLOR_ATTACHMENT_OUTPUT_BIT};
+    submitInfo.waitSemaphoreCount         = 1;
+    submitInfo.pWaitSemaphores            = waitSemaphores;
+    submitInfo.pWaitDstStageMask          = waitStages;
+    submitInfo.commandBufferCount         = 1;
+    const auto handle                     = detail::getVkHandle(*m_imageCommandBuffers[m_currentImageIndex]);
+    submitInfo.pCommandBuffers            = &handle;
+
+    const auto& deviceDetail = reinterpret_cast<const detail::DeviceContext&>(device);
+    auto        res = vkQueueSubmit(deviceDetail.m_queues[DeviceOperations::eGraphics], 1, &submitInfo, VK_NULL_HANDLE);
+    assert(!res);
+
+    VkPresentInfoKHR presentInfo = {};
+    presentInfo.sType            = VK_STRUCTURE_TYPE_PRESENT_INFO_KHR;
+
+    VkSemaphore signalSemaphores[] = {m_renderFinishedSemaphore};
+    presentInfo.waitSemaphoreCount = 1;
+    presentInfo.pWaitSemaphores    = signalSemaphores;
+
+    VkSwapchainKHR swapChains[] = {m_swapchain};
+    presentInfo.swapchainCount  = 1;
+    presentInfo.pSwapchains     = swapChains;
+    presentInfo.pImageIndices   = &m_currentImageIndex;
+    presentInfo.pResults        = nullptr;
+
+    res = vkQueuePresentKHR(m_presentQueue, &presentInfo);
+    return !res;
+}
+
+void Surface::waitIdle()
+{
+    vkQueueWaitIdle(m_presentQueue);
 }
 
 void Surface::setPresentationQueue(const ri::DeviceContext& device)
@@ -247,4 +324,4 @@ Surface::SwapChainSupport Surface::determineSupport(const ri::DeviceContext& dev
 
     return support;
 }
-}
+}  // namespace ri
