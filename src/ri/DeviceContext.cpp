@@ -8,6 +8,7 @@
 #include <unordered_set>
 #include <util/common.h>
 #include <util/iterator.h>
+#include <ri/CommandPool.h>
 #include <ri/ValidationReport.h>
 
 namespace ri
@@ -66,17 +67,16 @@ namespace
 DeviceContext::DeviceContext(const ApplicationInstance& instance,
                              DeviceCommandHint          commandHint /*= DeviceCommandHint::eNormal*/)
     : m_instance(instance)
-    , m_commandPool(commandHint)
+    , m_commandPool(new CommandPool(commandHint))
 {
     static_assert(
         offsetof(ri::DeviceContext, m_physicalDevice) == offsetof(ri::detail::DeviceContext, m_physicalDevice),
         "INVALID_CLASS_LAYOUT");
-    static_assert(offsetof(ri::DeviceContext, m_handle) == offsetof(ri::detail::DeviceContext, m_handle),
-                  "INVALID_CLASS_LAYOUT");
 }
 
 DeviceContext::~DeviceContext()
 {
+    delete m_commandPool;
     vkDestroyDevice(m_handle, nullptr);
 }
 
@@ -113,7 +113,7 @@ void DeviceContext::initialize(const std::vector<Surface*>&         surfaces,
     createDevice(surfaces, features.first, features.second);
     assert(m_handle != VK_NULL_HANDLE);
 
-    m_commandPool.initialize(m_handle, m_queueIndices[static_cast<size_t>(DeviceOperations::eGraphics)]);
+    m_commandPool->initialize(m_handle, m_queueIndices[static_cast<size_t>(DeviceOperations::eGraphics)]);
 
     for (Surface* surface : surfaces)
     {

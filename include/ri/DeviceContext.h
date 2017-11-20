@@ -3,18 +3,18 @@
 #include <array>
 #include <vector>
 #include <util/noncopyable.h>
-#include <ri/CommandPool.h>
 #include <ri/Types.h>
 
 namespace ri
 {
 class ApplicationInstance;
 class Surface;
+class CommandPool;
 
 class DeviceContext : util::noncopyable
 {
 public:
-    DeviceContext(const ApplicationInstance& instance, DeviceCommandHint commandHint = DeviceCommandHint::eRecord);
+    DeviceContext(const ApplicationInstance& instance, DeviceCommandHint commandHint = DeviceCommandHint::eRecorded);
     ~DeviceContext();
 
     void initialize(Surface& surface, const std::vector<DeviceFeatures>& requiredFeatures,
@@ -48,7 +48,10 @@ private:
     VkDevice                      m_handle         = VK_NULL_HANDLE;
     OperationQueues               m_queues;
     OperationIndices              m_queueIndices;
-    CommandPool                   m_commandPool;
+    CommandPool*                  m_commandPool;
+
+    template <class DetailRenderClass, class RenderClass>
+    friend auto detail::getVkHandleImpl(const RenderClass& obj);
 };
 
 inline void DeviceContext::initialize(Surface& surface, const std::vector<DeviceFeatures>& requiredFeatures,
@@ -66,11 +69,11 @@ inline const std::vector<DeviceOperations>& DeviceContext::requiredOperations() 
 
 inline CommandPool& DeviceContext::commandPool()
 {
-    return m_commandPool;
+    return *m_commandPool;
 }
 inline const CommandPool& DeviceContext::commandPool() const
 {
-    return m_commandPool;
+    return *m_commandPool;
 }
 
 }  // namespace ri
