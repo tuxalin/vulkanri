@@ -5,6 +5,8 @@
 #include <cassert>
 #include <util/math.h>
 #include <ri/ApplicationInstance.h>
+#include <ri/RenderPass.h>
+#include <ri/RenderTarget.h>
 
 namespace ri
 {
@@ -75,6 +77,12 @@ namespace detail
 
         return bestMode;
     }
+
+    inline VkPhysicalDevice getVkPhysicalHandle(const ri::DeviceContext& obj)
+    {
+        static_assert(sizeof(ri::DeviceContext) == sizeof(ri::detail::DeviceContext), "INVALID_SIZES");
+        return reinterpret_cast<const detail::DeviceContext&>(obj).m_physicalDevice;
+    }
 }
 
 Surface::Surface(const ApplicationInstance& instance, const Sizei& size, void* window, PresentMode mode)
@@ -97,10 +105,11 @@ Surface::~Surface()
     if (!m_logicalDevice)
         return;
 
+    delete m_renderPass;
     vkDestroySwapchainKHR(m_logicalDevice, m_swapchain, nullptr);
     vkDestroySurfaceKHR(detail::getVkHandle(m_instance), m_surface, nullptr);
-    for (size_t i = 0; i < m_swapchainImageViews.size(); i++)
-        vkDestroyImageView(m_logicalDevice, m_swapchainImageViews[i], nullptr);
+    for (auto target : m_swapchainTargets)
+        delete target;
 
     vkDestroySemaphore(m_logicalDevice, m_renderFinishedSemaphore, nullptr);
     vkDestroySemaphore(m_logicalDevice, m_imageAvailableSemaphore, nullptr);
@@ -125,7 +134,7 @@ void Surface::initialize(ri::DeviceContext& device)
     const auto&    deviceDetail       = reinterpret_cast<const detail::DeviceContext&>(device);
     const uint32_t graphicsQueueIndex = deviceDetail.m_queueIndices[DeviceOperations::eGraphics];
     createSwapchain(support, surfaceFormat, graphicsQueueIndex);
-    createImageViews();
+    createRenderTargets(device);
     createCommandBuffers(device);
 
     // create semaphores
@@ -180,85 +189,92 @@ void Surface::createSwapchain(const SwapChainSupport& support, const VkSurfaceFo
     }
 
     RI_CHECK_RESULT() = vkCreateSwapchainKHR(m_logicalDevice, &createInfo, nullptr, &m_swapchain);
+
+    assert(m_swapchainTargets.size() == m_swapchainCommandBuffers.size());
 }
 
-inline void Surface::createImageViews()
+inline void Surface::createRenderTargets(const ri::DeviceContext& device)
 {
     uint32_t imageCount = 0;
     vkGetSwapchainImagesKHR(m_logicalDevice, m_swapchain, &imageCount, nullptr);
     std::vector<VkImage> swapchainImages(imageCount);
     vkGetSwapchainImagesKHR(m_logicalDevice, m_swapchain, &imageCount, swapchainImages.data());
 
-    m_swapchainImageViews.resize(imageCount);
-    for (size_t i = 0; i < swapchainImages.size(); ++i)
-    {
-        VkImageViewCreateInfo createInfo = {};
-        createInfo.sType                 = VK_STRUCTURE_TYPE_IMAGE_VIEW_CREATE_INFO;
-        createInfo.image                 = swapchainImages[i];
-        createInfo.viewType              = VK_IMAGE_VIEW_TYPE_2D;
-        createInfo.format                = (VkFormat)m_format;
-        createInfo.components.r          = VK_COMPONENT_SWIZZLE_IDENTITY;
-        createInfo.components.g          = VK_COMPONENT_SWIZZLE_IDENTITY;
-        createInfo.components.b          = VK_COMPONENT_SWIZZLE_IDENTITY;
-        createInfo.components.a          = VK_COMPONENT_SWIZZLE_IDENTITY;
-        // no mipmapping or layers
-        createInfo.subresourceRange.aspectMask     = VK_IMAGE_ASPECT_COLOR_BIT;
-        createInfo.subresourceRange.baseMipLevel   = 0;
-        createInfo.subresourceRange.levelCount     = 1;
-        createInfo.subresourceRange.baseArrayLayer = 0;
-        createInfo.subresourceRange.layerCount     = 1;
+    m_swapchainTargets.resize(imageCount);
 
-        RI_CHECK_RESULT() = vkCreateImageView(m_logicalDevice, &createInfo, nullptr, &m_swapchainImageViews[i]);
+    std::vector<RenderTarget::AttachmentParams> attachments(1);
+
+    auto& attachment = attachments[0];
+    {
+        attachment.format = m_format;
+        // create a general compatible render pass
+        RenderPass::AttachmentParams params;
+        params.format = m_format;
+        m_renderPass  = new RenderPass(device, params);
+    }
+
+    uint32_t i = 0;
+    for (auto& target : m_swapchainTargets)
+    {
+        // TODO: find a nicer way for reference textures
+        attachment.texture = detail::createReferenceTexture(swapchainImages[i++], TextureType::e2D, m_size);
+
+        target = new RenderTarget(device, *m_renderPass, attachments);
+        delete attachment.texture;
     }
 }
 
 inline void Surface::createCommandBuffers(ri::DeviceContext& device)
 {
-    m_imageCommandBuffers.resize(m_swapchainImageViews.size(), nullptr);
-    assert(!m_imageCommandBuffers.empty());
-    device.commandPool().create(m_imageCommandBuffers);
+    m_swapchainCommandBuffers.resize(m_swapchainTargets.size(), nullptr);
+    assert(!m_swapchainCommandBuffers.empty());
+    device.commandPool().create(m_swapchainCommandBuffers);
 }
 
 void Surface::acquire(uint64_t timeout /*= std::numeric_limits<uint64_t>::max()*/)
 {
+    // acquire next avaiable target
     vkAcquireNextImageKHR(m_logicalDevice, m_swapchain, timeout, m_imageAvailableSemaphore, VK_NULL_HANDLE,
-                          &m_currentImageIndex);
+                          &m_currentTargetIndex);
 }
 
 bool Surface::present(const ri::DeviceContext& device)
 {
-    assert(m_currentImageIndex != 0xFFFF);
+    assert(m_currentTargetIndex != 0xFFFF);
 
-    VkSubmitInfo submitInfo = {};
-    submitInfo.sType        = VK_STRUCTURE_TYPE_SUBMIT_INFO;
+    // submit current target's command buffer
+    {
+        VkSubmitInfo submitInfo = {};
+        submitInfo.sType        = VK_STRUCTURE_TYPE_SUBMIT_INFO;
 
-    VkSemaphore          waitSemaphores[] = {m_imageAvailableSemaphore};
-    VkPipelineStageFlags waitStages[]     = {VK_PIPELINE_STAGE_COLOR_ATTACHMENT_OUTPUT_BIT};
-    submitInfo.waitSemaphoreCount         = 1;
-    submitInfo.pWaitSemaphores            = waitSemaphores;
-    submitInfo.pWaitDstStageMask          = waitStages;
-    submitInfo.commandBufferCount         = 1;
-    const auto handle                     = detail::getVkHandle(*m_imageCommandBuffers[m_currentImageIndex]);
-    submitInfo.pCommandBuffers            = &handle;
+        VkSemaphore          waitSemaphores[] = {m_imageAvailableSemaphore};
+        VkPipelineStageFlags waitStages[]     = {VK_PIPELINE_STAGE_COLOR_ATTACHMENT_OUTPUT_BIT};
+        submitInfo.waitSemaphoreCount         = 1;
+        submitInfo.pWaitSemaphores            = waitSemaphores;
+        submitInfo.pWaitDstStageMask          = waitStages;
+        submitInfo.commandBufferCount         = 1;
+        const auto handle                     = detail::getVkHandle(*m_swapchainCommandBuffers[m_currentTargetIndex]);
+        submitInfo.pCommandBuffers            = &handle;
 
-    const auto& deviceDetail = reinterpret_cast<const detail::DeviceContext&>(device);
-    auto        res = vkQueueSubmit(deviceDetail.m_queues[DeviceOperations::eGraphics], 1, &submitInfo, VK_NULL_HANDLE);
-    assert(!res);
+        const auto& deviceDetail = reinterpret_cast<const detail::DeviceContext&>(device);
+        RI_CHECK_RESULT() =
+            vkQueueSubmit(deviceDetail.m_queues[DeviceOperations::eGraphics], 1, &submitInfo, VK_NULL_HANDLE);
+    }
 
+    // TODO: investigate why semaphore needed
+    // submit presentation
     VkPresentInfoKHR presentInfo = {};
     presentInfo.sType            = VK_STRUCTURE_TYPE_PRESENT_INFO_KHR;
 
     VkSemaphore signalSemaphores[] = {m_renderFinishedSemaphore};
-    presentInfo.waitSemaphoreCount = 1;
+    presentInfo.waitSemaphoreCount = 0;
     presentInfo.pWaitSemaphores    = signalSemaphores;
+    presentInfo.swapchainCount     = 1;
+    presentInfo.pSwapchains        = &m_swapchain;
+    presentInfo.pImageIndices      = &m_currentTargetIndex;
+    presentInfo.pResults           = nullptr;
 
-    VkSwapchainKHR swapChains[] = {m_swapchain};
-    presentInfo.swapchainCount  = 1;
-    presentInfo.pSwapchains     = swapChains;
-    presentInfo.pImageIndices   = &m_currentImageIndex;
-    presentInfo.pResults        = nullptr;
-
-    res = vkQueuePresentKHR(m_presentQueue, &presentInfo);
+    auto res = vkQueuePresentKHR(m_presentQueue, &presentInfo);
     return !res;
 }
 

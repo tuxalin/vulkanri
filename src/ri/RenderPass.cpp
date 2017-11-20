@@ -9,13 +9,11 @@ namespace ri
 RenderPass::RenderPass(const ri::DeviceContext& device, const std::vector<AttachmentParams>& attachments)
     : m_logicalDevice(detail::getVkHandle(device))
 {
-    static_assert(offsetof(ri::RenderPass, m_handle) == offsetof(ri::detail::RenderPass, m_handle),
-                  "INVALID_CLASS_LAYOUT");
-
     std::vector<VkAttachmentDescription> colorAttachments(attachments.size());
     std::vector<VkAttachmentReference>   colorAttachmentRefs(attachments.size());
 
     size_t i = 0;
+    m_clearValues.resize(attachments.size());
     for (const auto& attachment : attachments)
     {
         auto& colorAttachment = colorAttachments[i];
@@ -29,6 +27,21 @@ RenderPass::RenderPass(const ri::DeviceContext& device, const std::vector<Attach
         colorAttachment.stencilLoadOp = (VkAttachmentLoadOp)attachment.stencilLoad;
         colorAttachment.stencilStoreOp =
             attachment.stencilStore ? VK_ATTACHMENT_STORE_OP_STORE : VK_ATTACHMENT_STORE_OP_DONT_CARE;
+
+        // setup the default clear value
+        {
+            ClearValue& clear = m_clearValues[i];
+            switch (attachment.format.get())
+            {
+                case ColorFormat::eDepth32:
+                    clear.depthStencil = {1.f, 0};
+                    break;
+                default:
+                    clear.color.float32[0] = clear.color.float32[1] = clear.color.float32[2] = 0;
+                    clear.color.float32[3]                                                   = 1;
+                    break;
+            }
+        }
 
         // TODO: expose
         colorAttachment.initialLayout = VK_IMAGE_LAYOUT_UNDEFINED;
@@ -70,4 +83,27 @@ RenderPass::~RenderPass()
 {
     vkDestroyRenderPass(m_logicalDevice, m_handle, nullptr);
 }
+
+void RenderPass::begin(const CommandBuffer& buffer, const RenderTarget& target) const
+{
+    VkRenderPassBeginInfo renderPassInfo = {};
+    renderPassInfo.sType                 = VK_STRUCTURE_TYPE_RENDER_PASS_BEGIN_INFO;
+    renderPassInfo.renderPass            = m_handle;
+    renderPassInfo.framebuffer           = detail::getVkHandle(target);
+    renderPassInfo.renderArea.offset     = {m_renderAreaOffset[0], m_renderAreaOffset[1]};
+    renderPassInfo.renderArea.extent     = {m_renderArea.width, m_renderArea.height};
+
+    renderPassInfo.clearValueCount = m_clearValues.size();
+    static_assert(sizeof(VkClearValue) == sizeof(ri::ClearValue), "INVALID_RI_CLEAR_VALUE");
+    renderPassInfo.pClearValues = reinterpret_cast<const VkClearValue*>(m_clearValues.data());
+
+    // TODO: expose subpass contents
+    vkCmdBeginRenderPass(detail::getVkHandle(buffer), &renderPassInfo, VK_SUBPASS_CONTENTS_INLINE);
+}
+
+void RenderPass::end(const CommandBuffer& buffer) const
+{
+    vkCmdEndRenderPass(detail::getVkHandle(buffer));
+}
+
 }  // namespace ri

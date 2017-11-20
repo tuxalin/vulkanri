@@ -1,12 +1,13 @@
 #pragma once
 
 #include <util/noncopyable.h>
+#include <ri/RenderPass.h>
 #include <ri/Size.h>
 #include <ri/Types.h>
 
 namespace ri
 {
-class RenderPass;
+class CommandBuffer;
 class ShaderPipeline;
 
 class RenderPipeline : util::noncopyable
@@ -46,7 +47,7 @@ public:
 
     ///@note Takes ownerwship of the render pass.
     RenderPipeline(const ri::DeviceContext&  device,          //
-                   const ri::RenderPass*     pass,            //
+                   ri::RenderPass*           pass,            //
                    const ri::ShaderPipeline& shaderPipeline,  //
                    const CreateParams&       params,          //
                    const Sizei& viewportSize, int32_t viewportX = 0, int32_t viewportY = 0);
@@ -57,16 +58,50 @@ public:
                    const Sizei& viewportSize, int32_t viewportX = 0, int32_t viewportY = 0);
     ~RenderPipeline();
 
+    ri::RenderPass&       defaultPass();
+    const ri::RenderPass& defaultPass() const;
+
+    ///@note Also binds the pipeline.
+    void begin(const CommandBuffer& buffer, const RenderTarget& target) const;
+    void end(const CommandBuffer& buffer) const;
+    void bind(const CommandBuffer& buffer) const;
+
 private:
     void setViewport(const Sizei& viewportSize, int32_t viewportX, int32_t viewportY);
     void create(const ri::RenderPass& pass, const ri::ShaderPipeline& shaderPipeline, const CreateParams& params);
 
 private:
-    VkPipeline            m_pipeline       = VK_NULL_HANDLE;
-    VkPipelineLayout      m_pipelineLayout = VK_NULL_HANDLE;
-    VkDevice              m_logicalDevice  = VK_NULL_HANDLE;
-    const ri::RenderPass* m_renderPass     = nullptr;
-    VkViewport            m_viewport;
-    VkRect2D              m_scissor;
+    VkPipeline       m_handle         = VK_NULL_HANDLE;
+    VkPipelineLayout m_pipelineLayout = VK_NULL_HANDLE;
+    VkDevice         m_logicalDevice  = VK_NULL_HANDLE;
+    ri::RenderPass*  m_renderPass     = nullptr;
+    VkViewport       m_viewport;
+    VkRect2D         m_scissor;
 };
+
+inline void RenderPipeline::begin(const CommandBuffer& buffer, const RenderTarget& target) const
+{
+    assert(m_renderPass);
+
+    m_renderPass->begin(buffer, target);
+    bind(buffer);
 }
+
+inline void RenderPipeline::end(const CommandBuffer& buffer) const
+{
+    assert(m_renderPass);
+    m_renderPass->end(buffer);
+}
+
+inline ri::RenderPass& RenderPipeline::defaultPass()
+{
+    assert(m_renderPass);
+    return *m_renderPass;
+}
+
+inline const ri::RenderPass& RenderPipeline::defaultPass() const
+{
+    assert(m_renderPass);
+    return *m_renderPass;
+}
+}  // namespace ri

@@ -9,6 +9,8 @@ namespace ri
 class ApplicationInstance;
 class DeviceContext;
 class CommandBuffer;
+class RenderTarget;
+class RenderPass;
 
 class Surface : util::noncopyable
 {
@@ -20,6 +22,10 @@ public:
 
     Sizei       size() const;
     ColorFormat format() const;
+    uint32_t    swapCount() const;
+
+    CommandBuffer& commandBuffer(uint32_t index);
+    RenderTarget&  renderTarget(uint32_t index);
 
     // Acquires the next image, must be called before any drawing operations.
     // @param timeout in nanoseconds for a image to become avaialable, by default disabled.
@@ -44,7 +50,7 @@ private:
 
     void createSwapchain(const SwapChainSupport& support, const VkSurfaceFormatKHR& surfaceFormat,
                          uint32_t graphicsQueueIndex);
-    void createImageViews();
+    void createRenderTargets(const ri::DeviceContext& device);
     void createCommandBuffers(ri::DeviceContext& device);
 
 private:
@@ -52,15 +58,16 @@ private:
     VkSurfaceKHR                m_surface       = VK_NULL_HANDLE;
     VkSwapchainKHR              m_swapchain     = VK_NULL_HANDLE;
     VkDevice                    m_logicalDevice = VK_NULL_HANDLE;
-    std::vector<VkImageView>    m_swapchainImageViews;
-    std::vector<CommandBuffer*> m_imageCommandBuffers;
+    std::vector<RenderTarget*>  m_swapchainTargets;
+    std::vector<CommandBuffer*> m_swapchainCommandBuffers;
     int                         m_presentQueueIndex = -1;
     VkQueue                     m_presentQueue;
     Sizei                       m_size;
     PresentMode                 m_presentMode;
     ColorFormat                 m_format;
     VkExtent2D                  m_extent;
-    uint32_t                    m_currentImageIndex = 0xFFFF;
+    uint32_t                    m_currentTargetIndex = 0xFFFF;
+    RenderPass*                 m_renderPass         = nullptr;
 
     VkSemaphore m_imageAvailableSemaphore = VK_NULL_HANDLE;
     VkSemaphore m_renderFinishedSemaphore = VK_NULL_HANDLE;
@@ -77,5 +84,24 @@ inline Sizei Surface::size() const
 inline ColorFormat Surface::format() const
 {
     return m_format;
+}
+
+inline uint32_t Surface::swapCount() const
+{
+    return m_swapchainCommandBuffers.size();
+}
+
+inline CommandBuffer& Surface::commandBuffer(uint32_t index)
+{
+    auto res = m_swapchainCommandBuffers[index];
+    assert(res);
+    return *res;
+}
+
+inline RenderTarget& Surface::renderTarget(uint32_t index)
+{
+    auto res = m_swapchainTargets[index];
+    assert(res);
+    return *res;
 }
 }  // namespace ri

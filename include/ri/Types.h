@@ -9,18 +9,6 @@ SAFE_ENUM_DECLARE(DeviceOperations, eGraphics = 0, eTransfer, eCompute);
 
 SAFE_ENUM_DECLARE(DeviceFeatures, eFloat64 = 0, eGeometryShader, eSwapchain, eWireframe);
 
-SAFE_ENUM_DECLARE(
-    PresentMode,
-    // Images submitted are transferred to the screen right away, may result in tearing.
-    eImmediate = VK_PRESENT_MODE_IMMEDIATE_KHR,
-    // The swap chain is a queue where the display takes an image from the front of the queue when the display
-    // is refreshed and the clients inserts rendered images at the back of the queue.
-    // If the queue is full then the client has to wait, also guaranteed to be available on any platform.
-    eNormal = VK_PRESENT_MODE_FIFO_KHR,
-    // Doesn't block the client if the queue is full, the images that are already queued are simply replaced with the
-    // newer ones.
-    eMailbox = VK_PRESENT_MODE_MAILBOX_KHR);
-
 SAFE_ENUM_DECLARE(ShaderStage,
                   eVertex   = VK_SHADER_STAGE_VERTEX_BIT,
                   eGeometry = VK_SHADER_STAGE_GEOMETRY_BIT,
@@ -68,12 +56,30 @@ SAFE_ENUM_DECLARE(BlendOperation,
                   eMax         = VK_BLEND_OP_MAX,               //
                   eZero        = VK_BLEND_OP_ZERO_EXT);
 
+SAFE_ENUM_DECLARE(TextureType,
+                  e1D      = VK_IMAGE_VIEW_TYPE_1D,
+                  e2D      = VK_IMAGE_VIEW_TYPE_2D,
+                  e3D      = VK_IMAGE_VIEW_TYPE_3D,
+                  eCube    = VK_IMAGE_VIEW_TYPE_CUBE,
+                  eArray1D = VK_IMAGE_VIEW_TYPE_1D_ARRAY,
+                  eArray2D = VK_IMAGE_VIEW_TYPE_2D_ARRAY);
+
 SAFE_ENUM_DECLARE(ColorFormat,
                   eRed       = VK_FORMAT_R8G8_UNORM,           //
                   eRGB565    = VK_FORMAT_R5G6B5_UNORM_PACK16,  //
                   eBGRA      = VK_FORMAT_B8G8R8A8_UNORM,       //
                   eRGBA      = VK_FORMAT_R8G8B8A8_UNORM,       //
+                  eDepth32   = VK_FORMAT_D32_SFLOAT,           //
                   eUndefined = VK_FORMAT_UNDEFINED);
+
+SAFE_ENUM_DECLARE(ComponentSwizzle,                           //
+                  eIdentity = VK_COMPONENT_SWIZZLE_IDENTITY,  //
+                  eZero     = VK_COMPONENT_SWIZZLE_ZERO,      //
+                  eOne      = VK_COMPONENT_SWIZZLE_ONE,       //
+                  eRed      = VK_COMPONENT_SWIZZLE_R,         //
+                  eGreen    = VK_COMPONENT_SWIZZLE_G,         //
+                  eBlue     = VK_COMPONENT_SWIZZLE_B,         //
+                  eAlpha    = VK_COMPONENT_SWIZZLE_A);
 
 SAFE_ENUM_DECLARE(ReportLevel,
                   eError       = VK_DEBUG_REPORT_ERROR_BIT_EXT,                            //
@@ -84,7 +90,7 @@ SAFE_ENUM_DECLARE(ReportLevel,
 
 SAFE_ENUM_DECLARE(DeviceCommandHint,
                   // Hint that  device command buffers are prerecorded.
-                  eRecord = 0,
+                  eRecorded = 0,
                   // Hint that device command buffers are rerecorded with new commands very often.
                   eTransient = VK_COMMAND_POOL_CREATE_TRANSIENT_BIT);
 
@@ -95,4 +101,33 @@ SAFE_ENUM_DECLARE(RecordFlags,
                   eSecondary = VK_COMMAND_BUFFER_USAGE_RENDER_PASS_CONTINUE_BIT,
                   // The command buffer can be resubmitted while it is also already pending execution.
                   eResubmit = VK_COMMAND_BUFFER_USAGE_SIMULTANEOUS_USE_BIT);
+
+SAFE_ENUM_DECLARE(
+    PresentMode,
+    // Images submitted are transferred to the screen right away, may result in tearing.
+    eImmediate = VK_PRESENT_MODE_IMMEDIATE_KHR,
+    // The swap chain is a queue where the display takes an image from the front of the queue when the display
+    // is refreshed and the clients inserts rendered images at the back of the queue.
+    // If the queue is full then the client has to wait, also guaranteed to be available on any platform.
+    eNormal = VK_PRESENT_MODE_FIFO_KHR,
+    // Doesn't block the client if the queue is full, the images that are already queued are simply replaced with the
+    // newer ones.
+    eMailbox = VK_PRESENT_MODE_MAILBOX_KHR);
+
+union ClearColorValue {
+    float    float32[4];
+    int32_t  int32[4];
+    uint32_t uint32[4];
+};
+
+struct ClearDepthStencilValue
+{
+    float    depth;
+    uint32_t stencil;
+};
+
+union ClearValue {
+    ClearColorValue        color;
+    ClearDepthStencilValue depthStencil;
+};
 }  // namespace ri

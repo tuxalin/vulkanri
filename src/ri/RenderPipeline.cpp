@@ -2,12 +2,13 @@
 #include <ri/RenderPipeline.h>
 
 #include "ri_internal_get_handle.h"
+#include <ri/RenderPass.h>
 #include <ri/ShaderPipeline.h>
 
 namespace ri
 {
 RenderPipeline::RenderPipeline(const ri::DeviceContext&  device,          //
-                               const ri::RenderPass*     pass,            //
+                               ri::RenderPass*           pass,            //
                                const ri::ShaderPipeline& shaderPipeline,  //
                                const CreateParams&       params,          //
                                const Sizei& viewportSize, int32_t viewportX /*= 0*/, int32_t viewportY /*= 0*/)
@@ -32,7 +33,7 @@ RenderPipeline::RenderPipeline(const ri::DeviceContext&  device,          //
 RenderPipeline::~RenderPipeline()
 {
     delete m_renderPass;
-    vkDestroyPipeline(m_logicalDevice, m_pipeline, nullptr);
+    vkDestroyPipeline(m_logicalDevice, m_handle, nullptr);
     vkDestroyPipelineLayout(m_logicalDevice, m_pipelineLayout, nullptr);
 }
 
@@ -121,11 +122,11 @@ inline void RenderPipeline::create(const ri::RenderPass& pass, const ri::ShaderP
     colorBlending.blendConstants[3]                   = 0.0f;
 
     // TODO: add support for dynamic states
-    VkDynamicState dynamicStates[] = {VK_DYNAMIC_STATE_VIEWPORT, VK_DYNAMIC_STATE_LINE_WIDTH};
+    VkDynamicState dynamicStates[] = {VK_DYNAMIC_STATE_LINE_WIDTH};
 
     VkPipelineDynamicStateCreateInfo dynamicState = {};
     dynamicState.sType                            = VK_STRUCTURE_TYPE_PIPELINE_DYNAMIC_STATE_CREATE_INFO;
-    dynamicState.dynamicStateCount                = 2;
+    dynamicState.dynamicStateCount                = 1;
     dynamicState.pDynamicStates                   = dynamicStates;
 
     // TODO: will add support later
@@ -162,8 +163,13 @@ inline void RenderPipeline::create(const ri::RenderPass& pass, const ri::ShaderP
     pipelineInfo.basePipelineHandle = VK_NULL_HANDLE;
     pipelineInfo.basePipelineIndex  = -1;
 
-    assert(!m_pipeline);
+    assert(!m_handle);
     RI_CHECK_RESULT() =
-        vkCreateGraphicsPipelines(m_logicalDevice, VK_NULL_HANDLE, 1, &pipelineInfo, nullptr, &m_pipeline);
+        vkCreateGraphicsPipelines(m_logicalDevice, VK_NULL_HANDLE, 1, &pipelineInfo, nullptr, &m_handle);
 }
+
+void RenderPipeline::bind(const CommandBuffer& buffer) const
+{
+    vkCmdBindPipeline(detail::getVkHandle(buffer), VK_PIPELINE_BIND_POINT_GRAPHICS, m_handle);
 }
+}  // namespace ri
