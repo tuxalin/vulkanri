@@ -56,6 +56,11 @@ SAFE_ENUM_DECLARE(BlendOperation,
                   eMax         = VK_BLEND_OP_MAX,               //
                   eZero        = VK_BLEND_OP_ZERO_EXT);
 
+SAFE_ENUM_DECLARE(DynamicState,                              //
+                  eLineWidth = VK_DYNAMIC_STATE_LINE_WIDTH,  //
+                  eViewport  = VK_DYNAMIC_STATE_VIEWPORT,    //
+                  eScissor   = VK_DYNAMIC_STATE_SCISSOR);
+
 SAFE_ENUM_DECLARE(TextureType,
                   e1D      = VK_IMAGE_VIEW_TYPE_1D,
                   e2D      = VK_IMAGE_VIEW_TYPE_2D,
@@ -93,9 +98,11 @@ SAFE_ENUM_DECLARE(DeviceCommandHint,
                   eRecorded = 0,
                   // Hint that device command buffers are rerecorded with new commands very often.
                   eTransient = VK_COMMAND_POOL_CREATE_TRANSIENT_BIT);
+// TODO: VK_COMMAND_POOL_CREATE_RESET_COMMAND_BUFFER_BIT  ???
 
 SAFE_ENUM_DECLARE(RecordFlags,
-                  // The command buffer will be rerecorded right after executing it once.
+                  // Specifies that each recording of the command buffer will only be submitted once, and the command
+                  // buffer will be reset and recorded again between each submission.
                   eOneTime = VK_COMMAND_BUFFER_USAGE_ONE_TIME_SUBMIT_BIT,
                   // This is a secondary command buffer that will be entirely within a single render pass.
                   eSecondary = VK_COMMAND_BUFFER_USAGE_RENDER_PASS_CONTINUE_BIT,

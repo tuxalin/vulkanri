@@ -42,7 +42,27 @@ public:
         float depthBiasClamp          = 0.0f;
         float depthBiasSlopeFactor    = 0.0f;
 
+        // What subpass to use from the render pass.
         uint32_t activeSubpassIndex = 0;
+        // The dynamic states of the pipeline.
+        // @note Any dynamic states that are marked must after be explictily be set with their commands, as the
+        // initial/constant values will be ignored.
+        std::vector<DynamicState> dynamicStates;
+    };
+
+    struct DynamicState
+    {
+        void setViewport(CommandBuffer& buffer, const Sizei& viewportSize,  //
+                         int32_t viewportX = 0, int32_t viewportY = 0);
+
+        void setScissor(CommandBuffer& buffer, const Sizei& viewportSize,  //
+                        int32_t viewportX = 0, int32_t viewportY = 0);
+
+        void setLineWidth(CommandBuffer& buffer, float lineWidth);
+
+    private:
+        VkViewport m_viewport;
+        VkRect2D   m_scissor;
     };
 
     ///@note Takes ownerwship of the render pass.
@@ -60,6 +80,8 @@ public:
 
     ri::RenderPass&       defaultPass();
     const ri::RenderPass& defaultPass() const;
+    ///@note To use it you Must create the pipeline with specific dynamic states.
+    DynamicState& dynamicState();
 
     ///@note Also binds the pipeline.
     void begin(const CommandBuffer& buffer, const RenderTarget& target) const;
@@ -77,6 +99,7 @@ private:
     ri::RenderPass*  m_renderPass     = nullptr;
     VkViewport       m_viewport;
     VkRect2D         m_scissor;
+    DynamicState     m_dynamicState;
 };
 
 inline void RenderPipeline::begin(const CommandBuffer& buffer, const RenderTarget& target) const
@@ -104,4 +127,10 @@ inline const ri::RenderPass& RenderPipeline::defaultPass() const
     assert(m_renderPass);
     return *m_renderPass;
 }
+
+inline ri::RenderPipeline::DynamicState& RenderPipeline::dynamicState()
+{
+    return m_dynamicState;
+}
+
 }  // namespace ri

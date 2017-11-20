@@ -24,12 +24,13 @@ public:
     ColorFormat format() const;
     uint32_t    swapCount() const;
 
-    CommandBuffer& commandBuffer(uint32_t index);
-    RenderTarget&  renderTarget(uint32_t index);
+    CommandBuffer&      commandBuffer(uint32_t index);
+    const RenderTarget& renderTarget(uint32_t index) const;
 
     // Acquires the next image, must be called before any drawing operations.
     // @param timeout in nanoseconds for a image to become avaialable, by default disabled.
-    void acquire(uint64_t timeout = std::numeric_limits<uint64_t>::max());
+    // @return active/available index of the swapchain.
+    uint32_t acquire(uint64_t timeout = std::numeric_limits<uint64_t>::max());
     // @warning Must always be called in pair with acquire.
     // @return true if the presentation was succesful.
     bool present(const ri::DeviceContext& device);
@@ -98,7 +99,7 @@ inline CommandBuffer& Surface::commandBuffer(uint32_t index)
     return *res;
 }
 
-inline RenderTarget& Surface::renderTarget(uint32_t index)
+inline const RenderTarget& Surface::renderTarget(uint32_t index) const
 {
     auto res = m_swapchainTargets[index];
     assert(res);

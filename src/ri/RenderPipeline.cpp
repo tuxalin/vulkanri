@@ -121,13 +121,10 @@ inline void RenderPipeline::create(const ri::RenderPass& pass, const ri::ShaderP
     colorBlending.blendConstants[2]                   = 0.0f;
     colorBlending.blendConstants[3]                   = 0.0f;
 
-    // TODO: add support for dynamic states
-    VkDynamicState dynamicStates[] = {VK_DYNAMIC_STATE_LINE_WIDTH};
-
     VkPipelineDynamicStateCreateInfo dynamicState = {};
     dynamicState.sType                            = VK_STRUCTURE_TYPE_PIPELINE_DYNAMIC_STATE_CREATE_INFO;
-    dynamicState.dynamicStateCount                = 1;
-    dynamicState.pDynamicStates                   = dynamicStates;
+    dynamicState.dynamicStateCount                = params.dynamicStates.size();
+    dynamicState.pDynamicStates = reinterpret_cast<const VkDynamicState*>(params.dynamicStates.data());
 
     // TODO: will add support later
     VkPipelineLayoutCreateInfo pipelineLayoutInfo = {};
@@ -171,5 +168,28 @@ inline void RenderPipeline::create(const ri::RenderPass& pass, const ri::ShaderP
 void RenderPipeline::bind(const CommandBuffer& buffer) const
 {
     vkCmdBindPipeline(detail::getVkHandle(buffer), VK_PIPELINE_BIND_POINT_GRAPHICS, m_handle);
+}
+
+void RenderPipeline::DynamicState::setViewport(CommandBuffer& buffer, const Sizei& viewportSize,  //
+                                               int32_t viewportX /*= 0*/, int32_t viewportY /*= 0*/)
+{
+    m_viewport.x      = (float)viewportX;
+    m_viewport.y      = (float)viewportY;
+    m_viewport.width  = (float)viewportSize.width;
+    m_viewport.height = (float)viewportSize.height;
+    vkCmdSetViewport(detail::getVkHandle(buffer), 0, 1, &m_viewport);
+}
+
+void RenderPipeline::DynamicState::setScissor(CommandBuffer& buffer, const Sizei& viewportSize,  //
+                                              int32_t viewportX /*= 0*/, int32_t viewportY /*= 0*/)
+{
+    m_scissor.offset = {viewportX, viewportY};
+    m_scissor.extent = {viewportSize.width, viewportSize.height};
+    vkCmdSetScissor(detail::getVkHandle(buffer), 0, 1, &m_scissor);
+}
+
+void RenderPipeline::DynamicState::setLineWidth(CommandBuffer& buffer, float lineWidth)
+{
+    vkCmdSetLineWidth(detail::getVkHandle(buffer), lineWidth);
 }
 }  // namespace ri

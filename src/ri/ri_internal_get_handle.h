@@ -64,6 +64,7 @@ namespace detail
         VkFramebuffer            m_handle;
         VkDevice                 m_logicalDevice;
         std::vector<VkImageView> m_attachments;
+        Sizei                    m_size;
     };
 
     template <class DetailRenderClass, class RenderClass>
