@@ -14,7 +14,7 @@ namespace detail
 }
 
 Texture::Texture(const DeviceContext& device)
-    : m_logicalDevice(detail::getVkHandle(device))
+    : m_device(detail::getVkHandle(device))
 {
     // TODO: implemetation
 }
@@ -28,7 +28,7 @@ Texture::Texture(VkImage handle, TextureType type, const Sizei& size)
 
 Texture::~Texture()
 {
-    if (m_logicalDevice)
-        vkDestroyImage(m_logicalDevice, m_handle, nullptr);
+    if (m_device)
+        vkDestroyImage(m_device, m_handle, nullptr);
 }
 }  // namespace ri

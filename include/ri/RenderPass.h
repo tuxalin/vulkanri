@@ -46,7 +46,7 @@ public:
     void setRenderArea(const Sizei& area, int32_t offsetX = 0, int32_t offsetY = 0);
 
 private:
-    VkDevice                m_logicalDevice = VK_NULL_HANDLE;
+    VkDevice                m_device = VK_NULL_HANDLE;
     std::vector<ClearValue> m_clearValues;
     Sizei                   m_renderArea;
     int32_t                 m_renderAreaOffset[2];

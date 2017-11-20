@@ -7,7 +7,7 @@ namespace ri
 {
 RenderTarget::RenderTarget(const DeviceContext& device, const RenderPass& pass,
                            const std::vector<AttachmentParams>& attachments)
-    : m_logicalDevice(detail::getVkHandle(device))
+    : m_device(detail::getVkHandle(device))
     , m_size(attachments[0].texture->size())
 {
     createAttachments(attachments);
@@ -21,14 +21,14 @@ RenderTarget::RenderTarget(const DeviceContext& device, const RenderPass& pass,
     framebufferInfo.height                  = m_size.height;
     framebufferInfo.layers                  = 1;
 
-    RI_CHECK_RESULT() = vkCreateFramebuffer(m_logicalDevice, &framebufferInfo, nullptr, &m_handle);
+    RI_CHECK_RESULT() = vkCreateFramebuffer(m_device, &framebufferInfo, nullptr, &m_handle);
 }
 
 RenderTarget::~RenderTarget()
 {
-    vkDestroyFramebuffer(m_logicalDevice, m_handle, nullptr);
+    vkDestroyFramebuffer(m_device, m_handle, nullptr);
     for (auto imageView : m_attachments)
-        vkDestroyImageView(m_logicalDevice, imageView, nullptr);
+        vkDestroyImageView(m_device, imageView, nullptr);
 }
 
 void RenderTarget::createAttachments(const std::vector<AttachmentParams>& attachments)
@@ -55,7 +55,7 @@ void RenderTarget::createAttachments(const std::vector<AttachmentParams>& attach
 
         m_attachments.emplace_back();
         auto& imageView   = m_attachments.back();
-        RI_CHECK_RESULT() = vkCreateImageView(m_logicalDevice, &createInfo, nullptr, &imageView);
+        RI_CHECK_RESULT() = vkCreateImageView(m_device, &createInfo, nullptr, &imageView);
     }
 }
 }

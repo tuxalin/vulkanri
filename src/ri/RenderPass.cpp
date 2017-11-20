@@ -6,7 +6,7 @@
 namespace ri
 {
 RenderPass::RenderPass(const ri::DeviceContext& device, const std::vector<AttachmentParams>& attachments)
-    : m_logicalDevice(detail::getVkHandle(device))
+    : m_device(detail::getVkHandle(device))
 {
     std::vector<VkAttachmentDescription> colorAttachments(attachments.size());
     std::vector<VkAttachmentReference>   colorAttachmentRefs(attachments.size());
@@ -65,12 +65,12 @@ RenderPass::RenderPass(const ri::DeviceContext& device, const std::vector<Attach
     renderPassInfo.subpassCount           = 1;
     renderPassInfo.pSubpasses             = &subpass;
 
-    RI_CHECK_RESULT() = vkCreateRenderPass(m_logicalDevice, &renderPassInfo, nullptr, &m_handle);
+    RI_CHECK_RESULT() = vkCreateRenderPass(m_device, &renderPassInfo, nullptr, &m_handle);
 }
 
 RenderPass::~RenderPass()
 {
-    vkDestroyRenderPass(m_logicalDevice, m_handle, nullptr);
+    vkDestroyRenderPass(m_device, m_handle, nullptr);
 }
 
 }  // namespace ri

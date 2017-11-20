@@ -64,7 +64,7 @@ private:
     const ApplicationInstance&  m_instance;
     VkSurfaceKHR                m_surface       = VK_NULL_HANDLE;
     VkSwapchainKHR              m_swapchain     = VK_NULL_HANDLE;
-    VkDevice                    m_logicalDevice = VK_NULL_HANDLE;
+    VkDevice                    m_device = VK_NULL_HANDLE;
     std::vector<RenderTarget*>  m_swapchainTargets;
     std::vector<CommandBuffer*> m_swapchainCommandBuffers;
     int                         m_presentQueueIndex = -1;

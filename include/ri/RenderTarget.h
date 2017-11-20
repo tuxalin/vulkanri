@@ -42,7 +42,7 @@ private:
     void createAttachments(const std::vector<AttachmentParams>& attachments);
 
 private:
-    VkDevice                 m_logicalDevice = VK_NULL_HANDLE;
+    VkDevice                 m_device = VK_NULL_HANDLE;
     std::vector<VkImageView> m_attachments;
     Sizei                    m_size;
 };

@@ -7,10 +7,11 @@
  * - setup the validation report layer
  * - create two windows and their corresponding surfaces
  * - initialize a device context with the swapchain extension/feature
- * - construct the shader pipeline
+ * - construct the shader pipeline with a simple vertex and fragment shader
  * - construct render pipeline with a single pass
  * - use dynamic state for viewport changes for each window on the render pipeline
  * - surface acquire and presentation
+ * - surface recreation upon resizing
  * - two presentation modes, recorded and transient modes
  */
 
@@ -229,6 +230,7 @@ private:
             {
                 surface->recreate(*m_context, size);
 #if RECORDED_MODE == 1
+                // must record again as buffers were reconstructed
                 record(surface);
 #endif
                 render(surface);

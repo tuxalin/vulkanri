@@ -21,7 +21,7 @@ private:
     Texture(VkImage handle, TextureType type, const Sizei& size);
 
 private:
-    VkDevice    m_logicalDevice = VK_NULL_HANDLE;
+    VkDevice    m_device = VK_NULL_HANDLE;
     TextureType m_type;
     Sizei       m_size;
 

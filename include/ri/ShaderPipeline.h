@@ -34,7 +34,7 @@ namespace detail
     struct ShaderModule
     {
         VkShaderModule m_shaderModule;
-        VkDevice       m_logicalDevice;
+        VkDevice       m_device;
         ShaderStage    m_stage;
 #ifndef NDEBUG
         std::vector<char> m_code;

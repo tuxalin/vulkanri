@@ -112,7 +112,7 @@ Surface::Surface(const ApplicationInstance& instance, const Sizei& size, void* w
 
 Surface::~Surface()
 {
-    if (!m_logicalDevice)
+    if (!m_device)
         return;
 
     cleanup(true);
@@ -125,15 +125,15 @@ void Surface::cleanup(bool cleanSwapchain)
     delete m_renderPass, m_renderPass = nullptr;
 
     if (cleanSwapchain)
-        vkDestroySwapchainKHR(m_logicalDevice, m_swapchain, nullptr), m_swapchain = VK_NULL_HANDLE;
+        vkDestroySwapchainKHR(m_device, m_swapchain, nullptr), m_swapchain = VK_NULL_HANDLE;
 
     for (auto& target : m_swapchainTargets)
         delete target, target = nullptr;
     for (auto& buffer : m_swapchainCommandBuffers)
         delete buffer, buffer = nullptr;
 
-    vkDestroySemaphore(m_logicalDevice, m_imageAvailableSemaphore, nullptr);
-    vkDestroySemaphore(m_logicalDevice, m_renderFinishedSemaphore, nullptr);
+    vkDestroySemaphore(m_device, m_imageAvailableSemaphore, nullptr);
+    vkDestroySemaphore(m_device, m_renderFinishedSemaphore, nullptr);
 }
 
 void Surface::recreate(ri::DeviceContext& device, const Sizei& size)
@@ -147,17 +147,17 @@ void Surface::recreate(ri::DeviceContext& device, const Sizei& size)
     cleanup(false);
     create(device);
 
-    vkDestroySwapchainKHR(m_logicalDevice, oldSwapchain, nullptr);
+    vkDestroySwapchainKHR(m_device, oldSwapchain, nullptr);
 }
 
 void Surface::initialize(ri::DeviceContext& device)
 {
-    assert(!m_logicalDevice);
+    assert(!m_device);
     assert(m_presentQueueIndex >= 0);
 
-    m_logicalDevice = detail::getVkHandle(device);
+    m_device = detail::getVkHandle(device);
     // set presentation queue
-    vkGetDeviceQueue(m_logicalDevice, m_presentQueueIndex, 0, &m_presentQueue);
+    vkGetDeviceQueue(m_device, m_presentQueueIndex, 0, &m_presentQueue);
     assert(m_presentQueue);
 
     assert(m_swapchain == VK_NULL_HANDLE);
@@ -180,8 +180,8 @@ void Surface::create(ri::DeviceContext& device)
     // create semaphores
     VkSemaphoreCreateInfo semaphoreInfo = {};
     semaphoreInfo.sType                 = VK_STRUCTURE_TYPE_SEMAPHORE_CREATE_INFO;
-    RI_CHECK_RESULT() = vkCreateSemaphore(m_logicalDevice, &semaphoreInfo, nullptr, &m_imageAvailableSemaphore);
-    RI_CHECK_RESULT() = vkCreateSemaphore(m_logicalDevice, &semaphoreInfo, nullptr, &m_renderFinishedSemaphore);
+    RI_CHECK_RESULT() = vkCreateSemaphore(m_device, &semaphoreInfo, nullptr, &m_imageAvailableSemaphore);
+    RI_CHECK_RESULT() = vkCreateSemaphore(m_device, &semaphoreInfo, nullptr, &m_renderFinishedSemaphore);
 }
 
 void Surface::createSwapchain(const SwapChainSupport& support, const VkSurfaceFormatKHR& surfaceFormat,
@@ -227,7 +227,7 @@ void Surface::createSwapchain(const SwapChainSupport& support, const VkSurfaceFo
         createInfo.pQueueFamilyIndices   = nullptr;
     }
 
-    RI_CHECK_RESULT() = vkCreateSwapchainKHR(m_logicalDevice, &createInfo, nullptr, &m_swapchain);
+    RI_CHECK_RESULT() = vkCreateSwapchainKHR(m_device, &createInfo, nullptr, &m_swapchain);
 
     assert(m_swapchainTargets.size() == m_swapchainCommandBuffers.size());
 }
@@ -235,9 +235,9 @@ void Surface::createSwapchain(const SwapChainSupport& support, const VkSurfaceFo
 inline void Surface::createRenderTargets(const ri::DeviceContext& device)
 {
     uint32_t imageCount = 0;
-    vkGetSwapchainImagesKHR(m_logicalDevice, m_swapchain, &imageCount, nullptr);
+    vkGetSwapchainImagesKHR(m_device, m_swapchain, &imageCount, nullptr);
     std::vector<VkImage> swapchainImages(imageCount);
-    vkGetSwapchainImagesKHR(m_logicalDevice, m_swapchain, &imageCount, swapchainImages.data());
+    vkGetSwapchainImagesKHR(m_device, m_swapchain, &imageCount, swapchainImages.data());
 
     m_swapchainTargets.resize(imageCount);
 
@@ -273,7 +273,7 @@ inline void Surface::createCommandBuffers(ri::DeviceContext& device)
 uint32_t Surface::acquire(uint64_t timeout /*= std::numeric_limits<uint64_t>::max()*/)
 {
     // acquire next avaiable target
-    auto res = vkAcquireNextImageKHR(m_logicalDevice, m_swapchain, timeout, m_imageAvailableSemaphore, VK_NULL_HANDLE,
+    auto res = vkAcquireNextImageKHR(m_device, m_swapchain, timeout, m_imageAvailableSemaphore, VK_NULL_HANDLE,
                                      &m_currentTargetIndex);
     assert(res == VK_SUCCESS || res == VK_SUBOPTIMAL_KHR);
     return m_currentTargetIndex;

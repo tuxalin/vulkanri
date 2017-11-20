@@ -11,7 +11,7 @@ RenderPipeline::RenderPipeline(const ri::DeviceContext&  device,          //
                                const ri::ShaderPipeline& shaderPipeline,  //
                                const CreateParams&       params,          //
                                const Sizei& viewportSize, int32_t viewportX /*= 0*/, int32_t viewportY /*= 0*/)
-    : m_logicalDevice(detail::getVkHandle(device))
+    : m_device(detail::getVkHandle(device))
     , m_renderPass(pass)
 {
     setViewport(viewportSize, viewportX, viewportY);
@@ -23,7 +23,7 @@ RenderPipeline::RenderPipeline(const ri::DeviceContext&  device,          //
                                const ri::ShaderPipeline& shaderPipeline,  //
                                const CreateParams&       params,          //
                                const Sizei& viewportSize, int32_t viewportX /*= 0*/, int32_t viewportY /*= 0*/)
-    : m_logicalDevice(detail::getVkHandle(device))
+    : m_device(detail::getVkHandle(device))
 {
     setViewport(viewportSize, viewportX, viewportY);
     create(pass, shaderPipeline, params);
@@ -32,8 +32,8 @@ RenderPipeline::RenderPipeline(const ri::DeviceContext&  device,          //
 RenderPipeline::~RenderPipeline()
 {
     delete m_renderPass;
-    vkDestroyPipeline(m_logicalDevice, m_handle, nullptr);
-    vkDestroyPipelineLayout(m_logicalDevice, m_pipelineLayout, nullptr);
+    vkDestroyPipeline(m_device, m_handle, nullptr);
+    vkDestroyPipelineLayout(m_device, m_pipelineLayout, nullptr);
 }
 
 void RenderPipeline::setViewport(const Sizei& viewportSize, int32_t viewportX, int32_t viewportY)
@@ -134,7 +134,7 @@ inline void RenderPipeline::create(const ri::RenderPass& pass, const ri::ShaderP
     pipelineLayoutInfo.pPushConstantRanges        = 0;
 
     assert(!m_pipelineLayout);
-    RI_CHECK_RESULT() = vkCreatePipelineLayout(m_logicalDevice, &pipelineLayoutInfo, nullptr, &m_pipelineLayout);
+    RI_CHECK_RESULT() = vkCreatePipelineLayout(m_device, &pipelineLayoutInfo, nullptr, &m_pipelineLayout);
 
     VkGraphicsPipelineCreateInfo pipelineInfo = {};
     pipelineInfo.sType                        = VK_STRUCTURE_TYPE_GRAPHICS_PIPELINE_CREATE_INFO;
@@ -161,7 +161,7 @@ inline void RenderPipeline::create(const ri::RenderPass& pass, const ri::ShaderP
 
     assert(!m_handle);
     RI_CHECK_RESULT() =
-        vkCreateGraphicsPipelines(m_logicalDevice, VK_NULL_HANDLE, 1, &pipelineInfo, nullptr, &m_handle);
+        vkCreateGraphicsPipelines(m_device, VK_NULL_HANDLE, 1, &pipelineInfo, nullptr, &m_handle);
 }
 
 }  // namespace ri

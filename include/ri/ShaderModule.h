@@ -20,7 +20,7 @@ public:
 #endif
 
 private:
-    VkDevice    m_logicalDevice = VK_NULL_HANDLE;
+    VkDevice    m_device = VK_NULL_HANDLE;
     ShaderStage m_stage;
 #ifndef NDEBUG
     std::vector<char> m_code;
