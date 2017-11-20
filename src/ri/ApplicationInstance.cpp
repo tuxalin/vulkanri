@@ -91,10 +91,6 @@ std::vector<const char*> ApplicationInstance::getRequiredExtensions()
     {
         extensions.push_back(glfwExtensions[i]);
     }
-    if (ValidationReport::kEnabled)
-    {
-        extensions.push_back(VK_EXT_DEBUG_REPORT_EXTENSION_NAME);
-    }
 
 #ifndef NDEBUG
     std::cout << "glfw required extensions:" << std::endl;
@@ -103,10 +99,12 @@ std::vector<const char*> ApplicationInstance::getRequiredExtensions()
         std::cout << "\t" << glfwExtensions[i] << std::endl;
     }
 #endif  // ! NDEBUG
-
-#else
-#error "Unknown platform!"
 #endif
+
+    if (ValidationReport::kEnabled)
+    {
+        extensions.push_back(VK_EXT_DEBUG_REPORT_EXTENSION_NAME);
+    }
 
     return extensions;
 }

@@ -65,6 +65,33 @@ SAFE_ENUM_DECLARE(DynamicState,                              //
                   eViewport  = VK_DYNAMIC_STATE_VIEWPORT,    //
                   eScissor   = VK_DYNAMIC_STATE_SCISSOR);
 
+SAFE_ENUM_DECLARE(AttributeFormat,
+                  eHalfFloat  = VK_FORMAT_R16_SFLOAT,           //
+                  eHalfFloat2 = VK_FORMAT_R16G16_SFLOAT,        //
+                  eHalfFloat3 = VK_FORMAT_R16G16B16_SFLOAT,     //
+                  eHalfFloat4 = VK_FORMAT_R16G16B16A16_SFLOAT,  //
+                  eFloat      = VK_FORMAT_R32_SFLOAT,           //
+                  eFloat2     = VK_FORMAT_R32G32_SFLOAT,        //
+                  eFloat3     = VK_FORMAT_R32G32B32_SFLOAT,     //
+                  eFloat4     = VK_FORMAT_R32G32B32A32_SFLOAT,  //
+                  eDouble     = VK_FORMAT_R64_SFLOAT,           //
+                  eDouble2    = VK_FORMAT_R64G64_SFLOAT,        //
+                  eDouble3    = VK_FORMAT_R64G64B64_SFLOAT,     //
+                  eDouble4    = VK_FORMAT_R64G64B64A64_SFLOAT,  //
+                  eShort      = VK_FORMAT_R16_UINT,             //
+                  eShort2     = VK_FORMAT_R16G16_UINT,          //
+                  eShort3     = VK_FORMAT_R16G16B16_UINT,       //
+                  eShort4     = VK_FORMAT_R16G16B16A16_UINT     //
+);
+
+SAFE_ENUM_DECLARE(BufferUsageFlags,                                //
+                  eSrc      = VK_BUFFER_USAGE_TRANSFER_SRC_BIT,    //
+                  eDst      = VK_BUFFER_USAGE_TRANSFER_DST_BIT,    //
+                  eUniform  = VK_BUFFER_USAGE_UNIFORM_BUFFER_BIT,  //
+                  eIndex    = VK_BUFFER_USAGE_INDEX_BUFFER_BIT,    //
+                  eVertex   = VK_BUFFER_USAGE_VERTEX_BUFFER_BIT,   //
+                  eIndirect = VK_BUFFER_USAGE_INDIRECT_BUFFER_BIT);
+
 SAFE_ENUM_DECLARE(TextureType,
                   e1D      = VK_IMAGE_VIEW_TYPE_1D,
                   e2D      = VK_IMAGE_VIEW_TYPE_2D,
@@ -139,5 +166,21 @@ struct ClearDepthStencilValue
 union ClearValue {
     ClearColorValue        color;
     ClearDepthStencilValue depthStencil;
+};
+
+struct SurfaceCreateParam
+{
+#if RI_PLATFORM == RI_PLATFORM_WINDOWS
+    int       flags     = 0;
+    HINSTANCE hinstance = nullptr;
+    HWND      hwnd      = nullptr;
+#elif RI_PLATFORM == RI_PLATFORM_GLFW
+    SurfaceCreateParam(GLFWwindow* window)
+        : window(window)
+    {
+    }
+
+    GLFWwindow* window = nullptr;
+#endif
 };
 }  // namespace ri

@@ -2,6 +2,7 @@
 #include <ri/Surface.h>
 
 #include <cassert>
+#include <limits>
 #include <util/math.h>
 #include <ri/ApplicationInstance.h>
 #include <ri/CommandBuffer.h>
@@ -95,16 +96,23 @@ namespace detail
     }
 }
 
-Surface::Surface(const ApplicationInstance& instance, const Sizei& size, void* window, PresentMode mode)
+Surface::Surface(const ApplicationInstance& instance, const Sizei& size, const SurfaceCreateParam& param,
+                 PresentMode mode)
     : m_instance(instance)
     , m_size(size)
     , m_presentMode(mode)
 {
-    assert(window);
-
 #if RI_PLATFORM == RI_PLATFORM_GLFW
-    RI_CHECK_RESULT() = glfwCreateWindowSurface(detail::getVkHandle(m_instance), reinterpret_cast<GLFWwindow*>(window),
-                                                nullptr, &m_surface);
+    assert(param.window);
+    RI_CHECK_RESULT() = glfwCreateWindowSurface(detail::getVkHandle(m_instance), param.window, nullptr, &m_surface);
+#elif RI_PLATFORM == RI_PLATFORM_WINDOWS
+    assert(param.hwnd && param.hinstance);
+    VkWin32SurfaceCreateInfoKHR info = {};
+    info.sType                       = VK_STRUCTURE_TYPE_WIN32_SURFACE_CREATE_INFO_KHR;
+    info.hinstance                   = param.hinstance;
+    info.hwnd                        = param.hwnd;
+    info.flags                       = param.flags;
+    vkCreateWin32SurfaceKHR(detail::getVkHandle(m_instance), &info, nullptr, &m_surface);
 #else
 #error "Unknown platform!"
 #endif

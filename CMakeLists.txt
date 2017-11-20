@@ -19,10 +19,10 @@ function(POPULATE_SOURCE_FOLDER allSources projectSourceDir sourceFolder virtual
 
     ## add the files to the source tree
     set(${allSources}
-            ${${allSources}}
-            ${LOCAL_SOURCES_FILES}
-            ${LOCAL_HEADERS_FILES}
-            PARENT_SCOPE)
+        ${${allSources}}
+        ${LOCAL_SOURCES_FILES}
+        ${LOCAL_HEADERS_FILES}
+        PARENT_SCOPE)
 
     ## create the source group for the files
     if (NOT "${virtualFolder}" STREQUAL "")
@@ -61,9 +61,9 @@ function(POPULATE_SOURCE_FOLDER_RECURSIVE allSources projectSourceDir virtualFol
 
     ## set up the allSources variables
     set(${allSources}
-            ${${allSources}}
-            ${newSources}
-            PARENT_SCOPE)
+        ${${allSources}}
+        ${newSources}
+        PARENT_SCOPE)
 
 endfunction(POPULATE_SOURCE_FOLDER_RECURSIVE)
 
@@ -74,11 +74,11 @@ endfunction(POPULATE_SOURCE_FOLDER_RECURSIVE)
 # util
 file(GLOB util_HDR
 	${PROJECT_SOURCE_DIR}/include/util/*.h)
-	
+
 # render interface
 file(GLOB render_inteface_HDR
 	${PROJECT_SOURCE_DIR}/include/ri/*.h
-	${PROJECT_SOURCE_DIR}/include/ri/*.cpp)
+	${PROJECT_SOURCE_DIR}/include/ri/internal/*.h)
 
 ################################################################################################
 # Source files
@@ -92,21 +92,21 @@ file(GLOB render_inteface_SRC
 SET(ALL_ENGINE_SOURCE_FILES "")
 POPULATE_SOURCE_FOLDER_RECURSIVE(ALL_ENGINE_SOURCE_FILES "${CMAKE_CURRENT_SOURCE_DIR}/src/" "Source Files")
 POPULATE_SOURCE_FOLDER_RECURSIVE(ALL_ENGINE_SOURCE_FILES "${CMAKE_CURRENT_SOURCE_DIR}/include" "Header Files")
-	
+
 ################################################################################################
 # Compiler flags and linker
 ################################################################################################
-	
+
 include_directories(
 	${PROJECT_SOURCE_DIR}/include/
 	${Vulkan_INCLUDE_DIR}
 	${GLFW_INCLUDE_DIR})
-	
+
 add_library(vulkanri STATIC 
 	${util_HDR}
 	${render_inteface_HDR}
 	${render_inteface_SRC}
-)
+    )
 
 set(CMAKE_CXX_STANDARD 11)
 set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -std=c++11")
