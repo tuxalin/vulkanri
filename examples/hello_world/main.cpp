@@ -1,5 +1,18 @@
-// VulkanTemplate.cpp : Defines the entry point for the console application.
-//
+/**
+ *
+ * main.cpp hello_world
+ *
+ * Covers the following:
+ * - how to initialize the render interface
+ * - setup the validation report layer
+ * - create two windows and their corresponding surfaces
+ * - initialize a device context with the swapchain extension/feature
+ * - construct the shader pipeline
+ * - construct render pipeline with a single pass
+ * - use dynamic state for viewport changes for each window on the render pipeline
+ * - surface acquire and presentation
+ * - two presentation modes, recorded and transient modes
+ */
 
 #define GLFW_INCLUDE_VULKAN
 #include <GLFW/glfw3.h>
@@ -80,8 +93,7 @@ private:
 
         // create the device context
         {
-            const std::vector<ri::DeviceFeature>   requiredFeatures   = {ri::DeviceFeature::eGeometryShader,
-                                                                     ri::DeviceFeature::eSwapchain};
+            const std::vector<ri::DeviceFeature>   requiredFeatures   = {ri::DeviceFeature::eSwapchain};
             const std::vector<ri::DeviceOperation> requiredOperations = {ri::DeviceOperation::eGraphics};
             const std::vector<ri::Surface*>        surfaces           = {m_surfaces[0].get(), m_surfaces[1].get()};
 
