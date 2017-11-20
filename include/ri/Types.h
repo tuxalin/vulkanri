@@ -5,9 +5,13 @@
 
 namespace ri
 {
-SAFE_ENUM_DECLARE(DeviceOperations, eGraphics = 0, eTransfer, eCompute);
+SAFE_ENUM_DECLARE(DeviceOperation, eGraphics = 0, eTransfer, eCompute);
 
-SAFE_ENUM_DECLARE(DeviceFeatures, eFloat64 = 0, eGeometryShader, eSwapchain, eWireframe);
+SAFE_ENUM_DECLARE(DeviceFeature,
+                  eFloat64 = 0,     //
+                  eGeometryShader,  //
+                  eSwapchain,       //
+                  eWireframe);
 
 SAFE_ENUM_DECLARE(ShaderStage,
                   eVertex   = VK_SHADER_STAGE_VERTEX_BIT,
@@ -97,8 +101,9 @@ SAFE_ENUM_DECLARE(DeviceCommandHint,
                   // Hint that  device command buffers are prerecorded.
                   eRecorded = 0,
                   // Hint that device command buffers are rerecorded with new commands very often.
-                  eTransient = VK_COMMAND_POOL_CREATE_TRANSIENT_BIT);
-// TODO: VK_COMMAND_POOL_CREATE_RESET_COMMAND_BUFFER_BIT  ???
+                  eTransient = VK_COMMAND_POOL_CREATE_TRANSIENT_BIT,
+
+                  eReset = VK_COMMAND_POOL_CREATE_RESET_COMMAND_BUFFER_BIT);
 
 SAFE_ENUM_DECLARE(RecordFlags,
                   // Specifies that each recording of the command buffer will only be submitted once, and the command

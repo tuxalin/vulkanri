@@ -80,11 +80,11 @@ private:
 
         // create the device context
         {
-            const std::vector<ri::DeviceFeatures>   requiredFeatures   = {ri::DeviceFeatures::eGeometryShader,
-                                                                      ri::DeviceFeatures::eSwapchain};
-            const std::vector<ri::DeviceOperations> requiredOperations = {ri::DeviceOperations::eGraphics};
-            const std::vector<ri::Surface*>         surfaces           = {m_surfaces[0].get(), m_surfaces[1].get()};
-            m_context.reset(new ri::DeviceContext(*m_instance, ri::DeviceCommandHint::eTransient));
+            const std::vector<ri::DeviceFeature>   requiredFeatures   = {ri::DeviceFeature::eGeometryShader,
+                                                                     ri::DeviceFeature::eSwapchain};
+            const std::vector<ri::DeviceOperation> requiredOperations = {ri::DeviceOperation::eGraphics};
+            const std::vector<ri::Surface*>        surfaces           = {m_surfaces[0].get(), m_surfaces[1].get()};
+            m_context.reset(new ri::DeviceContext(*m_instance, false, ri::DeviceCommandHint::eTransient));
             m_context->initialize(surfaces, requiredFeatures, requiredOperations);
         }
 

@@ -87,11 +87,11 @@ namespace detail
     }
     VkQueue getDeviceQueue(const ri::DeviceContext& device, int deviceOperation)
     {
-        return device.m_queues[DeviceOperations::from(deviceOperation).get()];
+        return device.m_queues[DeviceOperation::from(deviceOperation).get()];
     }
     uint32_t getDeviceQueueIndex(const ri::DeviceContext& device, int deviceOperation)
     {
-        return device.m_queueIndices[DeviceOperations::from(deviceOperation).get()];
+        return device.m_queueIndices[DeviceOperation::from(deviceOperation).get()];
     }
 }
 
@@ -172,7 +172,7 @@ void Surface::create(ri::DeviceContext& device)
     m_format                               = ColorFormat::from((int)surfaceFormat.format);
 
     // TODO: review this
-    const uint32_t graphicsQueueIndex = detail::getDeviceQueueIndex(device, DeviceOperations::eGraphics);
+    const uint32_t graphicsQueueIndex = detail::getDeviceQueueIndex(device, DeviceOperation::eGraphics);
     createSwapchain(support, surfaceFormat, graphicsQueueIndex);
     createRenderTargets(device);
     createCommandBuffers(device);
@@ -298,7 +298,7 @@ bool Surface::present(const ri::DeviceContext& device)
         const auto handle                 = detail::getVkHandle(*m_swapchainCommandBuffers[m_currentTargetIndex]);
         submitInfo.pCommandBuffers        = &handle;
 
-        const auto queueHandle = detail::getDeviceQueue(device, DeviceOperations::eGraphics);
+        const auto queueHandle = detail::getDeviceQueue(device, DeviceOperation::eGraphics);
         RI_CHECK_RESULT()      = vkQueueSubmit(queueHandle, 1, &submitInfo, VK_NULL_HANDLE);
     }
 

@@ -6,8 +6,9 @@
 
 namespace ri
 {
-CommandPool::CommandPool(DeviceCommandHint commandHint)
+CommandPool::CommandPool(DeviceCommandHint commandHint, bool resetMode)
     : m_commandHint(commandHint)
+    , m_resetMode(resetMode)
 {
 }
 
@@ -76,7 +77,10 @@ void CommandPool::initialize(VkDevice device, int queueIndex)
     VkCommandPoolCreateInfo poolInfo = {};
     poolInfo.sType                   = VK_STRUCTURE_TYPE_COMMAND_POOL_CREATE_INFO;
     poolInfo.queueFamilyIndex        = queueIndex;
-    poolInfo.flags                   = (VkCommandPoolCreateFlags)m_commandHint;
+    VkCommandPoolCreateFlags flags   = (VkCommandPoolCreateFlags)m_commandHint;
+    if (m_resetMode)
+        flags |= VK_COMMAND_POOL_CREATE_RESET_COMMAND_BUFFER_BIT;
+    poolInfo.flags = flags;
 
     RI_CHECK_RESULT() = vkCreateCommandPool(m_device, &poolInfo, nullptr, &m_handle);
 }

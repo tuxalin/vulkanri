@@ -14,18 +14,18 @@ namespace ri
 {
 namespace
 {
-    const std::unordered_map<DeviceFeatures, const char*> kDeviceStringMap = {
-        {DeviceFeatures::eSwapchain, VK_KHR_SWAPCHAIN_EXTENSION_NAME}};
+    const std::unordered_map<DeviceFeature, const char*> kDeviceStringMap = {
+        {DeviceFeature::eSwapchain, VK_KHR_SWAPCHAIN_EXTENSION_NAME}};
 
-    int getFlagFrom(DeviceOperations type)
+    int getFlagFrom(DeviceOperation type)
     {
         switch (type.get())
         {
-            case DeviceOperations::eGraphics:
+            case DeviceOperation::eGraphics:
                 return VK_QUEUE_GRAPHICS_BIT;
-            case DeviceOperations::eTransfer:
+            case DeviceOperation::eTransfer:
                 return VK_QUEUE_TRANSFER_BIT;
-            case DeviceOperations::eCompute:
+            case DeviceOperation::eCompute:
                 return VK_QUEUE_COMPUTE_BIT;
             default:
                 assert(false);
@@ -34,7 +34,7 @@ namespace
     }
 
     std::pair<VkPhysicalDeviceFeatures, std::vector<const char*> > getDevicesFeatures(
-        const std::vector<DeviceFeatures>& requiredFeatures)
+        const std::vector<DeviceFeature>& requiredFeatures)
     {
         std::pair<VkPhysicalDeviceFeatures, std::vector<const char*> > result;
 
@@ -44,13 +44,13 @@ namespace
         {
             switch (feature.get())
             {
-                case DeviceFeatures::eGeometryShader:
+                case DeviceFeature::eGeometryShader:
                     deviceFeatures.geometryShader = VK_TRUE;
                     break;
-                case DeviceFeatures::eFloat64:
+                case DeviceFeature::eFloat64:
                     deviceFeatures.shaderFloat64 = VK_TRUE;
                     break;
-                case DeviceFeatures::eWireframe:
+                case DeviceFeature::eWireframe:
                     deviceFeatures.fillModeNonSolid = VK_TRUE;
                 default:
                     auto found = kDeviceStringMap.find(feature);
@@ -64,9 +64,10 @@ namespace
 }  // namespace
 
 DeviceContext::DeviceContext(const ApplicationInstance& instance,
+                             bool                       commandResetMode,
                              DeviceCommandHint          commandHint /*= DeviceCommandHint::eNormal*/)
     : m_instance(instance)
-    , m_commandPool(new CommandPool(commandHint))
+    , m_commandPool(new CommandPool(commandHint, commandResetMode))
 {
 }
 
@@ -76,9 +77,9 @@ DeviceContext::~DeviceContext()
     vkDestroyDevice(m_handle, nullptr);
 }
 
-void DeviceContext::initialize(const std::vector<Surface*>&         surfaces,
-                               const std::vector<DeviceFeatures>&   requiredFeatures,
-                               const std::vector<DeviceOperations>& requiredOperations)
+void DeviceContext::initialize(const std::vector<Surface*>&        surfaces,
+                               const std::vector<DeviceFeature>&   requiredFeatures,
+                               const std::vector<DeviceOperation>& requiredOperations)
 {
     uint32_t deviceCount = 0;
     vkEnumeratePhysicalDevices(detail::getVkHandle(m_instance), &deviceCount, nullptr);
@@ -109,7 +110,7 @@ void DeviceContext::initialize(const std::vector<Surface*>&         surfaces,
     createDevice(surfaces, features.first, features.second);
     assert(m_handle != VK_NULL_HANDLE);
 
-    m_commandPool->initialize(m_handle, m_queueIndices[static_cast<size_t>(DeviceOperations::eGraphics)]);
+    m_commandPool->initialize(m_handle, m_queueIndices[static_cast<size_t>(DeviceOperation::eGraphics)]);
 
     for (Surface* surface : surfaces)
     {
@@ -122,7 +123,7 @@ void DeviceContext::waitIdle()
     vkDeviceWaitIdle(m_handle);
 }
 
-uint32_t DeviceContext::deviceScore(VkPhysicalDevice device, const std::vector<DeviceFeatures>& requiredFeatures)
+uint32_t DeviceContext::deviceScore(VkPhysicalDevice device, const std::vector<DeviceFeature>& requiredFeatures)
 {
     VkPhysicalDeviceProperties deviceProperties;
     VkPhysicalDeviceFeatures   deviceFeatures;
@@ -154,10 +155,10 @@ uint32_t DeviceContext::deviceScore(VkPhysicalDevice device, const std::vector<D
     {
         switch (feature.get())
         {
-            case DeviceFeatures::eGeometryShader:
+            case DeviceFeature::eGeometryShader:
                 hasAllFeatures &= deviceFeatures.geometryShader == VK_TRUE;
                 break;
-            case DeviceFeatures::eFloat64:
+            case DeviceFeature::eFloat64:
                 hasAllFeatures &= deviceFeatures.shaderFloat64 == VK_TRUE;
                 break;
             default:
@@ -181,9 +182,9 @@ uint32_t DeviceContext::deviceScore(VkPhysicalDevice device, const std::vector<D
 }
 
 DeviceContext::OperationIndices DeviceContext::searchQueueFamilies(
-    const std::vector<DeviceOperations>& requiredOperations)
+    const std::vector<DeviceOperation>& requiredOperations)
 {
-    assert(requiredOperations.size() < (size_t)DeviceOperations::Count);
+    assert(requiredOperations.size() < (size_t)DeviceOperation::Count);
 
     uint32_t queueFamilyCount = 0;
     vkGetPhysicalDeviceQueueFamilyProperties(m_physicalDevice, &queueFamilyCount, nullptr);
@@ -193,7 +194,7 @@ DeviceContext::OperationIndices DeviceContext::searchQueueFamilies(
 
     OperationIndices indices;
     indices.fill(-1);
-    for (DeviceOperations type : requiredOperations)
+    for (DeviceOperation type : requiredOperations)
     {
         int i = 0;
         for (const auto& queueFamily : queueFamilies)

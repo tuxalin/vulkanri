@@ -16,7 +16,9 @@ public:
     void free(std::vector<CommandBuffer*>& buffers);
 
 private:
-    CommandPool(DeviceCommandHint commandHint);
+    // @param resetMode Allows any command buffer to be individually reset, via CommandBuffer::reset or implicit reset
+    // called on begin.
+    CommandPool(DeviceCommandHint commandHint, bool resetMode);
     ~CommandPool();
 
     void initialize(VkDevice device, int queueIndex);
@@ -24,6 +26,7 @@ private:
 private:
     VkDevice          m_device = VK_NULL_HANDLE;
     DeviceCommandHint m_commandHint;
+    bool              m_resetMode;
 
     friend class DeviceContext;  // pool is owned by the device
 };
