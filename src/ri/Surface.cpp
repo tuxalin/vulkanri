@@ -259,6 +259,8 @@ bool Surface::present(const ri::DeviceContext& device)
         VkPipelineStageFlags waitStages[] = {VK_PIPELINE_STAGE_COLOR_ATTACHMENT_OUTPUT_BIT};
         submitInfo.waitSemaphoreCount     = 1;
         submitInfo.pWaitSemaphores        = &m_imageAvailableSemaphore;
+        submitInfo.signalSemaphoreCount   = 1;
+        submitInfo.pSignalSemaphores      = &m_renderFinishedSemaphore;
         submitInfo.pWaitDstStageMask      = waitStages;
         submitInfo.commandBufferCount     = 1;
         const auto handle                 = detail::getVkHandle(*m_swapchainCommandBuffers[m_currentTargetIndex]);
@@ -268,12 +270,11 @@ bool Surface::present(const ri::DeviceContext& device)
         RI_CHECK_RESULT()      = vkQueueSubmit(queueHandle, 1, &submitInfo, VK_NULL_HANDLE);
     }
 
-    // TODO: investigate why semaphore needed
     // submit presentation
     VkPresentInfoKHR presentInfo = {};
     presentInfo.sType            = VK_STRUCTURE_TYPE_PRESENT_INFO_KHR;
 
-    presentInfo.waitSemaphoreCount = 0;
+    presentInfo.waitSemaphoreCount = 1;
     presentInfo.pWaitSemaphores    = &m_renderFinishedSemaphore;
     presentInfo.swapchainCount     = 1;
     presentInfo.pSwapchains        = &m_swapchain;

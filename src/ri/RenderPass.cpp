@@ -51,7 +51,7 @@ RenderPass::RenderPass(const ri::DeviceContext& device, const std::vector<Attach
         colorAttachmentRef.layout                 = VK_IMAGE_LAYOUT_COLOR_ATTACHMENT_OPTIMAL;
     }
 
-    // TODO: add support for multi subpasses
+    // TODO: add support for multi subpasses, must also add VkSubpassDependency
 
     VkSubpassDescription subpass = {};
     subpass.pipelineBindPoint    = VK_PIPELINE_BIND_POINT_GRAPHICS;
