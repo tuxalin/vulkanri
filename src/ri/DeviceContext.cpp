@@ -67,7 +67,7 @@ DeviceContext::DeviceContext(const ApplicationInstance& instance,
                              bool                       commandResetMode,
                              DeviceCommandHint          commandHint /*= DeviceCommandHint::eNormal*/)
     : m_instance(instance)
-    , m_commandPool(new CommandPool(commandHint, commandResetMode))
+    , m_commandPool(new CommandPool(commandResetMode, commandHint))
 {
 }
 

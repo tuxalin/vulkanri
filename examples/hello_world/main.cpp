@@ -84,7 +84,18 @@ private:
                                                                      ri::DeviceFeature::eSwapchain};
             const std::vector<ri::DeviceOperation> requiredOperations = {ri::DeviceOperation::eGraphics};
             const std::vector<ri::Surface*>        surfaces           = {m_surfaces[0].get(), m_surfaces[1].get()};
-            m_context.reset(new ri::DeviceContext(*m_instance, false, ri::DeviceCommandHint::eTransient));
+
+#if RECORDED_MODE == 1
+            // commands will be recorded in the command buffers before render loop
+            bool                  resetCommand = false;
+            ri::DeviceCommandHint commandHints = ri::DeviceCommandHint::eRecorded;
+#else
+            // command buffers will be reset upon calling begin in render loop
+            bool                  resetCommand = true;
+            ri::DeviceCommandHint commandHints = ri::DeviceCommandHint::eTransient;
+#endif  //  RECORDED_MODE == 1
+
+            m_context.reset(new ri::DeviceContext(*m_instance, resetCommand, commandHints));
             m_context->initialize(surfaces, requiredFeatures, requiredOperations);
         }
 
@@ -141,6 +152,9 @@ private:
 
         auto& commandBuffer = surface->commandBuffer(activeIndex);
 
+        // must update before binding the render pipeline
+        m_renderPipeline->defaultPass().setRenderArea(surface->size());
+
         commandBuffer.begin(ri::RecordFlags::eResubmit);
         dispatchCommands(surface->renderTarget(activeIndex), surface->commandBuffer(activeIndex));
         commandBuffer.end();
@@ -155,6 +169,8 @@ private:
 
     void record(ri::Surface* surface)
     {
+        // record the commands for all command buffers of the surface
+
         m_renderPipeline->defaultPass().setRenderArea(surface->size());
 
         for (uint32_t index = 0; index < surface->swapCount(); ++index)

@@ -18,7 +18,7 @@ public:
 private:
     // @param resetMode Allows any command buffer to be individually reset, via CommandBuffer::reset or implicit reset
     // called on begin.
-    CommandPool(DeviceCommandHint commandHint, bool resetMode);
+    CommandPool(bool resetMode, DeviceCommandHint commandHint);
     ~CommandPool();
 
     void initialize(VkDevice device, int queueIndex);

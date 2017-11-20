@@ -8,12 +8,24 @@ namespace ri
 class CommandBuffer : util::noncopyable, public detail::RenderObject<VkCommandBuffer>
 {
 public:
+    enum ResetFlags
+    {
+        // The command buffer may hold onto memory resources and reuse them when recording commands.
+        ePreserve = 0,
+        //  Specifies that most or all memory resources currently owned by the command buffer should be returned to the
+        //  parent command pool.
+        eRelease = VK_COMMAND_BUFFER_RESET_RELEASE_RESOURCES_BIT
+    };
+
     ~CommandBuffer();
 
     void begin(RecordFlags flags);
     void end();
     void draw(uint32_t vertexCount, uint32_t instanceCount,  //
               uint32_t offsetVertexIndex = 0, uint32_t offsetInstanceIndex = 0);
+
+    ///@note Can only be used if the buffer was created from a pool with reset mode.
+    void reset(ResetFlags flags = ePreserve);
 
 private:
     CommandBuffer();
@@ -70,6 +82,11 @@ inline void CommandBuffer::begin(RecordFlags flags)
 inline void CommandBuffer::end()
 {
     RI_CHECK_RESULT() = vkEndCommandBuffer(m_handle);
+}
+
+inline void CommandBuffer::reset(ResetFlags flags /*= ePreserve*/)
+{
+    vkResetCommandBuffer(m_handle, flags);
 }
 
 }  // namespace ri

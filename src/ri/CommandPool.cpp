@@ -6,7 +6,7 @@
 
 namespace ri
 {
-CommandPool::CommandPool(DeviceCommandHint commandHint, bool resetMode)
+CommandPool::CommandPool(bool resetMode, DeviceCommandHint commandHint)
     : m_commandHint(commandHint)
     , m_resetMode(resetMode)
 {
