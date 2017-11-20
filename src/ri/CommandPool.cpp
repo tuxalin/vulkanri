@@ -47,6 +47,26 @@ void CommandPool::create(std::vector<CommandBuffer*>& buffers, bool isPrimary /*
     });
 }
 
+void CommandPool::free(std::vector<CommandBuffer*>& buffers)
+{
+    std::vector<VkCommandBuffer> bufferHandles(buffers.size());
+
+    std::transform(buffers.begin(), buffers.end(), bufferHandles.begin(), [](auto buffer) -> VkCommandBuffer {
+        assert(buffer);
+        return buffer->m_handle;
+    });
+
+    for (auto& buffer : buffers)
+    {
+        assert(buffer);
+        buffer->m_commandPool = VK_NULL_HANDLE;
+        delete buffer;
+        buffer = nullptr;
+    }
+
+    vkFreeCommandBuffers(m_device, m_handle, bufferHandles.size(), bufferHandles.data());
+}
+
 void CommandPool::initialize(VkDevice device, int queueIndex)
 {
     assert(device);

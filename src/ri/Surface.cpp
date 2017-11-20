@@ -4,6 +4,7 @@
 #include <cassert>
 #include <util/math.h>
 #include <ri/ApplicationInstance.h>
+#include <ri/CommandBuffer.h>
 #include <ri/CommandPool.h>
 #include <ri/DeviceContext.h>
 #include <ri/RenderPass.h>
@@ -114,14 +115,39 @@ Surface::~Surface()
     if (!m_logicalDevice)
         return;
 
-    delete m_renderPass;
-    vkDestroySwapchainKHR(m_logicalDevice, m_swapchain, nullptr);
+    cleanup(true);
+
     vkDestroySurfaceKHR(detail::getVkHandle(m_instance), m_surface, nullptr);
-    for (auto target : m_swapchainTargets)
-        delete target;
+}
+
+void Surface::cleanup(bool cleanSwapchain)
+{
+    delete m_renderPass, m_renderPass = nullptr;
+
+    if (cleanSwapchain)
+        vkDestroySwapchainKHR(m_logicalDevice, m_swapchain, nullptr), m_swapchain = VK_NULL_HANDLE;
+
+    for (auto& target : m_swapchainTargets)
+        delete target, target = nullptr;
+    for (auto& buffer : m_swapchainCommandBuffers)
+        delete buffer, buffer = nullptr;
 
     vkDestroySemaphore(m_logicalDevice, m_imageAvailableSemaphore, nullptr);
     vkDestroySemaphore(m_logicalDevice, m_renderFinishedSemaphore, nullptr);
+}
+
+void Surface::recreate(ri::DeviceContext& device, const Sizei& size)
+{
+    m_size = size;
+
+    device.waitIdle();
+    device.commandPool().free(m_swapchainCommandBuffers);
+
+    auto oldSwapchain = m_swapchain;
+    cleanup(false);
+    create(device);
+
+    vkDestroySwapchainKHR(m_logicalDevice, oldSwapchain, nullptr);
 }
 
 void Surface::initialize(ri::DeviceContext& device)
@@ -134,6 +160,12 @@ void Surface::initialize(ri::DeviceContext& device)
     vkGetDeviceQueue(m_logicalDevice, m_presentQueueIndex, 0, &m_presentQueue);
     assert(m_presentQueue);
 
+    assert(m_swapchain == VK_NULL_HANDLE);
+    create(device);
+}
+
+void Surface::create(ri::DeviceContext& device)
+{
     const SwapChainSupport   support       = determineSupport(device);
     const VkSurfaceFormatKHR surfaceFormat = detail::chooseSurfaceFormat(support.formats);
     m_extent                               = detail::chooseSurfaceExtent(support.capabilities, m_size);
@@ -179,8 +211,7 @@ void Surface::createSwapchain(const SwapChainSupport& support, const VkSurfaceFo
     createInfo.compositeAlpha           = VK_COMPOSITE_ALPHA_OPAQUE_BIT_KHR;
     createInfo.presentMode              = presentMode;
     createInfo.clipped                  = VK_TRUE;
-    // TODO: support swapchain recreation, eg. on resize
-    createInfo.oldSwapchain = VK_NULL_HANDLE;
+    createInfo.oldSwapchain             = m_swapchain;  // reuse current swapchain for new one
 
     uint32_t queueFamilyIndices[] = {graphicsQueueIndex, (uint32_t)m_presentQueueIndex};
     if (queueFamilyIndices[0] != queueFamilyIndices[1] && queueFamilyIndices[0] >= 0)
@@ -242,8 +273,9 @@ inline void Surface::createCommandBuffers(ri::DeviceContext& device)
 uint32_t Surface::acquire(uint64_t timeout /*= std::numeric_limits<uint64_t>::max()*/)
 {
     // acquire next avaiable target
-    vkAcquireNextImageKHR(m_logicalDevice, m_swapchain, timeout, m_imageAvailableSemaphore, VK_NULL_HANDLE,
-                          &m_currentTargetIndex);
+    auto res = vkAcquireNextImageKHR(m_logicalDevice, m_swapchain, timeout, m_imageAvailableSemaphore, VK_NULL_HANDLE,
+                                     &m_currentTargetIndex);
+    assert(res == VK_SUCCESS || res == VK_SUBOPTIMAL_KHR);
     return m_currentTargetIndex;
 }
 
@@ -282,7 +314,8 @@ bool Surface::present(const ri::DeviceContext& device)
     presentInfo.pResults           = nullptr;
 
     auto res = vkQueuePresentKHR(m_presentQueue, &presentInfo);
-    return !res;
+    assert(res == VK_SUCCESS || res == VK_SUBOPTIMAL_KHR);
+    return res == VK_SUCCESS || res == VK_SUBOPTIMAL_KHR;
 }
 
 void Surface::waitIdle()

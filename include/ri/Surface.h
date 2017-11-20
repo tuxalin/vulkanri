@@ -37,6 +37,9 @@ public:
     // Wait for the presentation to finish synchronously
     void waitIdle();
 
+    // @warning Must be called when the surface is invalidated, eg. when an resize happens.
+    void recreate(ri::DeviceContext& device, const Sizei& size);
+
 private:
     struct SwapChainSupport
     {
@@ -49,10 +52,13 @@ private:
     void             setPresentationQueue(const ri::DeviceContext& device);
     SwapChainSupport determineSupport(const ri::DeviceContext& device);
 
+    void create(ri::DeviceContext& device);
     void createSwapchain(const SwapChainSupport& support, const VkSurfaceFormatKHR& surfaceFormat,
                          uint32_t graphicsQueueIndex);
     void createRenderTargets(const ri::DeviceContext& device);
     void createCommandBuffers(ri::DeviceContext& device);
+
+    void cleanup(bool cleanSwapchain);
 
 private:
     const ApplicationInstance&  m_instance;

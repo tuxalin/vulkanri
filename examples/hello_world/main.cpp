@@ -45,10 +45,25 @@ private:
         glfwInit();
 
         glfwWindowHint(GLFW_CLIENT_API, GLFW_NO_API);
-        glfwWindowHint(GLFW_RESIZABLE, false);
+        glfwWindowHint(GLFW_RESIZABLE, true);
 
         m_windows[0] = glfwCreateWindow(kWidth, kHeight, "Hello world 1", nullptr, nullptr);
         m_windows[1] = glfwCreateWindow(kWidth / 2, kHeight / 2, "Hello world 2", nullptr, nullptr);
+
+        for (auto window : m_windows)
+        {
+            glfwSetWindowUserPointer(window, this);
+            glfwSetWindowSizeCallback(window, HelloTriangleApplication::onWindowResized);
+        }
+    }
+
+    static void onWindowResized(GLFWwindow* window, int width, int height)
+    {
+        if (width < 32 || height < 32)
+            return;
+
+        HelloTriangleApplication* app = reinterpret_cast<HelloTriangleApplication*>(glfwGetWindowUserPointer(window));
+        app->resizeWindows();
     }
 
     void initialize()
@@ -116,28 +131,39 @@ private:
         m_renderPipeline->end(commandBuffer);
     }
 
-    void render()
+    void render(ri::Surface* surface)
     {
-        for (auto& surface : m_surfaces)
-        {
 #if RECORDED_MODE == 1
-            surface->acquire();
+        surface->acquire();
 #else
-            surface->waitIdle();
-            uint32_t activeIndex = surface->acquire();
+        surface->waitIdle();
+        uint32_t activeIndex = surface->acquire();
 
-            auto& commandBuffer = surface->commandBuffer(activeIndex);
+        auto& commandBuffer = surface->commandBuffer(activeIndex);
 
-            commandBuffer.begin(ri::RecordFlags::eResubmit);
-            dispatchCommands(surface->renderTarget(activeIndex), surface->commandBuffer(activeIndex));
-            commandBuffer.end();
+        commandBuffer.begin(ri::RecordFlags::eResubmit);
+        dispatchCommands(surface->renderTarget(activeIndex), surface->commandBuffer(activeIndex));
+        commandBuffer.end();
 #endif
 
-            surface->present(*m_context);
+        surface->present(*m_context);
 
-            //  valdidation layer requires to be synched each frame
-            if (ri::ValidationReport::kEnabled)
-                surface->waitIdle();
+        //  valdidation layer requires to be synched each frame
+        if (ri::ValidationReport::kEnabled)
+            surface->waitIdle();
+    }
+
+    void record(ri::Surface* surface)
+    {
+        m_renderPipeline->defaultPass().setRenderArea(surface->size());
+
+        for (uint32_t index = 0; index < surface->swapCount(); ++index)
+        {
+            auto& commandBuffer = surface->commandBuffer(index);
+
+            commandBuffer.begin(ri::RecordFlags::eResubmit);
+            dispatchCommands(surface->renderTarget(index), commandBuffer);
+            commandBuffer.end();
         }
     }
 
@@ -146,26 +172,41 @@ private:
         // pre-record all of the surface's command buffers
         for (auto& surface : m_surfaces)
         {
-            m_renderPipeline->defaultPass().setRenderArea(surface->size());
-
-            for (uint32_t index = 0; index < surface->swapCount(); ++index)
-            {
-                auto& commandBuffer = surface->commandBuffer(index);
-
-                commandBuffer.begin(ri::RecordFlags::eResubmit);
-                dispatchCommands(surface->renderTarget(index), commandBuffer);
-                commandBuffer.end();
-            }
+            record(surface.get());
         }
 
         while (!glfwWindowShouldClose(m_windows[0]) && !glfwWindowShouldClose(m_windows[1]))
         {
             glfwPollEvents();
-            render();
+            for (auto& surface : m_surfaces)
+            {
+                render(surface.get());
+            }
         }
 
         // wait for device to finish any ongoing commands for safe cleanup
         m_context->waitIdle();
+    }
+
+    void resizeWindows()
+    {
+        size_t i = 0;
+        for (auto window : m_windows)
+        {
+            ri::Sizei size;
+            glfwGetWindowSize(window, (int*)&size.width, (int*)&size.height);
+
+            auto surface = m_surfaces[i].get();
+            if (size && (size != surface->size()))
+            {
+                surface->recreate(*m_context, size);
+#if RECORDED_MODE == 1
+                record(surface);
+#endif
+                render(surface);
+            }
+            ++i;
+        }
     }
 
     void cleanup()

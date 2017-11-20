@@ -31,6 +31,7 @@ struct Size
 
     Size operator*(float scale) const;
     bool operator==(const Size& other) const;
+    bool operator!=(const Size& other) const;
     bool operator>(const Size& other) const;
     bool operator<(const Size& other) const;
     bool operator<=(const Size& other) const;
@@ -130,7 +131,13 @@ inline Size<T> Size<T>::operator*(float scale) const
 template <typename T>
 inline bool Size<T>::operator==(const Size& other) const
 {
-    return width == other.width && height == other.height;
+    return this->equals(other.width, other.height);
+}
+
+template <typename T>
+inline bool Size<T>::operator!=(const Size& other) const
+{
+    return !this->operator==(other);
 }
 
 template <typename T>

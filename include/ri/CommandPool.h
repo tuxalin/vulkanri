@@ -13,6 +13,8 @@ public:
     CommandBuffer* create(bool isPrimary = true);
     void           create(std::vector<CommandBuffer*>& buffers, bool isPrimary = true);
 
+    void free(std::vector<CommandBuffer*>& buffers);
+
 private:
     CommandPool(DeviceCommandHint commandHint);
     ~CommandPool();

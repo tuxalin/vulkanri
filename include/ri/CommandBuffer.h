@@ -8,20 +8,33 @@ namespace ri
 class CommandBuffer : util::noncopyable, public detail::RenderObject<VkCommandBuffer>
 {
 public:
+    ~CommandBuffer();
+
     void begin(RecordFlags flags);
     void end();
     void draw(uint32_t vertexCount, uint32_t instanceCount,  //
               uint32_t offsetVertexIndex = 0, uint32_t offsetInstanceIndex = 0);
 
 private:
-    CommandBuffer() {}
+    CommandBuffer();
     CommandBuffer(VkDevice device, VkCommandPool commandPool, bool isPrimary);
 
 private:
+    VkCommandPool m_commandPool;
+    VkDevice      m_device;
+
     friend class CommandPool;  // command buffers can only be constructed from a pool
 };
 
+inline CommandBuffer::CommandBuffer()
+    : m_commandPool(VK_NULL_HANDLE)
+    , m_device(VK_NULL_HANDLE)
+{
+}
+
 inline CommandBuffer::CommandBuffer(VkDevice device, VkCommandPool commandPool, bool isPrimary)
+    : m_commandPool(commandPool)
+    , m_device(device)
 {
     VkCommandBufferAllocateInfo allocInfo = {};
     allocInfo.sType                       = VK_STRUCTURE_TYPE_COMMAND_BUFFER_ALLOCATE_INFO;
@@ -30,6 +43,12 @@ inline CommandBuffer::CommandBuffer(VkDevice device, VkCommandPool commandPool, 
     allocInfo.commandBufferCount = 1;
 
     RI_CHECK_RESULT() = vkAllocateCommandBuffers(device, &allocInfo, &m_handle);
+}
+
+inline CommandBuffer::~CommandBuffer()
+{
+    if (m_commandPool)
+        vkFreeCommandBuffers(m_device, m_commandPool, 1, &m_handle);
 }
 
 inline void CommandBuffer::draw(uint32_t vertexCount, uint32_t instanceCount,  //
