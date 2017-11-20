@@ -1,5 +1,6 @@
 #pragma once
 
+#include <util/noncopyable.h>
 #include <ri/Size.h>
 #include <ri/Types.h>
 
@@ -7,7 +8,7 @@ namespace ri
 {
 class DeviceContext;
 
-class Texture
+class Texture : util::noncopyable, public detail::RenderObject<VkImage>
 {
 public:
     Texture(const DeviceContext& device);
@@ -20,13 +21,10 @@ private:
     Texture(VkImage handle, TextureType type, const Sizei& size);
 
 private:
-    VkImage     m_handle        = VK_NULL_HANDLE;
     VkDevice    m_logicalDevice = VK_NULL_HANDLE;
     TextureType m_type;
     Sizei       m_size;
 
-    template <class DetailRenderClass, class RenderClass>
-    friend auto           detail::getVkHandleImpl(const RenderClass& obj);
     friend const Texture* detail::createReferenceTexture(VkImage handle, int type, const Sizei& size);
 };
 

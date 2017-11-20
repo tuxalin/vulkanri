@@ -1,7 +1,7 @@
 
 #include <ri/Texture.h>
 
-#include "ri_internal_get_handle.h"
+#include <ri/DeviceContext.h>
 
 namespace ri
 {
@@ -20,7 +20,7 @@ Texture::Texture(const DeviceContext& device)
 }
 
 Texture::Texture(VkImage handle, TextureType type, const Sizei& size)
-    : m_handle(handle)
+    : detail::RenderObject<VkImage>(handle)
     , m_type(type)
     , m_size(size)
 {

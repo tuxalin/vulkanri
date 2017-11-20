@@ -9,7 +9,7 @@ namespace ri
 class CommandBuffer;
 class RenderTarget;
 
-class RenderPass : util::noncopyable
+class RenderPass : util::noncopyable, public detail::RenderObject<VkRenderPass>
 {
 public:
     struct AttachmentParams
@@ -46,14 +46,10 @@ public:
     void setRenderArea(const Sizei& area, int32_t offsetX = 0, int32_t offsetY = 0);
 
 private:
-    VkRenderPass            m_handle        = VK_NULL_HANDLE;
     VkDevice                m_logicalDevice = VK_NULL_HANDLE;
     std::vector<ClearValue> m_clearValues;
     Sizei                   m_renderArea;
     int32_t                 m_renderAreaOffset[2];
-
-    template <class DetailRenderClass, class RenderClass>
-    friend auto detail::getVkHandleImpl(const RenderClass& obj);
 };
 
 inline RenderPass::RenderPass(const ri::DeviceContext& device, const AttachmentParams& attachment)
@@ -78,6 +74,28 @@ inline void RenderPass::setRenderArea(const Sizei& area, int32_t offsetX /*= 0*/
     m_renderArea          = area;
     m_renderAreaOffset[0] = offsetX;
     m_renderAreaOffset[1] = offsetY;
+}
+
+inline void RenderPass::begin(const CommandBuffer& buffer, const RenderTarget& target) const
+{
+    VkRenderPassBeginInfo renderPassInfo = {};
+    renderPassInfo.sType                 = VK_STRUCTURE_TYPE_RENDER_PASS_BEGIN_INFO;
+    renderPassInfo.renderPass            = m_handle;
+    renderPassInfo.framebuffer           = detail::getVkHandle(target);
+    renderPassInfo.renderArea.offset     = {m_renderAreaOffset[0], m_renderAreaOffset[1]};
+    renderPassInfo.renderArea.extent     = {m_renderArea.width, m_renderArea.height};
+
+    renderPassInfo.clearValueCount = m_clearValues.size();
+    static_assert(sizeof(VkClearValue) == sizeof(ri::ClearValue), "INVALID_RI_CLEAR_VALUE");
+    renderPassInfo.pClearValues = reinterpret_cast<const VkClearValue*>(m_clearValues.data());
+
+    // TODO: expose subpass contents
+    vkCmdBeginRenderPass(detail::getVkHandle(buffer), &renderPassInfo, VK_SUBPASS_CONTENTS_INLINE);
+}
+
+inline void RenderPass::end(const CommandBuffer& buffer) const
+{
+    vkCmdEndRenderPass(detail::getVkHandle(buffer));
 }
 
 }  // namespace ri

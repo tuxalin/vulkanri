@@ -7,7 +7,7 @@ namespace ri
 {
 class CommandBuffer;
 
-class CommandPool : util::noncopyable
+class CommandPool : util::noncopyable, public detail::RenderObject<VkCommandPool>
 {
 public:
     CommandBuffer* create(bool isPrimary = true);
@@ -21,7 +21,6 @@ private:
 
 private:
     VkDevice          m_device = VK_NULL_HANDLE;
-    VkCommandPool     m_handle = VK_NULL_HANDLE;
     DeviceCommandHint m_commandHint;
 
     friend class DeviceContext;  // pool is owned by the device

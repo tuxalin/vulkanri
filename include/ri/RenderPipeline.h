@@ -10,7 +10,7 @@ namespace ri
 class CommandBuffer;
 class ShaderPipeline;
 
-class RenderPipeline : util::noncopyable
+class RenderPipeline : util::noncopyable, public detail::RenderObject<VkPipeline>
 {
 public:
     struct CreateParams
@@ -93,7 +93,6 @@ private:
     void create(const ri::RenderPass& pass, const ri::ShaderPipeline& shaderPipeline, const CreateParams& params);
 
 private:
-    VkPipeline       m_handle         = VK_NULL_HANDLE;
     VkPipelineLayout m_pipelineLayout = VK_NULL_HANDLE;
     VkDevice         m_logicalDevice  = VK_NULL_HANDLE;
     ri::RenderPass*  m_renderPass     = nullptr;
@@ -131,6 +130,34 @@ inline const ri::RenderPass& RenderPipeline::defaultPass() const
 inline ri::RenderPipeline::DynamicState& RenderPipeline::dynamicState()
 {
     return m_dynamicState;
+}
+
+inline void RenderPipeline::bind(const CommandBuffer& buffer) const
+{
+    vkCmdBindPipeline(detail::getVkHandle(buffer), VK_PIPELINE_BIND_POINT_GRAPHICS, m_handle);
+}
+
+inline void RenderPipeline::DynamicState::setViewport(CommandBuffer& buffer, const Sizei& viewportSize,  //
+                                                      int32_t viewportX /*= 0*/, int32_t viewportY /*= 0*/)
+{
+    m_viewport.x      = (float)viewportX;
+    m_viewport.y      = (float)viewportY;
+    m_viewport.width  = (float)viewportSize.width;
+    m_viewport.height = (float)viewportSize.height;
+    vkCmdSetViewport(detail::getVkHandle(buffer), 0, 1, &m_viewport);
+}
+
+inline void RenderPipeline::DynamicState::setScissor(CommandBuffer& buffer, const Sizei& viewportSize,  //
+                                                     int32_t viewportX /*= 0*/, int32_t viewportY /*= 0*/)
+{
+    m_scissor.offset = {viewportX, viewportY};
+    m_scissor.extent = {viewportSize.width, viewportSize.height};
+    vkCmdSetScissor(detail::getVkHandle(buffer), 0, 1, &m_scissor);
+}
+
+inline void RenderPipeline::DynamicState::setLineWidth(CommandBuffer& buffer, float lineWidth)
+{
+    vkCmdSetLineWidth(detail::getVkHandle(buffer), lineWidth);
 }
 
 }  // namespace ri

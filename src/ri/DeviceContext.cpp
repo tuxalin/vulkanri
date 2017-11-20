@@ -1,7 +1,6 @@
 
 #include <ri/DeviceContext.h>
 
-#include "ri_internal_get_handle.h"
 #include <algorithm>
 #include <cassert>
 #include <iostream>
@@ -69,9 +68,6 @@ DeviceContext::DeviceContext(const ApplicationInstance& instance,
     : m_instance(instance)
     , m_commandPool(new CommandPool(commandHint))
 {
-    static_assert(
-        offsetof(ri::DeviceContext, m_physicalDevice) == offsetof(ri::detail::DeviceContext, m_physicalDevice),
-        "INVALID_CLASS_LAYOUT");
 }
 
 DeviceContext::~DeviceContext()

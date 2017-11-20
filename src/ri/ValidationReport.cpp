@@ -1,7 +1,6 @@
 
 #include <ri/ValidationReport.h>
 
-#include "ri_internal_get_handle.h"
 #include <cassert>
 #include <iostream>
 #include <util/common.h>

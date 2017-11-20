@@ -5,7 +5,7 @@
 
 namespace ri
 {
-class CommandBuffer : util::noncopyable
+class CommandBuffer : util::noncopyable, public detail::RenderObject<VkCommandBuffer>
 {
 public:
     void begin(RecordFlags flags);
@@ -18,12 +18,19 @@ private:
     CommandBuffer(VkDevice device, VkCommandPool commandPool, bool isPrimary);
 
 private:
-    VkCommandBuffer m_handle = VK_NULL_HANDLE;
-
     friend class CommandPool;  // command buffers can only be constructed from a pool
-    template <class DetailRenderClass, class RenderClass>
-    friend auto detail::getVkHandleImpl(const RenderClass& obj);
 };
+
+inline CommandBuffer::CommandBuffer(VkDevice device, VkCommandPool commandPool, bool isPrimary)
+{
+    VkCommandBufferAllocateInfo allocInfo = {};
+    allocInfo.sType                       = VK_STRUCTURE_TYPE_COMMAND_BUFFER_ALLOCATE_INFO;
+    allocInfo.commandPool                 = commandPool;
+    allocInfo.level              = isPrimary ? VK_COMMAND_BUFFER_LEVEL_PRIMARY : VK_COMMAND_BUFFER_LEVEL_SECONDARY;
+    allocInfo.commandBufferCount = 1;
+
+    RI_CHECK_RESULT() = vkAllocateCommandBuffers(device, &allocInfo, &m_handle);
+}
 
 inline void CommandBuffer::draw(uint32_t vertexCount, uint32_t instanceCount,  //
                                 uint32_t offsetVertexIndex, uint32_t offsetInstanceIndex)

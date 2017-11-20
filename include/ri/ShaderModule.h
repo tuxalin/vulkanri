@@ -7,7 +7,7 @@ namespace ri
 {
 class DeviceContext;
 
-class ShaderModule : util::noncopyable
+class ShaderModule : util::noncopyable, public detail::RenderObject<VkShaderModule>
 {
 public:
     ShaderModule(const DeviceContext& device, const std::string& filename, ShaderStage stage);
@@ -20,9 +20,8 @@ public:
 #endif
 
 private:
-    VkShaderModule m_handle        = VK_NULL_HANDLE;
-    VkDevice       m_logicalDevice = VK_NULL_HANDLE;
-    ShaderStage    m_stage;
+    VkDevice    m_logicalDevice = VK_NULL_HANDLE;
+    ShaderStage m_stage;
 #ifndef NDEBUG
     std::vector<char> m_code;
 #endif  // !NDEBUG

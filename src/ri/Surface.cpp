@@ -1,12 +1,14 @@
 
 #include <ri/Surface.h>
 
-#include "ri_internal_get_handle.h"
 #include <cassert>
 #include <util/math.h>
 #include <ri/ApplicationInstance.h>
+#include <ri/CommandPool.h>
+#include <ri/DeviceContext.h>
 #include <ri/RenderPass.h>
 #include <ri/RenderTarget.h>
+#include <ri/Texture.h>
 
 namespace ri
 {
@@ -78,10 +80,17 @@ namespace detail
         return bestMode;
     }
 
-    inline VkPhysicalDevice getVkPhysicalHandle(const ri::DeviceContext& obj)
+    inline VkPhysicalDevice getDevicePhysicalHandle(const ri::DeviceContext& device)
     {
-        static_assert(sizeof(ri::DeviceContext) == sizeof(ri::detail::DeviceContext), "INVALID_SIZES");
-        return reinterpret_cast<const detail::DeviceContext&>(obj).m_physicalDevice;
+        return device.m_physicalDevice;
+    }
+    VkQueue getDeviceQueue(const ri::DeviceContext& device, int deviceOperation)
+    {
+        return device.m_queues[DeviceOperations::from(deviceOperation).get()];
+    }
+    uint32_t getDeviceQueueIndex(const ri::DeviceContext& device, int deviceOperation)
+    {
+        return device.m_queueIndices[DeviceOperations::from(deviceOperation).get()];
     }
 }
 
@@ -131,8 +140,7 @@ void Surface::initialize(ri::DeviceContext& device)
     m_format                               = ColorFormat::from((int)surfaceFormat.format);
 
     // TODO: review this
-    const auto&    deviceDetail       = reinterpret_cast<const detail::DeviceContext&>(device);
-    const uint32_t graphicsQueueIndex = deviceDetail.m_queueIndices[DeviceOperations::eGraphics];
+    const uint32_t graphicsQueueIndex = detail::getDeviceQueueIndex(device, DeviceOperations::eGraphics);
     createSwapchain(support, surfaceFormat, graphicsQueueIndex);
     createRenderTargets(device);
     createCommandBuffers(device);
@@ -256,9 +264,8 @@ bool Surface::present(const ri::DeviceContext& device)
         const auto handle                 = detail::getVkHandle(*m_swapchainCommandBuffers[m_currentTargetIndex]);
         submitInfo.pCommandBuffers        = &handle;
 
-        const auto& deviceDetail = reinterpret_cast<const detail::DeviceContext&>(device);
-        RI_CHECK_RESULT() =
-            vkQueueSubmit(deviceDetail.m_queues[DeviceOperations::eGraphics], 1, &submitInfo, VK_NULL_HANDLE);
+        const auto queueHandle = detail::getDeviceQueue(device, DeviceOperations::eGraphics);
+        RI_CHECK_RESULT()      = vkQueueSubmit(queueHandle, 1, &submitInfo, VK_NULL_HANDLE);
     }
 
     // TODO: investigate why semaphore needed
@@ -285,7 +292,7 @@ void Surface::waitIdle()
 void Surface::setPresentationQueue(const ri::DeviceContext& device)
 {
     assert(m_presentQueueIndex == -1);
-    auto deviceHandle = detail::getVkPhysicalHandle(device);
+    const auto deviceHandle = detail::getDevicePhysicalHandle(device);
 
     uint32_t queueFamilyCount = 0;
     vkGetPhysicalDeviceQueueFamilyProperties(deviceHandle, &queueFamilyCount, nullptr);
@@ -311,7 +318,7 @@ void Surface::setPresentationQueue(const ri::DeviceContext& device)
 
 Surface::SwapChainSupport Surface::determineSupport(const ri::DeviceContext& device)
 {
-    auto deviceHandle = detail::getVkPhysicalHandle(device);
+    const auto deviceHandle = detail::getDevicePhysicalHandle(device);
 
     SwapChainSupport support;
     vkGetPhysicalDeviceSurfaceCapabilitiesKHR(deviceHandle, m_surface, &support.capabilities);

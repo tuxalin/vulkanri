@@ -11,7 +11,7 @@ class ApplicationInstance;
 class Surface;
 class CommandPool;
 
-class DeviceContext : util::noncopyable
+class DeviceContext : util::noncopyable, public detail::RenderObject<VkDevice>
 {
 public:
     DeviceContext(const ApplicationInstance& instance, DeviceCommandHint commandHint = DeviceCommandHint::eRecorded);
@@ -45,13 +45,13 @@ private:
     const ApplicationInstance&    m_instance;
     std::vector<DeviceOperations> m_requiredOperations;
     VkPhysicalDevice              m_physicalDevice = VK_NULL_HANDLE;
-    VkDevice                      m_handle         = VK_NULL_HANDLE;
     OperationQueues               m_queues;
     OperationIndices              m_queueIndices;
     CommandPool*                  m_commandPool;
 
-    template <class DetailRenderClass, class RenderClass>
-    friend auto detail::getVkHandleImpl(const RenderClass& obj);
+    friend VkPhysicalDevice detail::getDevicePhysicalHandle(const ri::DeviceContext& device);
+    friend VkQueue          detail::getDeviceQueue(const ri::DeviceContext& device, int deviceOperation);
+    friend uint32_t         detail::getDeviceQueueIndex(const ri::DeviceContext& device, int deviceOperation);
 };
 
 inline void DeviceContext::initialize(Surface& surface, const std::vector<DeviceFeatures>& requiredFeatures,

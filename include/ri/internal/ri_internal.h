@@ -7,15 +7,14 @@
 
 namespace ri
 {
-class Texture;
-class Surface;
-class DeviceContext;
-class ShaderPipeline;
-class CommandPool;
-
 #define RI_TOKENPASTE(x, y) x##y
 #define RI_TOKENPASTE2(x, y) RI_TOKENPASTE(x, y)
 #define RI_CHECK_RESULT() const detail::CheckRes RI_TOKENPASTE2(res, __LINE__)
+
+class Texture;
+class Surface;
+class ShaderPipeline;
+class DeviceContext;
 
 namespace detail
 {
@@ -34,7 +33,9 @@ namespace detail
 
     const Texture* createReferenceTexture(VkImage handle, int type, const Sizei& size);
 
-    template <class DetailRenderClass, class RenderClass>
-    auto getVkHandleImpl(const RenderClass& obj);
-}
+    VkPhysicalDevice getDevicePhysicalHandle(const ri::DeviceContext& device);
+    VkQueue          getDeviceQueue(const ri::DeviceContext& device, int deviceOperation);
+    uint32_t         getDeviceQueueIndex(const ri::DeviceContext& device, int deviceOperation);
+
+}  // namespace detail
 }  // namespace ri

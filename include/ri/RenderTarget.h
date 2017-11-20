@@ -10,7 +10,7 @@ class DeviceContext;
 class RenderPass;
 class Texture;
 
-class RenderTarget : util::noncopyable
+class RenderTarget : util::noncopyable, public detail::RenderObject<VkFramebuffer>
 {
 public:
     struct AttachmentParams
@@ -42,13 +42,9 @@ private:
     void createAttachments(const std::vector<AttachmentParams>& attachments);
 
 private:
-    VkFramebuffer            m_handle        = VK_NULL_HANDLE;
     VkDevice                 m_logicalDevice = VK_NULL_HANDLE;
     std::vector<VkImageView> m_attachments;
     Sizei                    m_size;
-
-    template <class DetailRenderClass, class RenderClass>
-    friend auto detail::getVkHandleImpl(const RenderClass& obj);
 };
 
 inline const Sizei& RenderTarget::size() const

@@ -3,6 +3,7 @@
 #include <vulkan/vulkan.h>
 
 #include "internal/ri_internal.h"
+#include "internal/ri_internal_get_handle.h"
 
 #define RI_PLATFORM_GLFW 1
 

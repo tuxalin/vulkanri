@@ -1,7 +1,6 @@
 
 #include <ri/ShaderModule.h>
 
-#include "ri_internal_get_handle.h"
 #include <fstream>
 
 namespace ri

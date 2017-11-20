@@ -6,7 +6,7 @@
 
 namespace ri
 {
-class ApplicationInstance : util::noncopyable
+class ApplicationInstance : util::noncopyable, public detail::RenderObject<VkInstance>
 {
 public:
     ApplicationInstance(const std::string& name, const std::string& engineName = "");
@@ -14,11 +14,5 @@ public:
 
 private:
     std::vector<const char*> getRequiredExtensions();
-
-private:
-    VkInstance m_handle;
-
-    template <class DetailRenderClass, class RenderClass>
-    friend auto detail::getVkHandleImpl(const RenderClass& obj);
 };
 }  // namespace ri

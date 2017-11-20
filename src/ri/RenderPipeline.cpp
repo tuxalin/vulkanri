@@ -1,7 +1,6 @@
 
 #include <ri/RenderPipeline.h>
 
-#include "ri_internal_get_handle.h"
 #include <ri/RenderPass.h>
 #include <ri/ShaderPipeline.h>
 
@@ -165,31 +164,4 @@ inline void RenderPipeline::create(const ri::RenderPass& pass, const ri::ShaderP
         vkCreateGraphicsPipelines(m_logicalDevice, VK_NULL_HANDLE, 1, &pipelineInfo, nullptr, &m_handle);
 }
 
-void RenderPipeline::bind(const CommandBuffer& buffer) const
-{
-    vkCmdBindPipeline(detail::getVkHandle(buffer), VK_PIPELINE_BIND_POINT_GRAPHICS, m_handle);
-}
-
-void RenderPipeline::DynamicState::setViewport(CommandBuffer& buffer, const Sizei& viewportSize,  //
-                                               int32_t viewportX /*= 0*/, int32_t viewportY /*= 0*/)
-{
-    m_viewport.x      = (float)viewportX;
-    m_viewport.y      = (float)viewportY;
-    m_viewport.width  = (float)viewportSize.width;
-    m_viewport.height = (float)viewportSize.height;
-    vkCmdSetViewport(detail::getVkHandle(buffer), 0, 1, &m_viewport);
-}
-
-void RenderPipeline::DynamicState::setScissor(CommandBuffer& buffer, const Sizei& viewportSize,  //
-                                              int32_t viewportX /*= 0*/, int32_t viewportY /*= 0*/)
-{
-    m_scissor.offset = {viewportX, viewportY};
-    m_scissor.extent = {viewportSize.width, viewportSize.height};
-    vkCmdSetScissor(detail::getVkHandle(buffer), 0, 1, &m_scissor);
-}
-
-void RenderPipeline::DynamicState::setLineWidth(CommandBuffer& buffer, float lineWidth)
-{
-    vkCmdSetLineWidth(detail::getVkHandle(buffer), lineWidth);
-}
 }  // namespace ri

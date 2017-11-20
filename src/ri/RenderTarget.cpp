@@ -1,7 +1,6 @@
 
 #include <ri/RenderTarget.h>
 
-#include "ri_internal_get_handle.h"
 #include <ri/Texture.h>
 
 namespace ri
