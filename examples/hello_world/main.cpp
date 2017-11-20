@@ -10,15 +10,19 @@
 #include <vector>
 
 #include <ri/ApplicationInstance.h>
+#include <ri/CommandBuffer.h>
 #include <ri/DeviceContext.h>
 #include <ri/RenderPass.h>
 #include <ri/RenderPipeline.h>
+#include <ri/RenderTarget.h>
 #include <ri/ShaderPipeline.h>
 #include <ri/Surface.h>
 #include <ri/ValidationReport.h>
 
 const int kWidth  = 800;
 const int kHeight = 600;
+
+#define RECORDED_MODE 1
 
 class HelloTriangleApplication
 {
@@ -43,8 +47,8 @@ private:
         glfwWindowHint(GLFW_CLIENT_API, GLFW_NO_API);
         glfwWindowHint(GLFW_RESIZABLE, false);
 
-        m_window[0] = glfwCreateWindow(kWidth, kHeight, "Hello world 1", nullptr, nullptr);
-        m_window[1] = glfwCreateWindow(kWidth / 2, kHeight / 2, "Hello world 2", nullptr, nullptr);
+        m_windows[0] = glfwCreateWindow(kWidth, kHeight, "Hello world 1", nullptr, nullptr);
+        m_windows[1] = glfwCreateWindow(kWidth / 2, kHeight / 2, "Hello world 2", nullptr, nullptr);
     }
 
     void initialize()
@@ -54,19 +58,20 @@ private:
         m_instance.reset(new ri::ApplicationInstance("Hello Triangle"));
         m_validation.reset(new ri::ValidationReport(*m_instance, ri::ReportLevel::eInfo));
 
-        m_context.reset(new ri::DeviceContext(*m_instance));
-        m_surface[0].reset(  //
-            new ri::Surface(*m_instance, ri::Sizei(kWidth, kHeight), m_window[0], ri::PresentMode::eMailbox));
-        m_surface[1].reset(  //
-            new ri::Surface(*m_instance, ri::Sizei(kWidth / 2, kHeight / 2), m_window[1], ri::PresentMode::eNormal));
+        m_surfaces[0].reset(  //
+            new ri::Surface(*m_instance, ri::Sizei(kWidth, kHeight), m_windows[0], ri::PresentMode::eMailbox));
+        m_surfaces[1].reset(  //
+            new ri::Surface(*m_instance, ri::Sizei(kWidth / 2, kHeight / 2), m_windows[1], ri::PresentMode::eNormal));
 
-        const std::vector<ri::DeviceFeatures>   requiredFeatures   = {ri::DeviceFeatures::eGeometryShader,
-                                                                  ri::DeviceFeatures::eSwapchain};
-        const std::vector<ri::DeviceOperations> requiredOperations = {ri::DeviceOperations::eGraphics,
-                                                                      ri::DeviceOperations::eTransfer};
-
-        const std::vector<ri::Surface*> surfaces = {m_surface[0].get(), m_surface[1].get()};
-        m_context->create(surfaces, requiredFeatures, requiredOperations);
+        // create the device context
+        {
+            const std::vector<ri::DeviceFeatures>   requiredFeatures   = {ri::DeviceFeatures::eGeometryShader,
+                                                                      ri::DeviceFeatures::eSwapchain};
+            const std::vector<ri::DeviceOperations> requiredOperations = {ri::DeviceOperations::eGraphics};
+            const std::vector<ri::Surface*>         surfaces           = {m_surfaces[0].get(), m_surfaces[1].get()};
+            m_context.reset(new ri::DeviceContext(*m_instance, ri::DeviceCommandHint::eTransient));
+            m_context->initialize(surfaces, requiredFeatures, requiredOperations);
+        }
 
         // create a shader pipeline and let it own the shader modules
         {
@@ -80,44 +85,110 @@ private:
 
         // create the render/graphics pipeline
         {
-            ri::RenderPass::AttachmentParams params;
-            params.format        = m_surface[0]->format();
-            ri::RenderPass* pass = new ri::RenderPass(*m_context, params);
+            ri::RenderPass::AttachmentParams passParams;
+            passParams.format    = m_surfaces[0]->format();
+            ri::RenderPass* pass = new ri::RenderPass(*m_context, passParams);
 
-            m_renderPipeline.reset(new ri::RenderPipeline(
-                *m_context, pass, *m_shaderPipeline, ri::RenderPipeline::CreateParams(), ri::Sizei(kWidth, kHeight)));
+            ri::RenderPipeline::CreateParams params;
+            // neded to change viewport for multiple windows
+            params.dynamicStates = {ri::DynamicState::eViewport, ri::DynamicState::eScissor};
+
+            m_renderPipeline.reset(
+                new ri::RenderPipeline(*m_context, pass, *m_shaderPipeline, params, ri::Sizei(kWidth, kHeight)));
+        }
+    }
+
+    void dispatchCommands(const ri::RenderTarget& target, ri::CommandBuffer& commandBuffer)
+    {
+        /* is equivalant to:
+        auto& pass = m_renderPipeline->defaultPass();
+        pass.begin(commandBuffer, target);
+        m_renderPipeline->bind(commandBuffer);
+        commandBuffer.draw(3, 1);
+        pass.end(commandBuffer);
+        */
+
+        m_renderPipeline->dynamicState().setViewport(commandBuffer, target.size());
+        m_renderPipeline->dynamicState().setScissor(commandBuffer, target.size());
+
+        m_renderPipeline->begin(commandBuffer, target);
+        commandBuffer.draw(3, 1);
+        m_renderPipeline->end(commandBuffer);
+    }
+
+    void render()
+    {
+        for (auto& surface : m_surfaces)
+        {
+#if RECORDED_MODE == 1
+            surface->acquire();
+#else
+            surface->waitIdle();
+            uint32_t activeIndex = surface->acquire();
+
+            auto& commandBuffer = surface->commandBuffer(activeIndex);
+
+            commandBuffer.begin(ri::RecordFlags::eResubmit);
+            dispatchCommands(surface->renderTarget(activeIndex), surface->commandBuffer(activeIndex));
+            commandBuffer.end();
+#endif
+
+            surface->present(*m_context);
+
+            //  valdidation layer requires to be synched each frame
+            if (ri::ValidationReport::kEnabled)
+                surface->waitIdle();
         }
     }
 
     void mainLoop()
     {
-        while (!glfwWindowShouldClose(m_window[0]) && !glfwWindowShouldClose(m_window[1]))
+        // pre-record all of the surface's command buffers
+        for (auto& surface : m_surfaces)
+        {
+            m_renderPipeline->defaultPass().setRenderArea(surface->size());
+
+            for (uint32_t index = 0; index < surface->swapCount(); ++index)
+            {
+                auto& commandBuffer = surface->commandBuffer(index);
+
+                commandBuffer.begin(ri::RecordFlags::eResubmit);
+                dispatchCommands(surface->renderTarget(index), commandBuffer);
+                commandBuffer.end();
+            }
+        }
+
+        while (!glfwWindowShouldClose(m_windows[0]) && !glfwWindowShouldClose(m_windows[1]))
         {
             glfwPollEvents();
+            render();
         }
+
+        // wait for device to finish any ongoing commands for safe cleanup
+        m_context->waitIdle();
     }
 
     void cleanup()
     {
         m_renderPipeline.reset();
         m_shaderPipeline.reset();
-        m_surface[0].reset();
-        m_surface[1].reset();
+        m_surfaces[0].reset();
+        m_surfaces[1].reset();
         m_context.reset();
         m_validation.reset();
         m_instance.reset();
 
-        glfwDestroyWindow(m_window[0]);
-        glfwDestroyWindow(m_window[1]);
+        glfwDestroyWindow(m_windows[0]);
+        glfwDestroyWindow(m_windows[1]);
         glfwTerminate();
     }
 
 private:
-    GLFWwindow*                              m_window[2] = {nullptr, nullptr};
+    GLFWwindow*                              m_windows[2] = {nullptr, nullptr};
     std::unique_ptr<ri::ApplicationInstance> m_instance;
     std::unique_ptr<ri::ValidationReport>    m_validation;
     std::unique_ptr<ri::DeviceContext>       m_context;
-    std::unique_ptr<ri::Surface>             m_surface[2];
+    std::unique_ptr<ri::Surface>             m_surfaces[2];
     std::unique_ptr<ri::ShaderPipeline>      m_shaderPipeline;
     std::unique_ptr<ri::RenderPipeline>      m_renderPipeline;
 };
