@@ -10,12 +10,10 @@ endif()
 
 set(GLFW_USE_STATIC_LIBS 1)
 find_package(GLFW REQUIRED)
-find_package(Vulkan)
+find_package(Vulkan REQUIRED)
 
-if(WIN32)
-	if (NOT Vulkan_FOUND)
-			error("Vulkan not found!")
-	endif()
+if (NOT Vulkan_FOUND)
+		error("Vulkan not found!")
 endif()
 
 add_subdirectory(${VULKAN_RI_DIR} vulkanri)
@@ -26,9 +24,22 @@ include_directories(
 	${GLFW_INCLUDE_DIR})
 
 set (EXAMPLES_LIBRARIES vulkanri ${Vulkan_LIBRARY} ${GLFW_LIBRARIES})
+set (EXAMPLES_TARGETS "hello_world")
+
+foreach( examples_target ${EXAMPLES_TARGETS} )
+	add_executable(${examples_target} ${examples_target}/main.cpp)
+	target_link_libraries(${examples_target} ${EXAMPLES_LIBRARIES})
 	
-add_executable(hello_world hello_world/main.cpp)
-target_link_libraries(hello_world ${EXAMPLES_LIBRARIES})
+	if(WIN32)
+	add_custom_command(TARGET ${examples_target}
+			PRE_BUILD 
+			COMMAND cmd /C ${PROJECT_SOURCE_DIR}/compile_shaders.bat ${PROJECT_SOURCE_DIR}/
+			COMMENT "Compiling shaders script"
+			)
+	else()
+		error("TODO: compile shaders script for linux/macosx")
+	endif()
+endforeach()
 
 set(CMAKE_CXX_STANDARD 11)
 set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -std=c++11")
