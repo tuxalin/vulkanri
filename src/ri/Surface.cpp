@@ -111,8 +111,8 @@ Surface::~Surface()
     for (auto target : m_swapchainTargets)
         delete target;
 
-    vkDestroySemaphore(m_logicalDevice, m_renderFinishedSemaphore, nullptr);
     vkDestroySemaphore(m_logicalDevice, m_imageAvailableSemaphore, nullptr);
+    vkDestroySemaphore(m_logicalDevice, m_renderFinishedSemaphore, nullptr);
 }
 
 void Surface::initialize(ri::DeviceContext& device)
@@ -231,11 +231,12 @@ inline void Surface::createCommandBuffers(ri::DeviceContext& device)
     device.commandPool().create(m_swapchainCommandBuffers);
 }
 
-void Surface::acquire(uint64_t timeout /*= std::numeric_limits<uint64_t>::max()*/)
+uint32_t Surface::acquire(uint64_t timeout /*= std::numeric_limits<uint64_t>::max()*/)
 {
     // acquire next avaiable target
     vkAcquireNextImageKHR(m_logicalDevice, m_swapchain, timeout, m_imageAvailableSemaphore, VK_NULL_HANDLE,
                           &m_currentTargetIndex);
+    return m_currentTargetIndex;
 }
 
 bool Surface::present(const ri::DeviceContext& device)
@@ -247,14 +248,13 @@ bool Surface::present(const ri::DeviceContext& device)
         VkSubmitInfo submitInfo = {};
         submitInfo.sType        = VK_STRUCTURE_TYPE_SUBMIT_INFO;
 
-        VkSemaphore          waitSemaphores[] = {m_imageAvailableSemaphore};
-        VkPipelineStageFlags waitStages[]     = {VK_PIPELINE_STAGE_COLOR_ATTACHMENT_OUTPUT_BIT};
-        submitInfo.waitSemaphoreCount         = 1;
-        submitInfo.pWaitSemaphores            = waitSemaphores;
-        submitInfo.pWaitDstStageMask          = waitStages;
-        submitInfo.commandBufferCount         = 1;
-        const auto handle                     = detail::getVkHandle(*m_swapchainCommandBuffers[m_currentTargetIndex]);
-        submitInfo.pCommandBuffers            = &handle;
+        VkPipelineStageFlags waitStages[] = {VK_PIPELINE_STAGE_COLOR_ATTACHMENT_OUTPUT_BIT};
+        submitInfo.waitSemaphoreCount     = 1;
+        submitInfo.pWaitSemaphores        = &m_imageAvailableSemaphore;
+        submitInfo.pWaitDstStageMask      = waitStages;
+        submitInfo.commandBufferCount     = 1;
+        const auto handle                 = detail::getVkHandle(*m_swapchainCommandBuffers[m_currentTargetIndex]);
+        submitInfo.pCommandBuffers        = &handle;
 
         const auto& deviceDetail = reinterpret_cast<const detail::DeviceContext&>(device);
         RI_CHECK_RESULT() =
@@ -266,9 +266,8 @@ bool Surface::present(const ri::DeviceContext& device)
     VkPresentInfoKHR presentInfo = {};
     presentInfo.sType            = VK_STRUCTURE_TYPE_PRESENT_INFO_KHR;
 
-    VkSemaphore signalSemaphores[] = {m_renderFinishedSemaphore};
     presentInfo.waitSemaphoreCount = 0;
-    presentInfo.pWaitSemaphores    = signalSemaphores;
+    presentInfo.pWaitSemaphores    = &m_renderFinishedSemaphore;
     presentInfo.swapchainCount     = 1;
     presentInfo.pSwapchains        = &m_swapchain;
     presentInfo.pImageIndices      = &m_currentTargetIndex;

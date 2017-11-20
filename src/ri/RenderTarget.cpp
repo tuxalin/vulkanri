@@ -9,9 +9,8 @@ namespace ri
 RenderTarget::RenderTarget(const DeviceContext& device, const RenderPass& pass,
                            const std::vector<AttachmentParams>& attachments)
     : m_logicalDevice(detail::getVkHandle(device))
+    , m_size(attachments[0].texture->size())
 {
-    assert(!attachments.empty());
-
     createAttachments(attachments);
 
     VkFramebufferCreateInfo framebufferInfo = {};
@@ -19,9 +18,8 @@ RenderTarget::RenderTarget(const DeviceContext& device, const RenderPass& pass,
     framebufferInfo.renderPass              = detail::getVkHandle(pass);
     framebufferInfo.attachmentCount         = m_attachments.size();
     framebufferInfo.pAttachments            = m_attachments.data();
-    const auto size                         = attachments[0].texture->size();
-    framebufferInfo.width                   = size.width;
-    framebufferInfo.height                  = size.height;
+    framebufferInfo.width                   = m_size.width;
+    framebufferInfo.height                  = m_size.height;
     framebufferInfo.layers                  = 1;
 
     RI_CHECK_RESULT() = vkCreateFramebuffer(m_logicalDevice, &framebufferInfo, nullptr, &m_handle);
