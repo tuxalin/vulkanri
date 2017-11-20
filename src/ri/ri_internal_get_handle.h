@@ -5,6 +5,8 @@
 #include <ri/CommandPool.h>
 #include <ri/DeviceContext.h>
 #include <ri/RenderPass.h>
+#include <ri/RenderTarget.h>
+#include <ri/Texture.h>
 
 namespace ri
 {
@@ -22,8 +24,8 @@ namespace detail
 
     struct CommandPool
     {
-        VkDevice          m_device = VK_NULL_HANDLE;
-        VkCommandPool     m_handle = VK_NULL_HANDLE;
+        VkDevice          m_device;
+        VkCommandPool     m_handle;
         DeviceCommandHint m_commandHint;
     };
 
@@ -38,43 +40,68 @@ namespace detail
         VkDevice                      m_handle;
         OperationQueues               m_queues;
         OperationIndices              m_queueIndices;
-        CommandPool                   m_commandPool;
+        CommandPool*                  m_commandPool;
     };
 
     struct RenderPass
     {
-        VkRenderPass m_handle;
-        VkDevice     m_logicalDevice;
+        VkRenderPass            m_handle;
+        VkDevice                m_logicalDevice;
+        std::vector<ClearValue> m_clearValues;
+        Sizei                   m_renderArea;
+        int32_t                 m_renderAreaOffset[2];
     };
 
-    inline VkCommandBuffer getVkHandle(const ri::CommandBuffer& obj)
+    struct Texture
     {
-        static_assert(sizeof(ri::CommandBuffer) == sizeof(ri::detail::CommandBuffer), "INVALID_SIZES");
-        return reinterpret_cast<const detail::CommandBuffer&>(obj).m_handle;
+        VkImage     m_handle;
+        TextureType m_type;
+        Sizei       m_size;
+    };
+
+    struct RenderTarget
+    {
+        VkFramebuffer            m_handle;
+        VkDevice                 m_logicalDevice;
+        std::vector<VkImageView> m_attachments;
+    };
+
+    template <class DetailRenderClass, class RenderClass>
+    auto getVkHandleImpl(const RenderClass& obj)
+    {
+        static_assert(sizeof(RenderClass) == sizeof(DetailRenderClass), "INVALID_SIZES");
+        static_assert(offsetof(RenderClass, m_handle) == offsetof(DetailRenderClass, m_handle), "INVALID_CLASS_LAYOUT");
+        return reinterpret_cast<const DetailRenderClass&>(obj).m_handle;
+    }
+
+    inline VkFramebuffer getVkHandle(const ri::RenderTarget& obj)
+    {
+        return getVkHandleImpl<ri::detail::RenderTarget>(obj);
+    }
+
+    inline VkImage getVkHandle(const ri::Texture& obj)
+    {
+        return getVkHandleImpl<ri::detail::Texture>(obj);
     }
 
     inline VkRenderPass getVkHandle(const ri::RenderPass& obj)
     {
-        static_assert(sizeof(ri::RenderPass) == sizeof(ri::detail::RenderPass), "INVALID_SIZES");
-        return reinterpret_cast<const detail::RenderPass&>(obj).m_handle;
+        return getVkHandleImpl<ri::detail::RenderPass>(obj);
+    }
+
+    inline VkCommandBuffer getVkHandle(const ri::CommandBuffer& obj)
+    {
+        return getVkHandleImpl<ri::detail::CommandBuffer>(obj);
     }
 
     inline VkInstance getVkHandle(const ri::ApplicationInstance& obj)
     {
-        static_assert(sizeof(ri::ApplicationInstance) == sizeof(ri::detail::ApplicationInstance), "INVALID_SIZES");
-        return reinterpret_cast<const detail::ApplicationInstance&>(obj).m_handle;
-    }
-
-    inline VkPhysicalDevice getVkPhysicalHandle(const ri::DeviceContext& obj)
-    {
-        static_assert(sizeof(ri::DeviceContext) == sizeof(ri::detail::DeviceContext), "INVALID_SIZES");
-        return reinterpret_cast<const detail::DeviceContext&>(obj).m_physicalDevice;
+        return getVkHandleImpl<ri::detail::ApplicationInstance>(obj);
     }
 
     inline VkDevice getVkHandle(const ri::DeviceContext& obj)
     {
-        static_assert(sizeof(ri::DeviceContext) == sizeof(ri::detail::DeviceContext), "INVALID_SIZES");
-        return reinterpret_cast<const detail::DeviceContext&>(obj).m_handle;
+        return getVkHandleImpl<ri::detail::DeviceContext>(obj);
     }
-}
-}
+}  // namespace detail
+}  // namespace ri

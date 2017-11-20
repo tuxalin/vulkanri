@@ -109,4 +109,4 @@ inline void ShaderPipeline::removeStage(ShaderStage stage)
     std::for_each(m_stageInfos.begin() + from, m_stageInfos.end(),
                   [&i, this](auto& info) { info.pName = m_stageProcedures[i++].c_str(); });
 }
-}
+}  // namespace ri

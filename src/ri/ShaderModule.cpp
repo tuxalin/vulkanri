@@ -66,4 +66,4 @@ bool ShaderModule::hasProcedure(const std::string& name) const
     return found != nullptr;
 }
 #endif
-}
+}  // namespace ri

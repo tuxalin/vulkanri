@@ -17,5 +17,8 @@ private:
 
 private:
     VkInstance m_handle;
+
+    template <class DetailRenderClass, class RenderClass>
+    friend auto detail::getVkHandleImpl(const RenderClass& obj);
 };
-}
+}  // namespace ri

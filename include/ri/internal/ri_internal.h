@@ -3,9 +3,11 @@
 #include <cassert>
 #include <vector>
 #include <vulkan/vulkan.h>
+#include <ri/Size.h>
 
 namespace ri
 {
+class Texture;
 class Surface;
 class DeviceContext;
 class ShaderPipeline;
@@ -29,5 +31,10 @@ namespace detail
     void                    initializeSurface(DeviceContext& device, Surface& surface);
 
     const std::vector<VkPipelineShaderStageCreateInfo>& getStageCreateInfos(const ShaderPipeline& pipeline);
+
+    const Texture* createReferenceTexture(VkImage handle, int type, const Sizei& size);
+
+    template <class DetailRenderClass, class RenderClass>
+    auto getVkHandleImpl(const RenderClass& obj);
 }
-}
+}  // namespace ri

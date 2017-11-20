@@ -40,4 +40,4 @@ private:
     VkDebugReportCallbackEXT     m_callback;
     const VkAllocationCallbacks* m_allocator;
 };
-}
+}  // namespace ri

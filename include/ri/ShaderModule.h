@@ -32,4 +32,4 @@ inline ShaderStage ShaderModule::stage() const
 {
     return m_stage;
 }
-}
+}  // namespace ri

@@ -37,8 +37,6 @@ namespace
 
 ApplicationInstance::ApplicationInstance(const std::string& name, const std::string& engineName)
 {
-    static_assert(offsetof(ri::ApplicationInstance, m_handle) == offsetof(ri::detail::ApplicationInstance, m_handle),
-                  "INVALID_CLASS_LAYOUT");
     assert(!name.empty());
 
     VkApplicationInfo appInfo  = {};
@@ -113,4 +111,4 @@ std::vector<const char*> ApplicationInstance::getRequiredExtensions()
 
     return extensions;
 }
-}
+}  // namespace ri

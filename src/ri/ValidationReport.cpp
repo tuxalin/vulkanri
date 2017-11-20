@@ -118,4 +118,4 @@ VKAPI_ATTR VkBool32 VKAPI_CALL ValidationReport::debugCallback(VkDebugReportFlag
     assert(DebugReportFlags::from(flags) != DebugReportFlags::eError);
     return VK_FALSE;
 }
-}
+}  // namespace ri
