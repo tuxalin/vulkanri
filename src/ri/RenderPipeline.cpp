@@ -1,6 +1,7 @@
 
 #include <ri/RenderPipeline.h>
 
+#include <ri/InputLayout.h>
 #include <ri/RenderPass.h>
 #include <ri/ShaderPipeline.h>
 
@@ -54,10 +55,21 @@ inline void RenderPipeline::create(const ri::RenderPass& pass, const ri::ShaderP
     // setup vertex input
     VkPipelineVertexInputStateCreateInfo vertexInputInfo = {};
     vertexInputInfo.sType                                = VK_STRUCTURE_TYPE_PIPELINE_VERTEX_INPUT_STATE_CREATE_INFO;
-    vertexInputInfo.vertexBindingDescriptionCount        = 0;
-    vertexInputInfo.pVertexBindingDescriptions           = nullptr;
-    vertexInputInfo.vertexAttributeDescriptionCount      = 0;
-    vertexInputInfo.pVertexAttributeDescriptions         = nullptr;
+    if (params.inputLayout)
+    {
+        const auto& vertexBindingDescriptions           = detail::getLayoutBindingDescriptions(*params.inputLayout);
+        vertexInputInfo.vertexBindingDescriptionCount   = vertexBindingDescriptions.size();
+        vertexInputInfo.pVertexBindingDescriptions      = vertexBindingDescriptions.data();
+        const auto& vertexAttributeDescriptions         = detail::getLayoutAttributeDescriptons(*params.inputLayout);
+        vertexInputInfo.vertexAttributeDescriptionCount = vertexAttributeDescriptions.size();
+        vertexInputInfo.pVertexAttributeDescriptions    = vertexAttributeDescriptions.data();
+    }
+    else
+    {
+        vertexInputInfo.vertexAttributeDescriptionCount = vertexInputInfo.vertexBindingDescriptionCount = 0;
+        vertexInputInfo.pVertexBindingDescriptions                                                      = nullptr;
+        vertexInputInfo.pVertexAttributeDescriptions                                                    = nullptr;
+    }
 
     VkPipelineInputAssemblyStateCreateInfo inputAssembly = {};
     inputAssembly.sType                                  = VK_STRUCTURE_TYPE_PIPELINE_INPUT_ASSEMBLY_STATE_CREATE_INFO;
@@ -160,8 +172,7 @@ inline void RenderPipeline::create(const ri::RenderPass& pass, const ri::ShaderP
     pipelineInfo.basePipelineIndex  = -1;
 
     assert(!m_handle);
-    RI_CHECK_RESULT() =
-        vkCreateGraphicsPipelines(m_device, VK_NULL_HANDLE, 1, &pipelineInfo, nullptr, &m_handle);
+    RI_CHECK_RESULT() = vkCreateGraphicsPipelines(m_device, VK_NULL_HANDLE, 1, &pipelineInfo, nullptr, &m_handle);
 }
 
 }  // namespace ri

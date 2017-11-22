@@ -15,6 +15,7 @@ class CommandBuffer;
 class ApplicationInstance;
 class RenderTarget;
 class RenderPass;
+class Buffer;
 
 namespace detail
 {
@@ -50,6 +51,10 @@ namespace detail
     inline VkRenderPass getVkHandle(const RenderPass& obj)
     {
         return getVkHandle(reinterpret_cast<const RenderObject<VkRenderPass>&>(obj));
+    }
+    inline VkBuffer getVkHandle(const Buffer& obj)
+    {
+        return getVkHandle(reinterpret_cast<const RenderObject<VkBuffer>&>(obj));
     }
 }  // namespace detail
 }  // namespace ri

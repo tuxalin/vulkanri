@@ -15,6 +15,7 @@ class Texture;
 class Surface;
 class ShaderPipeline;
 class DeviceContext;
+class InputLayout;
 
 namespace detail
 {
@@ -33,9 +34,13 @@ namespace detail
 
     const Texture* createReferenceTexture(VkImage handle, int type, const Sizei& size);
 
-    VkPhysicalDevice getDevicePhysicalHandle(const ri::DeviceContext& device);
-    VkQueue          getDeviceQueue(const ri::DeviceContext& device, int deviceOperation);
-    uint32_t         getDeviceQueueIndex(const ri::DeviceContext& device, int deviceOperation);
+    VkPhysicalDevice                        getDevicePhysicalHandle(const ri::DeviceContext& device);
+    VkQueue                                 getDeviceQueue(const ri::DeviceContext& device, int deviceOperation);
+    uint32_t                                getDeviceQueueIndex(const ri::DeviceContext& device, int deviceOperation);
+    const VkPhysicalDeviceMemoryProperties& getDeviceMemoryProperties(const ri::DeviceContext& device);
+
+    const std::vector<VkVertexInputBindingDescription>&   getLayoutBindingDescriptions(const InputLayout& layout);
+    const std::vector<VkVertexInputAttributeDescription>& getLayoutAttributeDescriptons(const InputLayout& layout);
 
 }  // namespace detail
 }  // namespace ri

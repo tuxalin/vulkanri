@@ -103,6 +103,7 @@ void DeviceContext::initialize(const std::vector<Surface*>&        surfaces,
         m_physicalDevice = devices[index];
     }
     assert(m_physicalDevice != VK_NULL_HANDLE);
+    vkGetPhysicalDeviceMemoryProperties(m_physicalDevice, &m_memoryProperties);
 
     // create a logical device
     m_requiredOperations = requiredOperations;

@@ -81,19 +81,6 @@ namespace detail
 
         return bestMode;
     }
-
-    inline VkPhysicalDevice getDevicePhysicalHandle(const ri::DeviceContext& device)
-    {
-        return device.m_physicalDevice;
-    }
-    VkQueue getDeviceQueue(const ri::DeviceContext& device, int deviceOperation)
-    {
-        return device.m_queues[DeviceOperation::from(deviceOperation).get()];
-    }
-    uint32_t getDeviceQueueIndex(const ri::DeviceContext& device, int deviceOperation)
-    {
-        return device.m_queueIndices[DeviceOperation::from(deviceOperation).get()];
-    }
 }
 
 Surface::Surface(const ApplicationInstance& instance, const Sizei& size, const SurfaceCreateParam& param,
@@ -221,7 +208,7 @@ void Surface::createSwapchain(const SwapChainSupport& support, const VkSurfaceFo
     createInfo.clipped                  = VK_TRUE;
     createInfo.oldSwapchain             = m_swapchain;  // reuse current swapchain for new one
 
-    uint32_t queueFamilyIndices[] = {graphicsQueueIndex, (uint32_t)m_presentQueueIndex};
+    const uint32_t queueFamilyIndices[] = {graphicsQueueIndex, (uint32_t)m_presentQueueIndex};
     if (queueFamilyIndices[0] != queueFamilyIndices[1] && queueFamilyIndices[0] >= 0)
     {
         createInfo.imageSharingMode      = VK_SHARING_MODE_CONCURRENT;

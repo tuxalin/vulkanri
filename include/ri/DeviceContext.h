@@ -43,16 +43,18 @@ private:
     std::vector<VkDeviceQueueCreateInfo> determineQueueCreation(const std::vector<Surface*>& surfaces);
 
 private:
-    const ApplicationInstance&   m_instance;
-    std::vector<DeviceOperation> m_requiredOperations;
-    VkPhysicalDevice             m_physicalDevice = VK_NULL_HANDLE;
-    OperationQueues              m_queues;
-    OperationIndices             m_queueIndices;
-    CommandPool*                 m_commandPool;
+    const ApplicationInstance&       m_instance;
+    std::vector<DeviceOperation>     m_requiredOperations;
+    VkPhysicalDevice                 m_physicalDevice = VK_NULL_HANDLE;
+    OperationQueues                  m_queues;
+    OperationIndices                 m_queueIndices;
+    CommandPool*                     m_commandPool;
+    VkPhysicalDeviceMemoryProperties m_memoryProperties;
 
     friend VkPhysicalDevice detail::getDevicePhysicalHandle(const ri::DeviceContext& device);
     friend VkQueue          detail::getDeviceQueue(const ri::DeviceContext& device, int deviceOperation);
     friend uint32_t         detail::getDeviceQueueIndex(const ri::DeviceContext& device, int deviceOperation);
+    friend const VkPhysicalDeviceMemoryProperties& detail::getDeviceMemoryProperties(const ri::DeviceContext& device);
 };
 
 inline void DeviceContext::initialize(Surface& surface, const std::vector<DeviceFeature>& requiredFeatures,
@@ -76,5 +78,25 @@ inline const CommandPool& DeviceContext::commandPool() const
 {
     return *m_commandPool;
 }
+
+namespace detail
+{
+    inline VkPhysicalDevice getDevicePhysicalHandle(const ri::DeviceContext& device)
+    {
+        return device.m_physicalDevice;
+    }
+    inline VkQueue getDeviceQueue(const ri::DeviceContext& device, int deviceOperation)
+    {
+        return device.m_queues[DeviceOperation::from(deviceOperation).get()];
+    }
+    inline uint32_t getDeviceQueueIndex(const ri::DeviceContext& device, int deviceOperation)
+    {
+        return device.m_queueIndices[DeviceOperation::from(deviceOperation).get()];
+    }
+    inline const VkPhysicalDeviceMemoryProperties& detail::getDeviceMemoryProperties(const ri::DeviceContext& device)
+    {
+        return device.m_memoryProperties;
+    }
+}  // namespace detail
 
 }  // namespace ri

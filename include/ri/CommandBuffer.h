@@ -21,8 +21,10 @@ public:
 
     void begin(RecordFlags flags);
     void end();
-    void draw(uint32_t vertexCount, uint32_t instanceCount,  //
+    void draw(uint32_t vertexCount, uint32_t instanceCount = 1,  //
               uint32_t offsetVertexIndex = 0, uint32_t offsetInstanceIndex = 0);
+    void drawIndexed(uint32_t vertexCount, uint32_t instanceCount = 1,  //
+                     uint32_t offsetIndex = 0, uint32_t offsetVertexIndex = 0, uint32_t offsetInstanceIndex = 0);
 
     ///@note Can only be used if the buffer was created from a pool with reset mode.
     void reset(ResetFlags flags = ePreserve);
@@ -67,6 +69,12 @@ inline void CommandBuffer::draw(uint32_t vertexCount, uint32_t instanceCount,  /
                                 uint32_t offsetVertexIndex, uint32_t offsetInstanceIndex)
 {
     vkCmdDraw(m_handle, vertexCount, instanceCount, offsetVertexIndex, offsetInstanceIndex);
+}
+
+inline void CommandBuffer::drawIndexed(uint32_t vertexCount, uint32_t instanceCount,  //
+                                       uint32_t offsetIndex, uint32_t offsetVertexIndex, uint32_t offsetInstanceIndex)
+{
+    vkCmdDrawIndexed(m_handle, vertexCount, instanceCount, offsetIndex, offsetVertexIndex, offsetInstanceIndex);
 }
 
 inline void CommandBuffer::begin(RecordFlags flags)

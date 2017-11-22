@@ -84,6 +84,10 @@ SAFE_ENUM_DECLARE(AttributeFormat,
                   eShort4     = VK_FORMAT_R16G16B16A16_UINT     //
 );
 
+SAFE_ENUM_DECLARE(IndexType,
+                  eInt16 = VK_INDEX_TYPE_UINT16,  //
+                  eInt32 = VK_INDEX_TYPE_UINT32);
+
 SAFE_ENUM_DECLARE(BufferUsageFlags,                                //
                   eSrc      = VK_BUFFER_USAGE_TRANSFER_SRC_BIT,    //
                   eDst      = VK_BUFFER_USAGE_TRANSFER_DST_BIT,    //
