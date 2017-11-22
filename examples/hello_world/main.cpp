@@ -24,6 +24,7 @@
 #include <vector>
 
 #include <ri/ApplicationInstance.h>
+#include <ri/Buffer.h>
 #include <ri/CommandBuffer.h>
 #include <ri/DeviceContext.h>
 #include <ri/RenderPass.h>
@@ -36,7 +37,7 @@
 const int kWidth  = 800;
 const int kHeight = 600;
 
-#define RECORDED_MODE 1
+#define RECORDED_MODE 0
 
 class HelloTriangleApplication
 {
@@ -168,7 +169,7 @@ private:
         // must update before binding the render pipeline
         m_renderPipeline->defaultPass().setRenderArea(surface->size());
 
-        commandBuffer.begin(ri::RecordFlags::eResubmit);
+        commandBuffer.begin(ri::RecordFlags::eOneTime);  // buffer will be submited once, then reset
         dispatchCommands(surface->renderTarget(activeIndex), surface->commandBuffer(activeIndex));
         commandBuffer.end();
 #endif
@@ -241,21 +242,14 @@ private:
 
     void cleanup()
     {
-        m_renderPipeline.reset();
-        m_shaderPipeline.reset();
-        m_surfaces[0].reset();
-        m_surfaces[1].reset();
-        m_context.reset();
-        m_validation.reset();
-        m_instance.reset();
-
         glfwDestroyWindow(m_windows[0]);
         glfwDestroyWindow(m_windows[1]);
         glfwTerminate();
     }
 
 private:
-    GLFWwindow*                              m_windows[2] = {nullptr, nullptr};
+    GLFWwindow* m_windows[2] = {nullptr, nullptr};
+    // RI objects must be destroyed first from children to parents order
     std::unique_ptr<ri::ApplicationInstance> m_instance;
     std::unique_ptr<ri::ValidationReport>    m_validation;
     std::unique_ptr<ri::DeviceContext>       m_context;

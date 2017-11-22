@@ -30,7 +30,7 @@ include_directories(
     ${GLFW_INCLUDE_DIR})
 
 set (EXAMPLES_LIBRARIES vulkanri ${Vulkan_LIBRARY} ${GLFW_LIBRARIES})
-set (EXAMPLES_TARGETS "hello_world")
+set (EXAMPLES_TARGETS "hello_world" "vertex_buffers")
 
 foreach( examples_target ${EXAMPLES_TARGETS} )
     add_executable(${examples_target} ${examples_target}/main.cpp)
