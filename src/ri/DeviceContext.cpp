@@ -63,23 +63,23 @@ namespace
     }
 }  // namespace
 
-DeviceContext::DeviceContext(const ApplicationInstance& instance,
-                             bool                       commandResetMode,
-                             DeviceCommandHint          commandHint /*= DeviceCommandHint::eNormal*/)
+DeviceContext::DeviceContext(const ApplicationInstance& instance)
     : m_instance(instance)
-    , m_commandPool(new CommandPool(commandResetMode, commandHint))
 {
+    m_commandPools.fill(nullptr);
 }
 
 DeviceContext::~DeviceContext()
 {
-    delete m_commandPool;
+    for (auto commandPool : m_commandPools)
+        delete commandPool;
     vkDestroyDevice(m_handle, nullptr);
 }
 
 void DeviceContext::initialize(const std::vector<Surface*>&        surfaces,
                                const std::vector<DeviceFeature>&   requiredFeatures,
-                               const std::vector<DeviceOperation>& requiredOperations)
+                               const std::vector<DeviceOperation>& requiredOperations,
+                               const CommandPoolParam&             commandParam /*= CommandPoolParam()*/)
 {
     uint32_t deviceCount = 0;
     vkEnumeratePhysicalDevices(detail::getVkHandle(m_instance), &deviceCount, nullptr);
@@ -111,7 +111,8 @@ void DeviceContext::initialize(const std::vector<Surface*>&        surfaces,
     createDevice(surfaces, features.first, features.second);
     assert(m_handle != VK_NULL_HANDLE);
 
-    m_commandPool->initialize(m_handle, m_queueIndices[static_cast<size_t>(DeviceOperation::eGraphics)]);
+    addCommandPool(DeviceOperation::eGraphics, commandParam);
+    m_defaultCommandPool = &commandPool(DeviceOperation::eGraphics, commandParam.hints);
 
     for (Surface* surface : surfaces)
     {
@@ -119,9 +120,19 @@ void DeviceContext::initialize(const std::vector<Surface*>&        surfaces,
     }
 }
 
-void DeviceContext::waitIdle()
+void DeviceContext::addCommandPool(DeviceOperation operation, const CommandPoolParam& param)
 {
-    vkDeviceWaitIdle(m_handle);
+    static_assert(DeviceCommandHint::Count == 2, "");
+    static_assert(DeviceOperation::eGraphics == 0, "");
+
+    // 0 for graphics pool, 1 for compute
+    auto& commandPool = m_commandPools[(operation.get() == DeviceOperation::eCompute) * 2 + param.hints.get()];
+    if (!commandPool)
+    {
+        commandPool = new CommandPool(param.resetMode, param.hints);
+        commandPool->initialize(m_handle, m_queueIndices[static_cast<size_t>(operation)]);
+    }
+    assert(param.resetMode == commandPool->resetMode());
 }
 
 uint32_t DeviceContext::deviceScore(VkPhysicalDevice device, const std::vector<DeviceFeature>& requiredFeatures)

@@ -37,7 +37,7 @@
 const int kWidth  = 800;
 const int kHeight = 600;
 
-#define RECORDED_MODE 0
+#define RECORDED_MODE 1
 
 class HelloTriangleApplication
 {
@@ -101,16 +101,14 @@ private:
 
 #if RECORDED_MODE == 1
             // commands will be recorded in the command buffers before render loop
-            bool                  resetCommand = false;
-            ri::DeviceCommandHint commandHints = ri::DeviceCommandHint::eRecorded;
+            ri::DeviceContext::CommandPoolParam param = {ri::DeviceCommandHint::eRecorded, false};
 #else
             // command buffers will be reset upon calling begin in render loop
-            bool                  resetCommand = true;
-            ri::DeviceCommandHint commandHints = ri::DeviceCommandHint::eTransient;
+            ri::DeviceContext::CommandPoolParam param = {ri::DeviceCommandHint::eTransient, true};
 #endif  //  RECORDED_MODE == 1
 
-            m_context.reset(new ri::DeviceContext(*m_instance, resetCommand, commandHints));
-            m_context->initialize(surfaces, requiredFeatures, requiredOperations);
+            m_context.reset(new ri::DeviceContext(*m_instance));
+            m_context->initialize(surfaces, requiredFeatures, requiredOperations, param);
         }
 
         // create a shader pipeline and let it own the shader modules

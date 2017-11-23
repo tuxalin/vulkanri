@@ -14,18 +14,31 @@ class CommandPool;
 class DeviceContext : util::noncopyable, public detail::RenderObject<VkDevice>
 {
 public:
-    DeviceContext(const ApplicationInstance& instance, bool commandResetMode,
-                  DeviceCommandHint commandHint = DeviceCommandHint::eRecorded);
+    struct CommandPoolParam
+    {
+        DeviceCommandHint hints     = DeviceCommandHint::eRecorded;
+        bool              resetMode = false;
+    };
+
+    DeviceContext(const ApplicationInstance& instance);
     ~DeviceContext();
 
-    void initialize(Surface& surface, const std::vector<DeviceFeature>& requiredFeatures,
-                    const std::vector<DeviceOperation>& requiredOperations);
-    //@note Will attach the surfaces to the context.
-    void initialize(const std::vector<Surface*>& surfaces, const std::vector<DeviceFeature>& requiredFeatures,
-                    const std::vector<DeviceOperation>& requiredOperations);
+    void initialize(Surface&                            surface,             //
+                    const std::vector<DeviceFeature>&   requiredFeatures,    //
+                    const std::vector<DeviceOperation>& requiredOperations,  //
+                    const CommandPoolParam&             commandParam = CommandPoolParam());
+    /// @note Will attach the surfaces to the context.
+    void initialize(const std::vector<Surface*>&        surfaces,            //
+                    const std::vector<DeviceFeature>&   requiredFeatures,    //
+                    const std::vector<DeviceOperation>& requiredOperations,  //
+                    const CommandPoolParam&             commandParam = CommandPoolParam());
 
+    /// Will return the default command pool.
     CommandPool&       commandPool();
-    const CommandPool& commandPool() const;
+    CommandPool&       commandPool(DeviceOperation operation, DeviceCommandHint commandHint);
+    const CommandPool& commandPool(DeviceOperation operation, DeviceCommandHint commandHint) const;
+    /// @note By default the graphics command buffer with the give param is created.
+    void addCommandPool(DeviceOperation operation, const CommandPoolParam& param);
 
     void waitIdle();
 
@@ -48,7 +61,8 @@ private:
     VkPhysicalDevice                 m_physicalDevice = VK_NULL_HANDLE;
     OperationQueues                  m_queues;
     OperationIndices                 m_queueIndices;
-    CommandPool*                     m_commandPool;
+    CommandPool*                     m_defaultCommandPool = nullptr;
+    std::array<CommandPool*, 2 * 2>  m_commandPools;
     VkPhysicalDeviceMemoryProperties m_memoryProperties;
 
     friend VkPhysicalDevice detail::getDevicePhysicalHandle(const ri::DeviceContext& device);
@@ -57,11 +71,13 @@ private:
     friend const VkPhysicalDeviceMemoryProperties& detail::getDeviceMemoryProperties(const ri::DeviceContext& device);
 };
 
-inline void DeviceContext::initialize(Surface& surface, const std::vector<DeviceFeature>& requiredFeatures,
-                                      const std::vector<DeviceOperation>& requiredOperations)
+inline void DeviceContext::initialize(Surface&                            surface,             //
+                                      const std::vector<DeviceFeature>&   requiredFeatures,    //
+                                      const std::vector<DeviceOperation>& requiredOperations,  //
+                                      const CommandPoolParam&             commandParam /*= CommandPoolParam()*/)
 {
     const std::vector<Surface*> data(1, &surface);
-    initialize(data, requiredFeatures, requiredOperations);
+    initialize(data, requiredFeatures, requiredOperations, commandParam);
 }
 
 inline const std::vector<DeviceOperation>& DeviceContext::requiredOperations() const
@@ -72,11 +88,29 @@ inline const std::vector<DeviceOperation>& DeviceContext::requiredOperations() c
 
 inline CommandPool& DeviceContext::commandPool()
 {
-    return *m_commandPool;
+    assert(m_defaultCommandPool);
+    return *m_defaultCommandPool;
 }
-inline const CommandPool& DeviceContext::commandPool() const
+
+inline CommandPool& DeviceContext::commandPool(DeviceOperation operation, DeviceCommandHint commandHint)
 {
-    return *m_commandPool;
+    // 0 for graphics pool, 1 for compute
+    auto& commandPool = m_commandPools[(operation.get() == DeviceOperation::eCompute) * 2 + commandHint.get()];
+    assert(commandPool);
+    return *commandPool;
+}
+
+inline const CommandPool& DeviceContext::commandPool(DeviceOperation operation, DeviceCommandHint commandHint) const
+{
+    // 0 for graphics pool, 1 for compute
+    const auto& commandPool = m_commandPools[(operation.get() == DeviceOperation::eCompute) * 2 + commandHint.get()];
+    assert(commandPool);
+    return *commandPool;
+}
+
+inline void DeviceContext::waitIdle()
+{
+    vkDeviceWaitIdle(m_handle);
 }
 
 namespace detail

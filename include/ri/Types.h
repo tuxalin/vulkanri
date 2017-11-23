@@ -81,8 +81,7 @@ SAFE_ENUM_DECLARE(AttributeFormat,
                   eShort      = VK_FORMAT_R16_UINT,             //
                   eShort2     = VK_FORMAT_R16G16_UINT,          //
                   eShort3     = VK_FORMAT_R16G16B16_UINT,       //
-                  eShort4     = VK_FORMAT_R16G16B16A16_UINT     //
-);
+                  eShort4     = VK_FORMAT_R16G16B16A16_UINT);
 
 SAFE_ENUM_DECLARE(IndexType,
                   eInt16 = VK_INDEX_TYPE_UINT16,  //
@@ -98,8 +97,7 @@ SAFE_ENUM_DECLARE(BufferUsageFlags,                                             
                   eIndexSrc = eIndex | eSrc, eIndexDst = eIndex | eDst,              //
                   eVertexSrc = eVertex | eSrc, eVertexDst = eVertex | eDst,          //
                   eIndirectSrc = eIndirect | eSrc, eIndirectDst = eIndirect | eDst,  //
-                  eUniformtSrc = eUniform | eSrc, eUniformDst = eUniform | eDst      //
-);
+                  eUniformtSrc = eUniform | eSrc, eUniformDst = eUniform | eDst);
 
 SAFE_ENUM_DECLARE(TextureType,
                   e1D      = VK_IMAGE_VIEW_TYPE_1D,

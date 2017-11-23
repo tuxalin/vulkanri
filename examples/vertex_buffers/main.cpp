@@ -52,8 +52,6 @@ const std::vector<Vertex>   kVertices = {{{-0.5f, -0.5f}, {1.0f, 0.0f, 0.0f}},
                                        {{-0.5f, 0.5f}, {1.0f, 1.0f, 1.0f}}};
 const std::vector<uint16_t> kIndices  = {0, 1, 2, 2, 3, 0};
 
-#define RECORDED_MODE 1
-
 class HelloTriangleApplication
 {
 public:
@@ -113,7 +111,7 @@ private:
             bool                  resetCommand = false;
             ri::DeviceCommandHint commandHints = ri::DeviceCommandHint::eRecorded;
 
-            m_context.reset(new ri::DeviceContext(*m_instance, resetCommand, commandHints));
+            m_context.reset(new ri::DeviceContext(*m_instance));
             m_context->initialize(*m_surface, requiredFeatures, requiredOperations);
         }
 
@@ -139,15 +137,21 @@ private:
             std::unique_ptr<ri::Buffer> stagingBuffer(new ri::Buffer(
                 *m_context, ri::BufferUsageFlags::eSrc, std::max(m_vertexBuffer->bytes(), m_indexBuffer->bytes())));
 
+            // create a transient pool for short lived buffer
+            ri::DeviceContext::CommandPoolParam param = {ri::DeviceCommandHint::eTransient, false};
+            m_context->addCommandPool(ri::DeviceOperation::eTransfer, param);
+
             /* update is equivalant to:
             auto dst = buffer->lock();
             memcpy(dst, someData.data(), buffer->bytes());
             buffer->unlock();
             */
+            auto& commandPool =
+                m_context->commandPool(ri::DeviceOperation::eTransfer, ri::DeviceCommandHint::eTransient);
             stagingBuffer->update(kVertices.data());
-            m_vertexBuffer->copy(*stagingBuffer, m_context->commandPool());
+            m_vertexBuffer->copy(*stagingBuffer, commandPool);
             stagingBuffer->update(kIndices.data());
-            m_indexBuffer->copy(*stagingBuffer, m_context->commandPool());
+            m_indexBuffer->copy(*stagingBuffer, commandPool);
 
             {
                 ri::InputLayout::VertexBinding binding({{0, ri::AttributeFormat::eFloat2, offsetof(Vertex, pos)},

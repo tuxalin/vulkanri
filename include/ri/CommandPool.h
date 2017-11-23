@@ -21,6 +21,9 @@ private:
     CommandPool(bool resetMode, DeviceCommandHint commandHint);
     ~CommandPool();
 
+    DeviceCommandHint deviceCommandHint() const;
+    bool              resetMode() const;
+
     void initialize(VkDevice device, int queueIndex);
 
 private:
@@ -30,4 +33,14 @@ private:
 
     friend class DeviceContext;  // pool is owned by the device
 };
+
+inline DeviceCommandHint CommandPool::deviceCommandHint() const
+{
+    return m_commandHint;
+}
+
+inline bool CommandPool::resetMode() const
+{
+    return m_resetMode;
+}
 }  // namespace ri
