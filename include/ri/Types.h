@@ -88,13 +88,18 @@ SAFE_ENUM_DECLARE(IndexType,
                   eInt16 = VK_INDEX_TYPE_UINT16,  //
                   eInt32 = VK_INDEX_TYPE_UINT32);
 
-SAFE_ENUM_DECLARE(BufferUsageFlags,                                //
-                  eSrc      = VK_BUFFER_USAGE_TRANSFER_SRC_BIT,    //
-                  eDst      = VK_BUFFER_USAGE_TRANSFER_DST_BIT,    //
-                  eUniform  = VK_BUFFER_USAGE_UNIFORM_BUFFER_BIT,  //
-                  eIndex    = VK_BUFFER_USAGE_INDEX_BUFFER_BIT,    //
-                  eVertex   = VK_BUFFER_USAGE_VERTEX_BUFFER_BIT,   //
-                  eIndirect = VK_BUFFER_USAGE_INDIRECT_BUFFER_BIT);
+SAFE_ENUM_DECLARE(BufferUsageFlags,                                                  //
+                  eSrc      = VK_BUFFER_USAGE_TRANSFER_SRC_BIT,                      //
+                  eDst      = VK_BUFFER_USAGE_TRANSFER_DST_BIT,                      //
+                  eUniform  = VK_BUFFER_USAGE_UNIFORM_BUFFER_BIT,                    //
+                  eIndex    = VK_BUFFER_USAGE_INDEX_BUFFER_BIT,                      //
+                  eVertex   = VK_BUFFER_USAGE_VERTEX_BUFFER_BIT,                     //
+                  eIndirect = VK_BUFFER_USAGE_INDIRECT_BUFFER_BIT,                   //
+                  eIndexSrc = eIndex | eSrc, eIndexDst = eIndex | eDst,              //
+                  eVertexSrc = eVertex | eSrc, eVertexDst = eVertex | eDst,          //
+                  eIndirectSrc = eIndirect | eSrc, eIndirectDst = eIndirect | eDst,  //
+                  eUniformtSrc = eUniform | eSrc, eUniformDst = eUniform | eDst      //
+);
 
 SAFE_ENUM_DECLARE(TextureType,
                   e1D      = VK_IMAGE_VIEW_TYPE_1D,

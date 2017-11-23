@@ -7,6 +7,7 @@
  * -creating and using an input layout
  * -seting an indexed input layout, it's vertex binding and attributes
  * -use indexed draw commands
+ * -using transfer operations with a staging buffer
  */
 #define GLFW_INCLUDE_VULKAN
 #include <GLFW/glfw3.h>
@@ -104,7 +105,9 @@ private:
         // create the device context
         {
             const std::vector<ri::DeviceFeature>   requiredFeatures   = {ri::DeviceFeature::eSwapchain};
-            const std::vector<ri::DeviceOperation> requiredOperations = {ri::DeviceOperation::eGraphics};
+            const std::vector<ri::DeviceOperation> requiredOperations = {ri::DeviceOperation::eGraphics,
+                                                                         // required for buffer transfer
+                                                                         ri::DeviceOperation::eTransfer};
 
             // commands will be recorded in the command buffers before render loop
             bool                  resetCommand = false;
@@ -126,18 +129,25 @@ private:
 
         // create a vertex and index buffers
         {
-            m_vertexBuffer.reset(
-                new ri::Buffer(*m_context, ri::BufferUsageFlags::eVertex, sizeof(kVertices[0]) * kVertices.size()));
-            m_indexBuffer.reset(
-                new ri::Buffer(*m_context, ri::BufferUsageFlags::eIndex, sizeof(kIndices[0]) * kIndices.size()));
+            m_vertexBuffer.reset(new ri::Buffer(*m_context,
+                                                ri::BufferUsageFlags::eVertex | ri::BufferUsageFlags::eDst,
+                                                sizeof(kVertices[0]) * kVertices.size()));
+            m_indexBuffer.reset(new ri::Buffer(*m_context,
+                                               ri::BufferUsageFlags::eIndex | ri::BufferUsageFlags::eDst,
+                                               sizeof(kIndices[0]) * kIndices.size()));
 
-            /* is equivalant to:
-            auto dst = m_vertexBuffer->lock();
-            memcpy(dst, vertices.data(), m_vertexBuffer->bytes());
-            m_vertexBuffer->unlock();
+            std::unique_ptr<ri::Buffer> stagingBuffer(new ri::Buffer(
+                *m_context, ri::BufferUsageFlags::eSrc, std::max(m_vertexBuffer->bytes(), m_indexBuffer->bytes())));
+
+            /* update is equivalant to:
+            auto dst = buffer->lock();
+            memcpy(dst, someData.data(), buffer->bytes());
+            buffer->unlock();
             */
-            m_vertexBuffer->update(kVertices.data());
-            m_indexBuffer->update(kIndices.data());
+            stagingBuffer->update(kVertices.data());
+            m_vertexBuffer->copy(*stagingBuffer, m_context->commandPool());
+            stagingBuffer->update(kIndices.data());
+            m_indexBuffer->copy(*stagingBuffer, m_context->commandPool());
 
             {
                 ri::InputLayout::VertexBinding binding({{0, ri::AttributeFormat::eFloat2, offsetof(Vertex, pos)},

@@ -1,4 +1,4 @@
 build/
 examples/build/
 *.spv
-.vs/slnx.sqlite
+.vs/*

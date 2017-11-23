@@ -169,7 +169,7 @@ private:
         // must update before binding the render pipeline
         m_renderPipeline->defaultPass().setRenderArea(surface->size());
 
-        commandBuffer.begin(ri::RecordFlags::eOneTime);  // buffer will be submited once, then reset
+        commandBuffer.begin(ri::RecordFlags::eResubmit);
         dispatchCommands(surface->renderTarget(activeIndex), surface->commandBuffer(activeIndex));
         commandBuffer.end();
 #endif
