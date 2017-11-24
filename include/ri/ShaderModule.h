@@ -7,7 +7,7 @@ namespace ri
 {
 class DeviceContext;
 
-class ShaderModule : util::noncopyable, public detail::RenderObject<VkShaderModule>
+class ShaderModule : util::noncopyable, public RenderObject<VkShaderModule>
 {
 public:
     ShaderModule(const DeviceContext& device, const std::string& filename, ShaderStage stage);

@@ -8,6 +8,7 @@
  * -seting an indexed input layout, it's vertex binding and attributes
  * -use indexed draw commands
  * -using transfer operations with a staging buffer
+ * -adding debug tags to resources
  */
 #define GLFW_INCLUDE_VULKAN
 #include <GLFW/glfw3.h>
@@ -99,6 +100,7 @@ private:
 
         m_surface.reset(  //
             new ri::Surface(*m_instance, ri::Sizei(kWidth, kHeight), m_window, ri::PresentMode::eMailbox));
+        m_surface->setTagName("MainWindowSurface");
 
         // create the device context
         {
@@ -113,6 +115,7 @@ private:
 
             m_context.reset(new ri::DeviceContext(*m_instance));
             m_context->initialize(*m_surface, requiredFeatures, requiredOperations);
+            m_context->setTagName("MainContext");
         }
 
         // create a shader pipeline and let it own the shader modules
@@ -123,6 +126,7 @@ private:
                 new ri::ShaderModule(*m_context, shadersPath + "shader.frag", ri::ShaderStage::eFragment));
             m_shaderPipeline->addStage(
                 new ri::ShaderModule(*m_context, shadersPath + "shader.vert", ri::ShaderStage::eVertex));
+            m_shaderPipeline->setTagName("BasicShaderPipeline");
         }
 
         // create a vertex and index buffers
@@ -130,12 +134,15 @@ private:
             m_vertexBuffer.reset(new ri::Buffer(*m_context,
                                                 ri::BufferUsageFlags::eVertex | ri::BufferUsageFlags::eDst,
                                                 sizeof(kVertices[0]) * kVertices.size()));
+            m_vertexBuffer->setTagName("VertexBuffer");
             m_indexBuffer.reset(new ri::Buffer(*m_context,
                                                ri::BufferUsageFlags::eIndex | ri::BufferUsageFlags::eDst,
                                                sizeof(kIndices[0]) * kIndices.size()));
+            m_vertexBuffer->setTagName("IndexBuffer");
 
             std::unique_ptr<ri::Buffer> stagingBuffer(new ri::Buffer(
                 *m_context, ri::BufferUsageFlags::eSrc, std::max(m_vertexBuffer->bytes(), m_indexBuffer->bytes())));
+            stagingBuffer->setTagName("StagingBuffer");
 
             // create a transient pool for short lived buffer
             ri::DeviceContext::CommandPoolParam param = {ri::DeviceCommandHint::eTransient, false};
@@ -162,6 +169,7 @@ private:
                 binding.stride       = sizeof(Vertex);
                 m_inputLayout.create(binding);
                 m_inputLayout.setIndexBuffer(*m_indexBuffer, ri::IndexType::eInt16);
+                m_inputLayout.setTagName("InputLayout");
             }
         }
 
@@ -170,6 +178,7 @@ private:
             ri::RenderPass::AttachmentParams passParams;
             passParams.format    = m_surface->format();
             ri::RenderPass* pass = new ri::RenderPass(*m_context, passParams);
+            pass->setTagName("SimplePass");
 
             ri::RenderPipeline::CreateParams params;
             // neded to change viewport for multiple windows
@@ -178,6 +187,7 @@ private:
 
             m_renderPipeline.reset(
                 new ri::RenderPipeline(*m_context, pass, *m_shaderPipeline, params, ri::Sizei(kWidth, kHeight)));
+            m_renderPipeline->setTagName("SimplePipeline");
         }
     }
 

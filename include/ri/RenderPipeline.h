@@ -11,7 +11,7 @@ class CommandBuffer;
 class ShaderPipeline;
 class InputLayout;
 
-class RenderPipeline : util::noncopyable, public detail::RenderObject<VkPipeline>
+class RenderPipeline : util::noncopyable, public RenderObject<VkPipeline>
 {
 public:
     struct CreateParams
@@ -142,7 +142,7 @@ private:
 
     RenderPipeline(const ri::DeviceContext& device, VkPipeline handle, VkPipelineLayout layout,
                    const VkViewport& viewport, const VkRect2D& scissor)
-        : detail::RenderObject<VkPipeline>(handle)
+        : RenderObject<VkPipeline>(handle)
         , m_pipelineLayout(layout)
         , m_device(detail::getVkHandle(device))
         , m_viewport(viewport)

@@ -12,7 +12,7 @@ class CommandBuffer;
 class RenderTarget;
 class RenderPass;
 
-class Surface : util::noncopyable
+class Surface : util::noncopyable, public RenderObject<VkSurfaceKHR>
 {
 public:
     // @note If the present mode is not available it'll fallback to the PresentMode::eNormal mode.
@@ -62,7 +62,6 @@ private:
 
 private:
     const ApplicationInstance&  m_instance;
-    VkSurfaceKHR                m_surface   = VK_NULL_HANDLE;
     VkSwapchainKHR              m_swapchain = VK_NULL_HANDLE;
     VkDevice                    m_device    = VK_NULL_HANDLE;
     std::vector<RenderTarget*>  m_swapchainTargets;

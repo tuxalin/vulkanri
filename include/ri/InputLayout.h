@@ -6,7 +6,7 @@
 
 namespace ri
 {
-class InputLayout
+class InputLayout : public TagableObject
 {
 public:
     struct VertexInput

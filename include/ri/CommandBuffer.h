@@ -5,7 +5,7 @@
 
 namespace ri
 {
-class CommandBuffer : util::noncopyable, public detail::RenderObject<VkCommandBuffer>
+class CommandBuffer : util::noncopyable, public RenderObject<VkCommandBuffer>
 {
 public:
     enum ResetFlags

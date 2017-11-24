@@ -16,6 +16,8 @@ class Surface;
 class ShaderPipeline;
 class DeviceContext;
 class InputLayout;
+template <typename HandleClass>
+class RenderObject;
 
 namespace detail
 {
@@ -41,6 +43,9 @@ namespace detail
 
     const std::vector<VkVertexInputBindingDescription>&   getLayoutBindingDescriptions(const InputLayout& layout);
     const std::vector<VkVertexInputAttributeDescription>& getLayoutAttributeDescriptons(const InputLayout& layout);
+
+    template <typename HandleClass>
+    HandleClass getVkHandle(const RenderObject<HandleClass>& obj);
 
 }  // namespace detail
 }  // namespace ri

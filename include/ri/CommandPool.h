@@ -7,7 +7,7 @@ namespace ri
 {
 class CommandBuffer;
 
-class CommandPool : util::noncopyable, public detail::RenderObject<VkCommandPool>
+class CommandPool : util::noncopyable, public RenderObject<VkCommandPool>
 {
 public:
     CommandBuffer* create(bool isPrimary = true);

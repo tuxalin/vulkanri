@@ -20,7 +20,7 @@ Texture::Texture(const DeviceContext& device)
 }
 
 Texture::Texture(VkImage handle, TextureType type, const Sizei& size)
-    : detail::RenderObject<VkImage>(handle)
+    : RenderObject<VkImage>(handle)
     , m_type(type)
     , m_size(size)
 {

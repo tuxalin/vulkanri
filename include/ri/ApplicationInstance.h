@@ -6,7 +6,7 @@
 
 namespace ri
 {
-class ApplicationInstance : util::noncopyable, public detail::RenderObject<VkInstance>
+class ApplicationInstance : util::noncopyable, public RenderObject<VkInstance>
 {
 public:
     ApplicationInstance(const std::string& name, const std::string& engineName = "");

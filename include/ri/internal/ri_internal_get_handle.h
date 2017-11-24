@@ -2,7 +2,7 @@
 
 #include <vulkan/vulkan.h>
 
-#include "RenderObject.h"
+#include <ri/RenderObject.h>
 
 namespace ri
 {

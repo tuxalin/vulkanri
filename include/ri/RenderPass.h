@@ -9,7 +9,7 @@ namespace ri
 class CommandBuffer;
 class RenderTarget;
 
-class RenderPass : util::noncopyable, public detail::RenderObject<VkRenderPass>
+class RenderPass : util::noncopyable, public RenderObject<VkRenderPass>
 {
 public:
     struct AttachmentParams

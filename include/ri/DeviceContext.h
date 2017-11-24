@@ -11,7 +11,7 @@ class ApplicationInstance;
 class Surface;
 class CommandPool;
 
-class DeviceContext : util::noncopyable, public detail::RenderObject<VkDevice>
+class DeviceContext : util::noncopyable, public RenderObject<VkDevice>
 {
 public:
     struct CommandPoolParam

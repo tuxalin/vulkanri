@@ -91,7 +91,7 @@ Surface::Surface(const ApplicationInstance& instance, const Sizei& size, const S
 {
 #if RI_PLATFORM == RI_PLATFORM_GLFW
     assert(param.window);
-    RI_CHECK_RESULT() = glfwCreateWindowSurface(detail::getVkHandle(m_instance), param.window, nullptr, &m_surface);
+    RI_CHECK_RESULT() = glfwCreateWindowSurface(detail::getVkHandle(m_instance), param.window, nullptr, &m_handle);
 #elif RI_PLATFORM == RI_PLATFORM_WINDOWS
     assert(param.hwnd && param.hinstance);
     VkWin32SurfaceCreateInfoKHR info = {};
@@ -112,7 +112,7 @@ Surface::~Surface()
 
     cleanup(true);
 
-    vkDestroySurfaceKHR(detail::getVkHandle(m_instance), m_surface, nullptr);
+    vkDestroySurfaceKHR(detail::getVkHandle(m_instance), m_handle, nullptr);
 }
 
 void Surface::cleanup(bool cleanSwapchain)
@@ -195,7 +195,7 @@ void Surface::createSwapchain(const SwapChainSupport& support, const VkSurfaceFo
 
     VkSwapchainCreateInfoKHR createInfo = {};
     createInfo.sType                    = VK_STRUCTURE_TYPE_SWAPCHAIN_CREATE_INFO_KHR;
-    createInfo.surface                  = m_surface;
+    createInfo.surface                  = m_handle;
     createInfo.minImageCount            = imageCount;
     createInfo.imageFormat              = surfaceFormat.format;
     createInfo.imageColorSpace          = surfaceFormat.colorSpace;
@@ -334,7 +334,7 @@ void Surface::setPresentationQueue(const ri::DeviceContext& device)
     for (const auto& queueFamily : queueFamilies)
     {
         VkBool32 presentSupport = false;
-        vkGetPhysicalDeviceSurfaceSupportKHR(deviceHandle, i, m_surface, &presentSupport);
+        vkGetPhysicalDeviceSurfaceSupportKHR(deviceHandle, i, m_handle, &presentSupport);
 
         if (queueFamily.queueCount > 0 && presentSupport)
         {
@@ -350,22 +350,22 @@ Surface::SwapChainSupport Surface::determineSupport(const ri::DeviceContext& dev
     const auto deviceHandle = detail::getDevicePhysicalHandle(device);
 
     SwapChainSupport support;
-    vkGetPhysicalDeviceSurfaceCapabilitiesKHR(deviceHandle, m_surface, &support.capabilities);
+    vkGetPhysicalDeviceSurfaceCapabilitiesKHR(deviceHandle, m_handle, &support.capabilities);
 
     uint32_t count;
-    vkGetPhysicalDeviceSurfaceFormatsKHR(deviceHandle, m_surface, &count, nullptr);
+    vkGetPhysicalDeviceSurfaceFormatsKHR(deviceHandle, m_handle, &count, nullptr);
     if (count != 0)
     {
         support.formats.resize(count);
-        vkGetPhysicalDeviceSurfaceFormatsKHR(deviceHandle, m_surface, &count, support.formats.data());
+        vkGetPhysicalDeviceSurfaceFormatsKHR(deviceHandle, m_handle, &count, support.formats.data());
     }
 
     count = 0;
-    vkGetPhysicalDeviceSurfacePresentModesKHR(deviceHandle, m_surface, &count, nullptr);
+    vkGetPhysicalDeviceSurfacePresentModesKHR(deviceHandle, m_handle, &count, nullptr);
     if (count != 0)
     {
         support.presentModes.resize(count);
-        vkGetPhysicalDeviceSurfacePresentModesKHR(deviceHandle, m_surface, &count, support.presentModes.data());
+        vkGetPhysicalDeviceSurfacePresentModesKHR(deviceHandle, m_handle, &count, support.presentModes.data());
     }
 
     return support;

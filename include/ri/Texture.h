@@ -8,7 +8,7 @@ namespace ri
 {
 class DeviceContext;
 
-class Texture : util::noncopyable, public detail::RenderObject<VkImage>
+class Texture : util::noncopyable, public RenderObject<VkImage>
 {
 public:
     Texture(const DeviceContext& device);

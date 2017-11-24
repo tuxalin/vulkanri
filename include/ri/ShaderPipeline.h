@@ -7,7 +7,7 @@
 
 namespace ri
 {
-class ShaderPipeline : util::noncopyable
+class ShaderPipeline : util::noncopyable, public TagableObject
 {
 public:
     ShaderPipeline();
@@ -31,20 +31,14 @@ private:
 
 namespace detail
 {
-    struct ShaderModule
+    struct ShaderModule : public RenderObject<VkShaderModule>
     {
-        VkShaderModule m_shaderModule;
-        VkDevice       m_device;
-        ShaderStage    m_stage;
+        VkDevice    m_device;
+        ShaderStage m_stage;
 #ifndef NDEBUG
         std::vector<char> m_code;
 #endif  // !NDEBUG
     };
-    inline VkShaderModule getVkHandle(const ri::ShaderModule& obj)
-    {
-        static_assert(sizeof(ri::ShaderModule) == sizeof(ri::detail::ShaderModule), "INVALID_SIZES");
-        return reinterpret_cast<const detail::ShaderModule&>(obj).m_shaderModule;
-    }
 
     inline const std::vector<VkPipelineShaderStageCreateInfo>& getStageCreateInfos(const ShaderPipeline& pipeline)
     {

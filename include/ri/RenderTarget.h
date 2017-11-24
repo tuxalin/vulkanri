@@ -10,7 +10,7 @@ class DeviceContext;
 class RenderPass;
 class Texture;
 
-class RenderTarget : util::noncopyable, public detail::RenderObject<VkFramebuffer>
+class RenderTarget : util::noncopyable, public RenderObject<VkFramebuffer>
 {
 public:
     struct AttachmentParams

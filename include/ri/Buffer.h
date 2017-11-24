@@ -8,7 +8,7 @@ namespace ri
 class CommandBuffer;
 class CommandPool;
 
-class Buffer : util::noncopyable, public detail::RenderObject<VkBuffer>
+class Buffer : util::noncopyable, public RenderObject<VkBuffer>
 {
 public:
     Buffer(const DeviceContext& device, int flags, size_t size);
