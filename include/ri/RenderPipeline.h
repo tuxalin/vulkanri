@@ -51,6 +51,10 @@ public:
         // @note Any dynamic states that are marked must after be explictily be set with their commands, as the
         // initial/constant values will be ignored.
         std::vector<DynamicState> dynamicStates;
+        // The goal of derivative pipelines is that they be cheaper to create using the parent as a starting point, and
+        // that it be more efficient (on either host or device) to switch/bind between children of the same parent.
+        const RenderPipeline* pipelineDerivative      = nullptr;
+        int                   pipelineDerivativeIndex = -1;
     };
 
     struct DynamicState
@@ -68,7 +72,21 @@ public:
         VkRect2D   m_scissor;
     };
 
-    ///@note Takes ownerwship of the render pass.
+    struct ViewportParam
+    {
+        ViewportParam(const Sizei& size, int32_t viewportX = 0, int32_t viewportY = 0)
+            : viewportSize(viewportSize)
+            , viewportX(viewportX)
+            , viewportY(viewportY)
+        {
+        }
+
+        Sizei   viewportSize;
+        int32_t viewportX;
+        int32_t viewportY;
+    };
+
+    /// @note Takes ownerwship of the render pass.
     RenderPipeline(const ri::DeviceContext&  device,          //
                    ri::RenderPass*           pass,            //
                    const ri::ShaderPipeline& shaderPipeline,  //
@@ -83,22 +101,77 @@ public:
 
     ri::RenderPass&       defaultPass();
     const ri::RenderPass& defaultPass() const;
-    ///@note To use it you Must create the pipeline with specific dynamic states.
+    /// @note To use it you Must create the pipeline with specific dynamic states.
     DynamicState& dynamicState();
 
-    ///@note Also binds the pipeline.
+    /// @note Also binds the pipeline.
     void begin(const CommandBuffer& buffer, const RenderTarget& target) const;
     void end(const CommandBuffer& buffer) const;
     void bind(const CommandBuffer& buffer) const;
 
+    /// @note Can use pipeline derivative index for faster creation.
+    static void create(const ri::DeviceContext&                          device,            //
+                       const std::vector<const ri::RenderPass*>&         pipelinesPass,     //
+                       const std::vector<const ri::ShaderPipeline*>&     pipelinesShaders,  //
+                       const std::vector<RenderPipeline::CreateParams>&  pipelinesParams,
+                       const std::vector<RenderPipeline::ViewportParam>& pipelinesViewportParams,
+                       std::vector<RenderPipeline*>&                     pipelines);
+    static void create(const ri::DeviceContext&                         device,            //
+                       const std::vector<const ri::RenderPass*>&        pipelinesPass,     //
+                       const std::vector<const ri::ShaderPipeline*>&    pipelinesShaders,  //
+                       const std::vector<RenderPipeline::CreateParams>& pipelinesParams,
+                       const RenderPipeline::ViewportParam&             viewportParam,
+                       std::vector<RenderPipeline*>&                    pipelines);
+
 private:
-    void setViewport(const Sizei& viewportSize, int32_t viewportX, int32_t viewportY);
-    void create(const ri::RenderPass& pass, const ri::ShaderPipeline& shaderPipeline, const CreateParams& params);
+    struct PipelineCreateData
+    {
+        PipelineCreateData(const CreateParams& params, const ViewportParam& viewportParam);
+
+        VkPipelineVertexInputStateCreateInfo   vertexInput;
+        VkPipelineInputAssemblyStateCreateInfo inputAssembly;
+        VkViewport                             viewport;
+        VkRect2D                               scissor;
+        VkPipelineViewportStateCreateInfo      viewportState;
+        VkPipelineRasterizationStateCreateInfo rasterizer;
+        VkPipelineMultisampleStateCreateInfo   multisampling;
+        VkPipelineColorBlendAttachmentState    colorBlendAttachment;
+        VkPipelineColorBlendStateCreateInfo    colorBlending;
+        VkPipelineDynamicStateCreateInfo       dynamicState;
+    };
+
+    RenderPipeline(const ri::DeviceContext& device, VkPipeline handle, VkPipelineLayout layout,
+                   const VkViewport& viewport, const VkRect2D& scissor)
+        : detail::RenderObject<VkPipeline>(handle)
+        , m_pipelineLayout(layout)
+        , m_device(detail::getVkHandle(device))
+        , m_viewport(viewport)
+        , m_scissor(scissor)
+    {
+    }
+
+    static VkPipelineLayout createLayout(const VkDevice device, const CreateParams& params);
+
+    static VkPipelineVertexInputStateCreateInfo   getVertexInputInfo(const CreateParams& params);
+    static VkPipelineInputAssemblyStateCreateInfo getInputAssemblyInfo(const CreateParams& params);
+    static VkPipelineViewportStateCreateInfo getViewportStateInfo(const VkViewport& viewport, const VkRect2D& scissor);
+    static VkPipelineRasterizationStateCreateInfo getRasterizerInfo(const CreateParams& params);
+    static VkPipelineMultisampleStateCreateInfo   getMultisamplingInfo(const CreateParams& params);
+    static VkPipelineColorBlendAttachmentState    getColorBlendAttachmentInfo(const CreateParams& params);
+    static VkPipelineColorBlendStateCreateInfo    getColorBlendingInfo(
+           const CreateParams& params, const VkPipelineColorBlendAttachmentState& colorBlendAttachment);
+    static VkPipelineDynamicStateCreateInfo getDynamicStateInfo(const CreateParams& params);
+
+    static VkGraphicsPipelineCreateInfo getPipelineCreateInfo(const RenderPass&         pass,            //
+                                                              const ShaderPipeline&     shaderPipeline,  //
+                                                              const CreateParams&       params,          //
+                                                              const PipelineCreateData& data,
+                                                              VkPipelineLayout          pipelineLayout);
 
 private:
     VkPipelineLayout m_pipelineLayout = VK_NULL_HANDLE;
     VkDevice         m_device         = VK_NULL_HANDLE;
-    ri::RenderPass*  m_renderPass     = nullptr;
+    RenderPass*      m_renderPass     = nullptr;
     VkViewport       m_viewport;
     VkRect2D         m_scissor;
     DynamicState     m_dynamicState;
@@ -138,6 +211,17 @@ inline ri::RenderPipeline::DynamicState& RenderPipeline::dynamicState()
 inline void RenderPipeline::bind(const CommandBuffer& buffer) const
 {
     vkCmdBindPipeline(detail::getVkHandle(buffer), VK_PIPELINE_BIND_POINT_GRAPHICS, m_handle);
+}
+
+inline void RenderPipeline::create(const ri::DeviceContext&                         device,            //
+                                   const std::vector<const ri::RenderPass*>&        pipelinesPass,     //
+                                   const std::vector<const ri::ShaderPipeline*>&    pipelinesShaders,  //
+                                   const std::vector<RenderPipeline::CreateParams>& pipelinesParams,
+                                   const RenderPipeline::ViewportParam&             viewportParam,
+                                   std::vector<RenderPipeline*>&                    pipelines)
+{
+    create(device, pipelinesPass, pipelinesShaders, pipelinesParams,
+           std::vector<RenderPipeline::ViewportParam>({viewportParam}), pipelines);
 }
 
 inline void RenderPipeline::DynamicState::setViewport(CommandBuffer& buffer, const Sizei& viewportSize,  //

@@ -7,16 +7,35 @@
 
 namespace ri
 {
+namespace
+{
+    VkViewport getViewportFrom(const RenderPipeline::ViewportParam& viewportParam)
+    {
+        VkViewport viewport;
+        viewport.x        = (float)viewportParam.viewportX;
+        viewport.y        = (float)viewportParam.viewportY;
+        viewport.width    = (float)viewportParam.viewportSize.width;
+        viewport.height   = (float)viewportParam.viewportSize.height;
+        viewport.minDepth = 0.0f;
+        viewport.maxDepth = 1.0f;
+        return viewport;
+    }
+    VkRect2D getScissorFrom(const RenderPipeline::ViewportParam& viewportParam)
+    {
+        VkRect2D scissor;
+        scissor.offset = {viewportParam.viewportX, viewportParam.viewportY};
+        scissor.extent = {viewportParam.viewportSize.width, viewportParam.viewportSize.height};
+        return scissor;
+    }
+}
 RenderPipeline::RenderPipeline(const ri::DeviceContext&  device,          //
                                ri::RenderPass*           pass,            //
                                const ri::ShaderPipeline& shaderPipeline,  //
                                const CreateParams&       params,          //
                                const Sizei& viewportSize, int32_t viewportX /*= 0*/, int32_t viewportY /*= 0*/)
-    : m_device(detail::getVkHandle(device))
-    , m_renderPass(pass)
+    : RenderPipeline(device, *pass, shaderPipeline, params, viewportSize, viewportX, viewportY)
 {
-    setViewport(viewportSize, viewportX, viewportY);
-    create(*pass, shaderPipeline, params);
+    m_renderPass = pass;
 }
 
 RenderPipeline::RenderPipeline(const ri::DeviceContext&  device,          //
@@ -26,8 +45,17 @@ RenderPipeline::RenderPipeline(const ri::DeviceContext&  device,          //
                                const Sizei& viewportSize, int32_t viewportX /*= 0*/, int32_t viewportY /*= 0*/)
     : m_device(detail::getVkHandle(device))
 {
-    setViewport(viewportSize, viewportX, viewportY);
-    create(pass, shaderPipeline, params);
+    const ViewportParam      viewportParam = {viewportSize, viewportX, viewportY};
+    const PipelineCreateData data(params, viewportParam);
+
+    m_viewport       = getViewportFrom(viewportParam);
+    m_scissor        = getScissorFrom(viewportParam);
+    m_pipelineLayout = createLayout(m_device, params);
+    const VkGraphicsPipelineCreateInfo info =
+        getPipelineCreateInfo(pass, shaderPipeline, params, data, m_pipelineLayout);
+
+    RI_CHECK_RESULT() =
+        vkCreateGraphicsPipelines(detail::getVkHandle(device), VK_NULL_HANDLE, 1, &info, nullptr, &m_handle);
 }
 
 RenderPipeline::~RenderPipeline()
@@ -37,22 +65,8 @@ RenderPipeline::~RenderPipeline()
     vkDestroyPipelineLayout(m_device, m_pipelineLayout, nullptr);
 }
 
-void RenderPipeline::setViewport(const Sizei& viewportSize, int32_t viewportX, int32_t viewportY)
+inline VkPipelineVertexInputStateCreateInfo RenderPipeline::getVertexInputInfo(const CreateParams& params)
 {
-    m_viewport.x        = (float)viewportX;
-    m_viewport.y        = (float)viewportY;
-    m_viewport.width    = (float)viewportSize.width;
-    m_viewport.height   = (float)viewportSize.height;
-    m_viewport.minDepth = 0.0f;
-    m_viewport.maxDepth = 1.0f;
-    m_scissor.offset    = {viewportX, viewportY};
-    m_scissor.extent    = {viewportSize.width, viewportSize.height};
-}
-
-inline void RenderPipeline::create(const ri::RenderPass& pass, const ri::ShaderPipeline& shaderPipeline,
-                                   const CreateParams& params)
-{
-    // setup vertex input
     VkPipelineVertexInputStateCreateInfo vertexInputInfo = {};
     vertexInputInfo.sType                                = VK_STRUCTURE_TYPE_PIPELINE_VERTEX_INPUT_STATE_CREATE_INFO;
     if (params.inputLayout)
@@ -70,20 +84,34 @@ inline void RenderPipeline::create(const ri::RenderPass& pass, const ri::ShaderP
         vertexInputInfo.pVertexBindingDescriptions                                                      = nullptr;
         vertexInputInfo.pVertexAttributeDescriptions                                                    = nullptr;
     }
+    return vertexInputInfo;
+}
 
+inline VkPipelineInputAssemblyStateCreateInfo RenderPipeline::getInputAssemblyInfo(const CreateParams& params)
+{
     VkPipelineInputAssemblyStateCreateInfo inputAssembly = {};
     inputAssembly.sType                                  = VK_STRUCTURE_TYPE_PIPELINE_INPUT_ASSEMBLY_STATE_CREATE_INFO;
     inputAssembly.topology                               = (VkPrimitiveTopology)params.primitiveTopology;
     inputAssembly.primitiveRestartEnable                 = params.primitiveRestart;
 
+    return inputAssembly;
+}
+
+inline VkPipelineViewportStateCreateInfo RenderPipeline::getViewportStateInfo(const VkViewport& viewport,
+                                                                              const VkRect2D&   scissor)
+{
     VkPipelineViewportStateCreateInfo viewportState = {};
     viewportState.sType                             = VK_STRUCTURE_TYPE_PIPELINE_VIEWPORT_STATE_CREATE_INFO;
     viewportState.viewportCount                     = 1;
-    viewportState.pViewports                        = &m_viewport;
+    viewportState.pViewports                        = &viewport;
     viewportState.scissorCount                      = 1;
-    viewportState.pScissors                         = &m_scissor;
+    viewportState.pScissors                         = &scissor;
 
-    // setup rasterizer
+    return viewportState;
+}
+
+inline VkPipelineRasterizationStateCreateInfo RenderPipeline::getRasterizerInfo(const CreateParams& params)
+{
     VkPipelineRasterizationStateCreateInfo rasterizer = {};
     rasterizer.sType                                  = VK_STRUCTURE_TYPE_PIPELINE_RASTERIZATION_STATE_CREATE_INFO;
     rasterizer.polygonMode                            = (VkPolygonMode)params.polygonMode;
@@ -98,7 +126,11 @@ inline void RenderPipeline::create(const ri::RenderPass& pass, const ri::ShaderP
     rasterizer.depthBiasClamp          = params.depthBiasClamp;
     rasterizer.depthBiasSlopeFactor    = params.depthBiasSlopeFactor;
 
-    // multisampling
+    return rasterizer;
+}
+
+inline VkPipelineMultisampleStateCreateInfo RenderPipeline::getMultisamplingInfo(const CreateParams& params)
+{
     VkPipelineMultisampleStateCreateInfo multisampling = {};  // TODO: expose, disabled for now
     multisampling.sType                                = VK_STRUCTURE_TYPE_PIPELINE_MULTISAMPLE_STATE_CREATE_INFO;
     multisampling.sampleShadingEnable                  = VK_FALSE;
@@ -108,7 +140,11 @@ inline void RenderPipeline::create(const ri::RenderPass& pass, const ri::ShaderP
     multisampling.alphaToCoverageEnable                = VK_FALSE;
     multisampling.alphaToOneEnable                     = VK_FALSE;
 
-    // blending
+    return multisampling;
+}
+
+inline VkPipelineColorBlendAttachmentState RenderPipeline::getColorBlendAttachmentInfo(const CreateParams& params)
+{
     VkPipelineColorBlendAttachmentState colorBlendAttachment = {};
     const VkColorComponentFlags         writeAllMask =
         VK_COLOR_COMPONENT_R_BIT | VK_COLOR_COMPONENT_G_BIT | VK_COLOR_COMPONENT_B_BIT | VK_COLOR_COMPONENT_A_BIT;
@@ -121,6 +157,12 @@ inline void RenderPipeline::create(const ri::RenderPass& pass, const ri::ShaderP
     colorBlendAttachment.dstAlphaBlendFactor = (VkBlendFactor)params.blendAlphaDstFactor;
     colorBlendAttachment.alphaBlendOp        = (VkBlendOp)params.blendAlphaOperation;
 
+    return colorBlendAttachment;
+}
+
+inline VkPipelineColorBlendStateCreateInfo RenderPipeline::getColorBlendingInfo(
+    const CreateParams& params, const VkPipelineColorBlendAttachmentState& colorBlendAttachment)
+{
     VkPipelineColorBlendStateCreateInfo colorBlending = {};
     colorBlending.sType                               = VK_STRUCTURE_TYPE_PIPELINE_COLOR_BLEND_STATE_CREATE_INFO;
     colorBlending.logicOpEnable                       = VK_FALSE;
@@ -132,11 +174,21 @@ inline void RenderPipeline::create(const ri::RenderPass& pass, const ri::ShaderP
     colorBlending.blendConstants[2]                   = 0.0f;
     colorBlending.blendConstants[3]                   = 0.0f;
 
+    return colorBlending;
+}
+
+inline VkPipelineDynamicStateCreateInfo RenderPipeline::getDynamicStateInfo(const CreateParams& params)
+{
     VkPipelineDynamicStateCreateInfo dynamicState = {};
     dynamicState.sType                            = VK_STRUCTURE_TYPE_PIPELINE_DYNAMIC_STATE_CREATE_INFO;
     dynamicState.dynamicStateCount                = params.dynamicStates.size();
     dynamicState.pDynamicStates = reinterpret_cast<const VkDynamicState*>(params.dynamicStates.data());
 
+    return dynamicState;
+}
+
+inline VkPipelineLayout RenderPipeline::createLayout(const VkDevice device, const CreateParams& params)
+{
     // TODO: will add support later
     VkPipelineLayoutCreateInfo pipelineLayoutInfo = {};
     pipelineLayoutInfo.sType                      = VK_STRUCTURE_TYPE_PIPELINE_LAYOUT_CREATE_INFO;
@@ -145,34 +197,103 @@ inline void RenderPipeline::create(const ri::RenderPass& pass, const ri::ShaderP
     pipelineLayoutInfo.pushConstantRangeCount     = 0;
     pipelineLayoutInfo.pPushConstantRanges        = 0;
 
-    assert(!m_pipelineLayout);
-    RI_CHECK_RESULT() = vkCreatePipelineLayout(m_device, &pipelineLayoutInfo, nullptr, &m_pipelineLayout);
+    VkPipelineLayout pipelineLayout;
+    RI_CHECK_RESULT() = vkCreatePipelineLayout(device, &pipelineLayoutInfo, nullptr, &pipelineLayout);
+    return pipelineLayout;
+}
 
+inline VkGraphicsPipelineCreateInfo RenderPipeline::getPipelineCreateInfo(const ri::RenderPass&     pass,
+                                                                          const ri::ShaderPipeline& shaderPipeline,
+                                                                          const CreateParams&       params,
+                                                                          const PipelineCreateData& data,
+                                                                          VkPipelineLayout          pipelineLayout)
+{
     VkGraphicsPipelineCreateInfo pipelineInfo = {};
     pipelineInfo.sType                        = VK_STRUCTURE_TYPE_GRAPHICS_PIPELINE_CREATE_INFO;
     const auto& shaderStageInfos              = detail::getStageCreateInfos(shaderPipeline);
     pipelineInfo.stageCount                   = shaderStageInfos.size();
     pipelineInfo.pStages                      = shaderStageInfos.data();
-    pipelineInfo.pVertexInputState            = &vertexInputInfo;
-    pipelineInfo.pInputAssemblyState          = &inputAssembly;
-    pipelineInfo.pViewportState               = &viewportState;
-    pipelineInfo.pRasterizationState          = &rasterizer;
-    pipelineInfo.pMultisampleState            = &multisampling;
+    pipelineInfo.pVertexInputState            = &data.vertexInput;
+    pipelineInfo.pInputAssemblyState          = &data.inputAssembly;
+    pipelineInfo.pViewportState               = &data.viewportState;
+    pipelineInfo.pRasterizationState          = &data.rasterizer;
+    pipelineInfo.pMultisampleState            = &data.multisampling;
     pipelineInfo.pDepthStencilState           = nullptr;
-    pipelineInfo.pColorBlendState             = &colorBlending;
-    pipelineInfo.pDynamicState                = &dynamicState;
+    pipelineInfo.pColorBlendState             = &data.colorBlending;
+    pipelineInfo.pDynamicState                = &data.dynamicState;
 
-    pipelineInfo.layout     = m_pipelineLayout;
+    assert(pipelineLayout);
+    pipelineInfo.layout     = pipelineLayout;
     pipelineInfo.renderPass = detail::getVkHandle(pass);
     assert(params.activeSubpassIndex < pass.subpassCount());
     pipelineInfo.subpass = params.activeSubpassIndex;
 
-    // TODO: add support for derived pipelines
-    pipelineInfo.basePipelineHandle = VK_NULL_HANDLE;
-    pipelineInfo.basePipelineIndex  = -1;
+    if (params.pipelineDerivative)
+        pipelineInfo.basePipelineHandle = params.pipelineDerivative->m_handle;
+    else
+        pipelineInfo.basePipelineHandle = VK_NULL_HANDLE;
+    pipelineInfo.basePipelineIndex = params.pipelineDerivativeIndex;
 
-    assert(!m_handle);
-    RI_CHECK_RESULT() = vkCreateGraphicsPipelines(m_device, VK_NULL_HANDLE, 1, &pipelineInfo, nullptr, &m_handle);
+    return pipelineInfo;
+}
+
+void RenderPipeline::create(const ri::DeviceContext&                          device,            //
+                            const std::vector<const ri::RenderPass*>&         pipelinesPass,     //
+                            const std::vector<const ri::ShaderPipeline*>&     pipelinesShaders,  //
+                            const std::vector<RenderPipeline::CreateParams>&  pipelinesParams,
+                            const std::vector<RenderPipeline::ViewportParam>& pipelinesViewportParams,
+                            std::vector<RenderPipeline*>&                     pipelines)
+{
+    assert(!pipelinesPass.empty());
+    assert(!pipelinesViewportParams.empty());
+    assert(pipelinesParams.size() == pipelinesShaders.size());
+    assert(pipelinesPass.size() == pipelinesShaders.size());
+
+    std::vector<VkPipeline>         pipelineHandles(pipelinesParams.size());
+    std::vector<VkPipelineLayout>   pipelineLayoutHandles(pipelinesParams.size());
+    std::vector<PipelineCreateData> pipelineCreateData;
+    pipelineCreateData.reserve(pipelinesParams.size());
+    std::vector<VkGraphicsPipelineCreateInfo> pipelineInfos;
+    pipelineInfos.reserve(pipelinesParams.size());
+
+    for (size_t i = 0; i < pipelinesParams.size(); ++i)
+    {
+        const auto& params = pipelinesParams[i];
+        pipelineCreateData.emplace_back(params,
+                                        pipelinesViewportParams[std::min(i, pipelinesViewportParams.size() - 1)]);
+        const auto& data   = pipelineCreateData.back();
+        const auto  layout = createLayout(detail::getVkHandle(device), params);
+        pipelineLayoutHandles.push_back(layout);
+        pipelineInfos.push_back(
+            getPipelineCreateInfo(*pipelinesPass[i], *pipelinesShaders[i], pipelinesParams[i], data, layout));
+    }
+
+    RI_CHECK_RESULT() = vkCreateGraphicsPipelines(detail::getVkHandle(device), VK_NULL_HANDLE, pipelineInfos.size(),
+                                                  pipelineInfos.data(), nullptr, pipelineHandles.data());
+
+    pipelines.resize(pipelinesParams.size());
+    for (size_t i = 0; i < pipelineHandles.size(); ++i)
+    {
+        auto        handle       = pipelineHandles[i];
+        auto        layoutHandle = pipelineLayoutHandles[i];
+        const auto& data         = pipelineCreateData[i];
+        pipelines[i]             = new RenderPipeline(device, handle, layoutHandle, data.viewport, data.scissor);
+    }
+}
+
+inline RenderPipeline::PipelineCreateData::PipelineCreateData(const CreateParams&  params,
+                                                              const ViewportParam& viewportParam)
+    : vertexInput(getVertexInputInfo(params))
+    , inputAssembly(getInputAssemblyInfo(params))
+    , viewport(getViewportFrom(viewportParam))
+    , scissor(getScissorFrom(viewportParam))
+    , viewportState(getViewportStateInfo(viewport, scissor))
+    , rasterizer(getRasterizerInfo(params))
+    , multisampling(getMultisamplingInfo(params))
+    , colorBlendAttachment(getColorBlendAttachmentInfo(params))
+    , colorBlending(getColorBlendingInfo(params, colorBlendAttachment))
+    , dynamicState(getDynamicStateInfo(params))
+{
 }
 
 }  // namespace ri
