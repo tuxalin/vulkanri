@@ -69,12 +69,12 @@ inline VkPipelineVertexInputStateCreateInfo RenderPipeline::getVertexInputInfo(c
 {
     VkPipelineVertexInputStateCreateInfo vertexInputInfo = {};
     vertexInputInfo.sType                                = VK_STRUCTURE_TYPE_PIPELINE_VERTEX_INPUT_STATE_CREATE_INFO;
-    if (params.inputLayout)
+    if (params.vertexDescription)
     {
-        const auto& vertexBindingDescriptions           = detail::getBindingDescriptions(*params.inputLayout);
+        const auto& vertexBindingDescriptions           = detail::getBindingDescriptions(*params.vertexDescription);
         vertexInputInfo.vertexBindingDescriptionCount   = vertexBindingDescriptions.size();
         vertexInputInfo.pVertexBindingDescriptions      = vertexBindingDescriptions.data();
-        const auto& vertexAttributeDescriptions         = detail::getAttributeDescriptons(*params.inputLayout);
+        const auto& vertexAttributeDescriptions         = detail::getAttributeDescriptons(*params.vertexDescription);
         vertexInputInfo.vertexAttributeDescriptionCount = vertexAttributeDescriptions.size();
         vertexInputInfo.pVertexAttributeDescriptions    = vertexAttributeDescriptions.data();
     }

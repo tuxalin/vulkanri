@@ -43,8 +43,7 @@ public:
         float depthBiasClamp          = 0.0f;
         float depthBiasSlopeFactor    = 0.0f;
 
-        // The vertex input layout.
-        VertexDescription* inputLayout = nullptr;
+        VertexDescription* vertexDescription = nullptr;
         // What subpass to use from the render pass.
         uint32_t activeSubpassIndex = 0;
         // The dynamic states of the pipeline.
