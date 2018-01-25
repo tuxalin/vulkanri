@@ -9,7 +9,7 @@ namespace ri
 {
 class CommandBuffer;
 class ShaderPipeline;
-class InputLayout;
+class VertexDescription;
 
 class RenderPipeline : util::noncopyable, public RenderObject<VkPipeline>
 {
@@ -44,7 +44,7 @@ public:
         float depthBiasSlopeFactor    = 0.0f;
 
         // The vertex input layout.
-        InputLayout* inputLayout = nullptr;
+        VertexDescription* inputLayout = nullptr;
         // What subpass to use from the render pass.
         uint32_t activeSubpassIndex = 0;
         // The dynamic states of the pipeline.

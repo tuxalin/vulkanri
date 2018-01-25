@@ -15,7 +15,7 @@ class Texture;
 class Surface;
 class ShaderPipeline;
 class DeviceContext;
-class InputLayout;
+class VertexDescription;
 template <typename HandleClass>
 class RenderObject;
 
@@ -41,8 +41,8 @@ namespace detail
     uint32_t                                getDeviceQueueIndex(const ri::DeviceContext& device, int deviceOperation);
     const VkPhysicalDeviceMemoryProperties& getDeviceMemoryProperties(const ri::DeviceContext& device);
 
-    const std::vector<VkVertexInputBindingDescription>&   getLayoutBindingDescriptions(const InputLayout& layout);
-    const std::vector<VkVertexInputAttributeDescription>& getLayoutAttributeDescriptons(const InputLayout& layout);
+    const std::vector<VkVertexInputBindingDescription>&   getBindingDescriptions(const VertexDescription& layout);
+    const std::vector<VkVertexInputAttributeDescription>& getAttributeDescriptons(const VertexDescription& layout);
 
     template <typename HandleClass>
     HandleClass getVkHandle(const RenderObject<HandleClass>& obj);

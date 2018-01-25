@@ -1,9 +1,9 @@
 
-#include <ri/InputLayout.h>
+#include <ri/VertexDescription.h>
 
 namespace ri
 {
-void InputLayout::create(const VertexBinding* bindings, size_t count)
+void VertexDescription::create(const VertexBinding* bindings, size_t count)
 {
     static_assert(static_cast<VkVertexInputRate>(true) == VK_VERTEX_INPUT_RATE_INSTANCE, "");
 
@@ -26,7 +26,7 @@ void InputLayout::create(const VertexBinding* bindings, size_t count)
     }
 }
 
-void InputLayout::addAttributes(uint32_t binding, const std::vector<VertexInput>& attributes)
+void VertexDescription::addAttributes(uint32_t binding, const std::vector<VertexInput>& attributes)
 {
     assert(!attributes.empty());
 

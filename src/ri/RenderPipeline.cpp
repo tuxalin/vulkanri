@@ -1,15 +1,15 @@
 
 #include <ri/RenderPipeline.h>
 
-#include <ri/InputLayout.h>
 #include <ri/RenderPass.h>
 #include <ri/ShaderPipeline.h>
+#include <ri/VertexDescription.h>
 
 namespace ri
 {
 namespace
 {
-    VkViewport getViewportFrom(const RenderPipeline::ViewportParam& viewportParam)
+    inline VkViewport getViewportFrom(const RenderPipeline::ViewportParam& viewportParam)
     {
         VkViewport viewport;
         viewport.x        = (float)viewportParam.viewportX;
@@ -20,7 +20,7 @@ namespace
         viewport.maxDepth = 1.0f;
         return viewport;
     }
-    VkRect2D getScissorFrom(const RenderPipeline::ViewportParam& viewportParam)
+    inline VkRect2D getScissorFrom(const RenderPipeline::ViewportParam& viewportParam)
     {
         VkRect2D scissor;
         scissor.offset = {viewportParam.viewportX, viewportParam.viewportY};
@@ -71,10 +71,10 @@ inline VkPipelineVertexInputStateCreateInfo RenderPipeline::getVertexInputInfo(c
     vertexInputInfo.sType                                = VK_STRUCTURE_TYPE_PIPELINE_VERTEX_INPUT_STATE_CREATE_INFO;
     if (params.inputLayout)
     {
-        const auto& vertexBindingDescriptions           = detail::getLayoutBindingDescriptions(*params.inputLayout);
+        const auto& vertexBindingDescriptions           = detail::getBindingDescriptions(*params.inputLayout);
         vertexInputInfo.vertexBindingDescriptionCount   = vertexBindingDescriptions.size();
         vertexInputInfo.pVertexBindingDescriptions      = vertexBindingDescriptions.data();
-        const auto& vertexAttributeDescriptions         = detail::getLayoutAttributeDescriptons(*params.inputLayout);
+        const auto& vertexAttributeDescriptions         = detail::getAttributeDescriptons(*params.inputLayout);
         vertexInputInfo.vertexAttributeDescriptionCount = vertexAttributeDescriptions.size();
         vertexInputInfo.pVertexAttributeDescriptions    = vertexAttributeDescriptions.data();
     }
