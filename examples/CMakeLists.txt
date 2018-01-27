@@ -26,11 +26,12 @@ set_target_properties(
 
 include_directories(
     ${VULKAN_RI_DIR}/include/
+    ${VULKAN_RI_DIR}/examples/thirdparty/
     ${Vulkan_INCLUDE_DIR}
     ${GLFW_INCLUDE_DIR})
 
 set (EXAMPLES_LIBRARIES vulkanri ${Vulkan_LIBRARY} ${GLFW_LIBRARIES})
-set (EXAMPLES_TARGETS "hello_world" "vertex_buffers")
+set (EXAMPLES_TARGETS "hello_world" "buffer_usage")
 
 foreach( examples_target ${EXAMPLES_TARGETS} )
     add_executable(${examples_target} ${examples_target}/main.cpp)

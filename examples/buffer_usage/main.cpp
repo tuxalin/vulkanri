@@ -1,19 +1,26 @@
 /**
  *
- * main.cpp vertex_buffer
+ * main.cpp buffer_usage
  *
  * Covers the following:
- * -creating vertex and index buffers
+ * -creating vertex, uniform and index buffers
  * -creating and using an input layout
  * -seting an indexed input layout, it's vertex binding and attributes
  * -use indexed draw commands
  * -using transfer operations with a staging buffer
  * -adding debug tags to resources
+ * -how to create and set uniform buffers
+ * -creating descriptor set and layouts via a descriptor pool
  */
 #define GLFW_INCLUDE_VULKAN
 #include <GLFW/glfw3.h>
 
+#define GLM_FORCE_RADIANS
+#include <glm/glm.hpp>
+#include <glm/gtc/matrix_transform.hpp>
+
 #include <cassert>
+#include <chrono>
 #include <iostream>
 #include <memory>
 #include <vector>
@@ -21,30 +28,39 @@
 #include <ri/ApplicationInstance.h>
 #include <ri/Buffer.h>
 #include <ri/CommandBuffer.h>
+#include <ri/DescriptorPool.h>
+#include <ri/DescriptorSet.h>
 #include <ri/DeviceContext.h>
-#include <ri/InputLayout.h>
 #include <ri/RenderPass.h>
 #include <ri/RenderPipeline.h>
 #include <ri/RenderTarget.h>
 #include <ri/ShaderPipeline.h>
 #include <ri/Surface.h>
 #include <ri/ValidationReport.h>
+#include <ri/VertexDescription.h>
 
 const int kWidth  = 800;
 const int kHeight = 600;
 
-struct Pos
-{
-    float x, y;
-};
-struct Color
-{
-    float r, g, b;
-};
 struct Vertex
 {
+    struct Pos
+    {
+        float x, y;
+    };
+    struct Color
+    {
+        float r, g, b;
+    };
     Pos   pos;
     Color color;
+};
+
+struct Matrices
+{
+    glm::mat4 model;
+    glm::mat4 view;
+    glm::mat4 proj;
 };
 
 const std::vector<Vertex>   kVertices = {{{-0.5f, -0.5f}, {1.0f, 0.0f, 0.0f}},
@@ -120,7 +136,7 @@ private:
 
         // create a shader pipeline and let it own the shader modules
         {
-            const std::string shadersPath = "../vertex_buffers/shaders/";
+            const std::string shadersPath = "../buffer_usage/shaders/";
             m_shaderPipeline.reset(new ri::ShaderPipeline());
             m_shaderPipeline->addStage(
                 new ri::ShaderModule(*m_context, shadersPath + "shader.frag", ri::ShaderStage::eFragment));
@@ -161,16 +177,34 @@ private:
             m_indexBuffer->copy(*stagingBuffer, commandPool);
 
             {
-                ri::InputLayout::VertexBinding binding({{0, ri::AttributeFormat::eFloat2, offsetof(Vertex, pos)},
-                                                        {1, ri::AttributeFormat::eFloat4, offsetof(Vertex, color)}});
+                ri::VertexBinding binding({{0, ri::AttributeFormat::eFloat2, offsetof(Vertex, pos)},
+                                           {1, ri::AttributeFormat::eFloat4, offsetof(Vertex, color)}});
                 binding.bindingIndex = 0;
                 binding.buffer       = m_vertexBuffer.get();
                 binding.offset       = 0;
                 binding.stride       = sizeof(Vertex);
-                m_inputLayout.create(binding);
-                m_inputLayout.setIndexBuffer(*m_indexBuffer, ri::IndexType::eInt16);
-                m_inputLayout.setTagName("InputLayout");
+                m_vertexDescription.create(binding);
+                m_vertexDescription.setIndexBuffer(*m_indexBuffer, ri::IndexType::eInt16);
+                m_vertexDescription.setTagName("InputLayout");
             }
+        }
+
+        // create a uniform buffer
+        {
+            m_uniformBuffer.reset(new ri::Buffer(*m_context, ri::BufferUsageFlags::eUniform, sizeof(Matrices)));
+            m_uniformBuffer->setTagName("UniformBuffer");
+        }
+
+        ri::DescriptorSetLayout descriptorLayout;
+        // create a descriptor pool
+        {
+            m_descriptorPool.reset(new ri::DescriptorPool(*m_context, ri::DescriptorType::eUniformBuffer, 1));
+            auto res = m_descriptorPool->createLayout(
+                ri::DescriptorLayoutParam({0, ri::ShaderStage::eVertex, ri::DescriptorType::eUniformBuffer}));
+            descriptorLayout = res.layout;
+
+            m_descriptor = m_descriptorPool->create(
+                ri::DescriptorSetParams({m_uniformBuffer.get(), 0, sizeof(Matrices)}), res.index);
         }
 
         // create the render/graphics pipeline
@@ -182,8 +216,11 @@ private:
 
             ri::RenderPipeline::CreateParams params;
             // neded to change viewport for multiple windows
-            params.dynamicStates = {ri::DynamicState::eViewport, ri::DynamicState::eScissor};
-            params.inputLayout   = &m_inputLayout;
+            params.dynamicStates     = {ri::DynamicState::eViewport, ri::DynamicState::eScissor};
+            params.vertexDescription = &m_vertexDescription;
+            params.frontFaceCW       = false;  // since we inverted the Y axis
+            // add a descriptor layout
+            params.descriptorLayouts.push_back(descriptorLayout);
 
             m_renderPipeline.reset(
                 new ri::RenderPipeline(*m_context, pass, *m_shaderPipeline, params, ri::Sizei(kWidth, kHeight)));
@@ -207,8 +244,13 @@ private:
         m_renderPipeline->dynamicState().setScissor(commandBuffer, target.size());
 
         m_renderPipeline->begin(commandBuffer, target);
-        m_inputLayout.bind(commandBuffer);
+
+        // bind the vertex and index buffers
+        m_vertexDescription.bind(commandBuffer);
+        // bind the uniform buffer to the render pipeline
+        m_descriptor.bind(commandBuffer, *m_renderPipeline);
         commandBuffer.drawIndexed(kIndices.size());
+
         m_renderPipeline->end(commandBuffer);
     }
 
@@ -228,6 +270,27 @@ private:
         }
     }
 
+    void update()
+    {
+        // update the uniform buffer
+
+        static auto startTime = std::chrono::high_resolution_clock::now();
+
+        auto  currentTime = std::chrono::high_resolution_clock::now();
+        float time        = std::chrono::duration<float, std::chrono::seconds::period>(currentTime - startTime).count();
+
+        Matrices matrices;
+        matrices.model = glm::rotate(glm::mat4(1.0f), time * glm::radians(90.0f), glm::vec3(0.0f, 0.0f, 1.0f));
+        matrices.view =
+            glm::lookAt(glm::vec3(2.0f, 2.0f, 2.0f), glm::vec3(0.0f, 0.0f, 0.0f), glm::vec3(0.0f, 0.0f, 1.0f));
+        matrices.proj = glm::perspective(
+            glm::radians(45.0f), m_surface->size().width / (float)m_surface->size().height, 0.1f, 10.0f);
+        // flip Y
+        matrices.proj[1][1] *= -1;
+
+        m_uniformBuffer->update(&matrices);
+    }
+
     void mainLoop()
     {
         // pre-record all of the surface's command buffers
@@ -236,6 +299,7 @@ private:
         while (!glfwWindowShouldClose(m_window))
         {
             glfwPollEvents();
+            update();
             render();
         }
 
@@ -270,9 +334,12 @@ private:
     std::unique_ptr<ri::Surface>             m_surface;
     std::unique_ptr<ri::ShaderPipeline>      m_shaderPipeline;
     std::unique_ptr<ri::RenderPipeline>      m_renderPipeline;
+    std::unique_ptr<ri::DescriptorPool>      m_descriptorPool;
     std::unique_ptr<ri::Buffer>              m_vertexBuffer;
     std::unique_ptr<ri::Buffer>              m_indexBuffer;
-    ri::IndexedInputLayout                   m_inputLayout;
+    std::unique_ptr<ri::Buffer>              m_uniformBuffer;
+    ri::IndexedVertexDescription             m_vertexDescription;
+    ri::DescriptorSet                        m_descriptor;
 };
 
 int main()
