@@ -23,7 +23,7 @@ Buffer::Buffer(const DeviceContext& device, int flags, size_t size)
 
     const VkMemoryPropertyFlags kStagingFlags =
         VK_MEMORY_PROPERTY_HOST_VISIBLE_BIT | VK_MEMORY_PROPERTY_HOST_COHERENT_BIT;
-    allocateMemory((m_usage.get() & BufferUsageFlags::eSrc) ? kStagingFlags : VK_MEMORY_PROPERTY_DEVICE_LOCAL_BIT);
+    allocateMemory((m_usage.get() & BufferUsageFlags::eDst) ? VK_MEMORY_PROPERTY_DEVICE_LOCAL_BIT : kStagingFlags);
 }
 
 Buffer::~Buffer()

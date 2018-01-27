@@ -15,9 +15,11 @@ class Texture;
 class Surface;
 class ShaderPipeline;
 class DeviceContext;
+class RenderPipeline;
 class VertexDescription;
 template <typename HandleClass>
 class RenderObject;
+class DescriptorPool;
 
 namespace detail
 {
@@ -43,6 +45,8 @@ namespace detail
 
     const std::vector<VkVertexInputBindingDescription>&   getBindingDescriptions(const VertexDescription& layout);
     const std::vector<VkVertexInputAttributeDescription>& getAttributeDescriptons(const VertexDescription& layout);
+
+    VkPipelineLayout getPipelineLayout(const RenderPipeline& pipeline);
 
     template <typename HandleClass>
     HandleClass getVkHandle(const RenderObject<HandleClass>& obj);

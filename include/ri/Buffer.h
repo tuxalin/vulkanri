@@ -66,7 +66,7 @@ inline void* Buffer::lock()
 inline void* Buffer::lock(size_t offset, size_t size)
 {
     assert((m_usage.get() & BufferUsageFlags::eDst) == false);
-    assert((offset + size) < m_size);
+    assert((offset + size) <= m_size);
     void* data;
     vkMapMemory(m_device, m_bufferMemory, offset, m_size, 0, &data);
     return data;

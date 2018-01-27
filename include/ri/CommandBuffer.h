@@ -1,11 +1,10 @@
 #pragma once
 
-#include <util/noncopyable.h>
 #include <ri/Types.h>
 
 namespace ri
 {
-class CommandBuffer : util::noncopyable, public RenderObject<VkCommandBuffer>
+class CommandBuffer : public RenderObject<VkCommandBuffer>
 {
 public:
     enum ResetFlags

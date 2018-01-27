@@ -20,6 +20,7 @@ public:
         bool              primitiveRestart  = false;
         float             lineWidth         = 1.f;
         CullMode          cullMode          = CullMode::eBack;
+        bool              frontFaceCW       = true;
         PolygonMode       polygonMode       = PolygonMode::eNormal;
 
         // Enable/Disable color writing
@@ -50,6 +51,8 @@ public:
         // @note Any dynamic states that are marked must after be explictily be set with their commands, as the
         // initial/constant values will be ignored.
         std::vector<DynamicState> dynamicStates;
+        // Specifying one or more descriptor set layout bindings.
+        std::vector<DescriptorSetLayout> descriptorLayouts;
         // The goal of derivative pipelines is that they be cheaper to create using the parent as a starting point, and
         // that it be more efficient (on either host or device) to switch/bind between children of the same parent.
         const RenderPipeline* pipelineDerivative      = nullptr;
@@ -106,7 +109,6 @@ public:
     /// @note Also binds the pipeline.
     void begin(const CommandBuffer& buffer, const RenderTarget& target) const;
     void end(const CommandBuffer& buffer) const;
-    void bind(const CommandBuffer& buffer) const;
 
     /// @note Can use pipeline derivative index for faster creation.
     static void create(const ri::DeviceContext&                          device,            //
@@ -114,12 +116,14 @@ public:
                        const std::vector<const ri::ShaderPipeline*>&     pipelinesShaders,  //
                        const std::vector<RenderPipeline::CreateParams>&  pipelinesParams,
                        const std::vector<RenderPipeline::ViewportParam>& pipelinesViewportParams,
+                       const std::vector<DescriptorSetLayout>&           descriptorLayouts,  //
                        std::vector<RenderPipeline*>&                     pipelines);
     static void create(const ri::DeviceContext&                         device,            //
                        const std::vector<const ri::RenderPass*>&        pipelinesPass,     //
                        const std::vector<const ri::ShaderPipeline*>&    pipelinesShaders,  //
                        const std::vector<RenderPipeline::CreateParams>& pipelinesParams,
                        const RenderPipeline::ViewportParam&             viewportParam,
+                       const std::vector<DescriptorSetLayout>&          descriptorLayouts,  //
                        std::vector<RenderPipeline*>&                    pipelines);
 
 private:
@@ -148,8 +152,10 @@ private:
         , m_scissor(scissor)
     {
     }
+    void bind(const CommandBuffer& buffer) const;
 
-    static VkPipelineLayout createLayout(const VkDevice device, const CreateParams& params);
+    static VkPipelineLayout createLayout(const VkDevice device, const CreateParams& params,
+                                         const std::vector<VkDescriptorSetLayout>& descriptorLayouts);
 
     static VkPipelineVertexInputStateCreateInfo   getVertexInputInfo(const CreateParams& params);
     static VkPipelineInputAssemblyStateCreateInfo getInputAssemblyInfo(const CreateParams& params);
@@ -174,7 +180,17 @@ private:
     VkViewport       m_viewport;
     VkRect2D         m_scissor;
     DynamicState     m_dynamicState;
+
+    friend VkPipelineLayout detail::getPipelineLayout(const RenderPipeline& pipeline);
 };
+
+namespace detail
+{
+    inline VkPipelineLayout getPipelineLayout(const RenderPipeline& pipeline)
+    {
+        return pipeline.m_pipelineLayout;
+    }
+}
 
 inline void RenderPipeline::begin(const CommandBuffer& buffer, const RenderTarget& target) const
 {
@@ -212,15 +228,16 @@ inline void RenderPipeline::bind(const CommandBuffer& buffer) const
     vkCmdBindPipeline(detail::getVkHandle(buffer), VK_PIPELINE_BIND_POINT_GRAPHICS, m_handle);
 }
 
-inline void RenderPipeline::create(const ri::DeviceContext&                         device,            //
-                                   const std::vector<const ri::RenderPass*>&        pipelinesPass,     //
-                                   const std::vector<const ri::ShaderPipeline*>&    pipelinesShaders,  //
-                                   const std::vector<RenderPipeline::CreateParams>& pipelinesParams,
-                                   const RenderPipeline::ViewportParam&             viewportParam,
+inline void RenderPipeline::create(const ri::DeviceContext&                         device,             //
+                                   const std::vector<const ri::RenderPass*>&        pipelinesPass,      //
+                                   const std::vector<const ri::ShaderPipeline*>&    pipelinesShaders,   //
+                                   const std::vector<RenderPipeline::CreateParams>& pipelinesParams,    //
+                                   const RenderPipeline::ViewportParam&             viewportParam,      //
+                                   const std::vector<DescriptorSetLayout>&          descriptorLayouts,  //
                                    std::vector<RenderPipeline*>&                    pipelines)
 {
     create(device, pipelinesPass, pipelinesShaders, pipelinesParams,
-           std::vector<RenderPipeline::ViewportParam>({viewportParam}), pipelines);
+           std::vector<RenderPipeline::ViewportParam>({viewportParam}), descriptorLayouts, pipelines);
 }
 
 inline void RenderPipeline::DynamicState::setViewport(CommandBuffer& buffer, const Sizei& viewportSize,  //

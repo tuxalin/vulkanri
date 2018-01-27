@@ -48,9 +48,10 @@ RenderPipeline::RenderPipeline(const ri::DeviceContext&  device,          //
     const ViewportParam      viewportParam = {viewportSize, viewportX, viewportY};
     const PipelineCreateData data(params, viewportParam);
 
-    m_viewport       = getViewportFrom(viewportParam);
-    m_scissor        = getScissorFrom(viewportParam);
-    m_pipelineLayout = createLayout(m_device, params);
+    m_viewport = getViewportFrom(viewportParam);
+    m_scissor  = getScissorFrom(viewportParam);
+
+    m_pipelineLayout = createLayout(m_device, params, params.descriptorLayouts);
     const VkGraphicsPipelineCreateInfo info =
         getPipelineCreateInfo(pass, shaderPipeline, params, data, m_pipelineLayout);
 
@@ -117,8 +118,8 @@ inline VkPipelineRasterizationStateCreateInfo RenderPipeline::getRasterizerInfo(
     rasterizer.polygonMode                            = (VkPolygonMode)params.polygonMode;
     rasterizer.lineWidth                              = params.lineWidth;
     rasterizer.cullMode                               = (VkCullModeFlags)params.cullMode;
-    rasterizer.frontFace                              = VK_FRONT_FACE_CLOCKWISE;
-    rasterizer.rasterizerDiscardEnable                = !params.rasterize;
+    rasterizer.frontFace               = params.frontFaceCW ? VK_FRONT_FACE_CLOCKWISE : VK_FRONT_FACE_COUNTER_CLOCKWISE;
+    rasterizer.rasterizerDiscardEnable = !params.rasterize;
     // depth
     rasterizer.depthClampEnable        = params.depthClamp;
     rasterizer.depthBiasEnable         = params.depthBias;
@@ -187,13 +188,13 @@ inline VkPipelineDynamicStateCreateInfo RenderPipeline::getDynamicStateInfo(cons
     return dynamicState;
 }
 
-inline VkPipelineLayout RenderPipeline::createLayout(const VkDevice device, const CreateParams& params)
+inline VkPipelineLayout RenderPipeline::createLayout(const VkDevice device, const CreateParams& params,
+                                                     const std::vector<VkDescriptorSetLayout>& descriptorLayouts)
 {
-    // TODO: will add support later
     VkPipelineLayoutCreateInfo pipelineLayoutInfo = {};
     pipelineLayoutInfo.sType                      = VK_STRUCTURE_TYPE_PIPELINE_LAYOUT_CREATE_INFO;
-    pipelineLayoutInfo.setLayoutCount             = 0;
-    pipelineLayoutInfo.pSetLayouts                = nullptr;
+    pipelineLayoutInfo.setLayoutCount             = descriptorLayouts.size();
+    pipelineLayoutInfo.pSetLayouts                = descriptorLayouts.data();
     pipelineLayoutInfo.pushConstantRangeCount     = 0;
     pipelineLayoutInfo.pPushConstantRanges        = 0;
 
@@ -237,11 +238,12 @@ inline VkGraphicsPipelineCreateInfo RenderPipeline::getPipelineCreateInfo(const 
     return pipelineInfo;
 }
 
-void RenderPipeline::create(const ri::DeviceContext&                          device,            //
-                            const std::vector<const ri::RenderPass*>&         pipelinesPass,     //
-                            const std::vector<const ri::ShaderPipeline*>&     pipelinesShaders,  //
-                            const std::vector<RenderPipeline::CreateParams>&  pipelinesParams,
-                            const std::vector<RenderPipeline::ViewportParam>& pipelinesViewportParams,
+void RenderPipeline::create(const ri::DeviceContext&                          device,                   //
+                            const std::vector<const ri::RenderPass*>&         pipelinesPass,            //
+                            const std::vector<const ri::ShaderPipeline*>&     pipelinesShaders,         //
+                            const std::vector<RenderPipeline::CreateParams>&  pipelinesParams,          //
+                            const std::vector<RenderPipeline::ViewportParam>& pipelinesViewportParams,  //
+                            const std::vector<DescriptorSetLayout>&           descriptorLayouts,        //
                             std::vector<RenderPipeline*>&                     pipelines)
 {
     assert(!pipelinesPass.empty());
@@ -262,7 +264,7 @@ void RenderPipeline::create(const ri::DeviceContext&                          de
         pipelineCreateData.emplace_back(params,
                                         pipelinesViewportParams[std::min(i, pipelinesViewportParams.size() - 1)]);
         const auto& data   = pipelineCreateData.back();
-        const auto  layout = createLayout(detail::getVkHandle(device), params);
+        const auto  layout = createLayout(detail::getVkHandle(device), params, descriptorLayouts);
         pipelineLayoutHandles.push_back(layout);
         pipelineInfos.push_back(
             getPipelineCreateInfo(*pipelinesPass[i], *pipelinesShaders[i], pipelinesParams[i], data, layout));

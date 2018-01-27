@@ -14,10 +14,11 @@ SAFE_ENUM_DECLARE(DeviceFeature,
                   eWireframe);
 
 SAFE_ENUM_DECLARE(ShaderStage,
-                  eVertex   = VK_SHADER_STAGE_VERTEX_BIT,
-                  eGeometry = VK_SHADER_STAGE_GEOMETRY_BIT,
-                  eFragment = VK_SHADER_STAGE_FRAGMENT_BIT,
-                  eCompute  = VK_SHADER_STAGE_COMPUTE_BIT);
+                  eVertex      = VK_SHADER_STAGE_VERTEX_BIT,
+                  eGeometry    = VK_SHADER_STAGE_GEOMETRY_BIT,
+                  eFragment    = VK_SHADER_STAGE_FRAGMENT_BIT,
+                  eCompute     = VK_SHADER_STAGE_COMPUTE_BIT,
+                  eAllGraphics = VK_SHADER_STAGE_ALL_GRAPHICS);
 
 SAFE_ENUM_DECLARE(PrimitiveTopology,
                   eTriangles     = VK_PRIMITIVE_TOPOLOGY_TRIANGLE_LIST,   //
@@ -107,6 +108,14 @@ SAFE_ENUM_DECLARE(TextureType,
                   eArray1D = VK_IMAGE_VIEW_TYPE_1D_ARRAY,
                   eArray2D = VK_IMAGE_VIEW_TYPE_2D_ARRAY);
 
+SAFE_ENUM_DECLARE(DescriptorType,
+                  eUniformBuffer        = VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER,
+                  eUniformBufferDynamic = VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER_DYNAMIC,
+                  eImage                = VK_DESCRIPTOR_TYPE_STORAGE_IMAGE,
+                  eTexelBuffer          = VK_DESCRIPTOR_TYPE_STORAGE_TEXEL_BUFFER,
+                  eStorageBuffer        = VK_DESCRIPTOR_TYPE_STORAGE_BUFFER,
+                  eStorageBufferDynamic = VK_DESCRIPTOR_TYPE_STORAGE_BUFFER_DYNAMIC);
+
 SAFE_ENUM_DECLARE(ColorFormat,
                   eRed       = VK_FORMAT_R8G8_UNORM,           //
                   eRGB565    = VK_FORMAT_R5G6B5_UNORM_PACK16,  //
@@ -157,6 +166,8 @@ SAFE_ENUM_DECLARE(
     // Doesn't block the client if the queue is full, the images that are already queued are simply replaced with the
     // newer ones.
     eMailbox = VK_PRESENT_MODE_MAILBOX_KHR);
+
+typedef VkDescriptorSetLayout DescriptorSetLayout;
 
 union ClearColorValue {
     float    float32[4];
