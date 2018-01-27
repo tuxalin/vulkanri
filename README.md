@@ -18,7 +18,7 @@ Check the examples folder to see how it's used.
 
 ## Contributing
 
-Bug reports and pull requests are welcome on GitHub at https://github.com/tuxalin/vulkanwrap
+Bug reports and pull requests are welcome on GitHub at https://github.com/tuxalin/vulkanri
 
 ## Thanks
 

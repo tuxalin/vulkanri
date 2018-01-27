@@ -108,6 +108,15 @@ SAFE_ENUM_DECLARE(TextureType,
                   eArray1D = VK_IMAGE_VIEW_TYPE_1D_ARRAY,
                   eArray2D = VK_IMAGE_VIEW_TYPE_2D_ARRAY);
 
+SAFE_ENUM_DECLARE(TextureUsageFlags,
+                  eSrc          = VK_IMAGE_USAGE_TRANSFER_SRC_BIT,
+                  eDst          = VK_IMAGE_USAGE_TRANSFER_DST_BIT,
+                  eSampled      = VK_IMAGE_USAGE_SAMPLED_BIT,
+                  eStorage      = VK_IMAGE_USAGE_STORAGE_BIT,
+                  eColor        = VK_IMAGE_USAGE_COLOR_ATTACHMENT_BIT,
+                  eDepthStencil = VK_IMAGE_USAGE_DEPTH_STENCIL_ATTACHMENT_BIT,
+                  eTransient    = VK_IMAGE_USAGE_TRANSIENT_ATTACHMENT_BIT);
+
 SAFE_ENUM_DECLARE(DescriptorType,
                   eUniformBuffer        = VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER,
                   eUniformBufferDynamic = VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER_DYNAMIC,

@@ -10,6 +10,7 @@ namespace ri
 #define RI_TOKENPASTE(x, y) x##y
 #define RI_TOKENPASTE2(x, y) RI_TOKENPASTE(x, y)
 #define RI_CHECK_RESULT() const detail::CheckRes RI_TOKENPASTE2(res, __LINE__)
+#define RI_CHECK_RESULT_MSG(msg) const detail::CheckRes RI_TOKENPASTE2(res, __LINE__)
 
 class Texture;
 class Surface;
