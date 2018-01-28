@@ -35,6 +35,12 @@ Texture::Texture(const DeviceContext& device, const TextureParams& params)
 {
     createImage(params);
     allocateMemory(device, params);
+
+    if (params.samplerEnable)
+    {
+        createSampler(params.samplerParams);
+        createImageView(params);
+    }
 }
 
 Texture::Texture(VkImage handle, TextureType type, const Sizei& size)
@@ -50,6 +56,9 @@ Texture::~Texture()
     {
         vkDestroyImage(m_device, m_handle, nullptr);
         vkFreeMemory(m_device, m_memory, nullptr);
+
+        vkDestroyImageView(m_device, m_view, nullptr);
+        vkDestroySampler(m_device, m_sampler, nullptr);
     }
 }
 
@@ -104,6 +113,50 @@ inline void Texture::createImage(const TextureParams& params)
     RI_CHECK_RESULT_MSG("failed to create image") = vkCreateImage(m_device, &imageInfo, nullptr, &m_handle);
 }
 
+void Texture::createImageView(const TextureParams& params)
+{
+    VkImageViewCreateInfo viewInfo = {};
+    viewInfo.sType                 = VK_STRUCTURE_TYPE_IMAGE_VIEW_CREATE_INFO;
+    viewInfo.image                 = m_handle;
+    viewInfo.viewType              = (VkImageViewType)m_type;
+    viewInfo.format                = (VkFormat)params.format;
+    // TODO: expose this
+    viewInfo.subresourceRange.aspectMask     = VK_IMAGE_ASPECT_COLOR_BIT;
+    viewInfo.subresourceRange.baseMipLevel   = 0;
+    viewInfo.subresourceRange.levelCount     = 1;
+    viewInfo.subresourceRange.baseArrayLayer = 0;
+    viewInfo.subresourceRange.layerCount     = 1;
+
+    RI_CHECK_RESULT_MSG("failed to create image view") = vkCreateImageView(m_device, &viewInfo, nullptr, &m_view);
+}
+
+void Texture::createSampler(const SamplerParams& params)
+{
+    VkSamplerCreateInfo samplerInfo = {};
+    samplerInfo.sType               = VK_STRUCTURE_TYPE_SAMPLER_CREATE_INFO;
+    samplerInfo.magFilter           = (VkFilter)params.magFilter;
+    samplerInfo.minFilter           = (VkFilter)params.minFilter;
+    samplerInfo.addressModeU        = (VkSamplerAddressMode)params.addressModeU;
+    samplerInfo.addressModeV        = (VkSamplerAddressMode)params.addressModeV;
+    samplerInfo.addressModeW        = (VkSamplerAddressMode)params.addressModeW;
+    samplerInfo.anisotropyEnable    = params.anisotropyEnable;
+    samplerInfo.maxAnisotropy       = params.maxAnisotropy;
+
+    samplerInfo.borderColor             = VK_BORDER_COLOR_INT_OPAQUE_BLACK;
+    samplerInfo.unnormalizedCoordinates = VK_FALSE;
+    samplerInfo.compareEnable           = params.compareEnable;
+    samplerInfo.compareOp               = (VkCompareOp)params.compareOp;
+
+    samplerInfo.mipmapMode =
+        params.mipmapMode == SamplerParams::eLinear ? VK_SAMPLER_MIPMAP_MODE_LINEAR : VK_SAMPLER_MIPMAP_MODE_NEAREST;
+    samplerInfo.mipLodBias = params.mipLodBias;
+    samplerInfo.minLod     = params.minLod;
+    samplerInfo.maxLod     = params.maxLod;
+
+    RI_CHECK_RESULT_MSG("failed to create texture sampler") =
+        vkCreateSampler(m_device, &samplerInfo, nullptr, &m_sampler);
+}
+
 inline void Texture::allocateMemory(const DeviceContext& device, const TextureParams& params)
 {
     VkMemoryRequirements memRequirements;
@@ -122,7 +175,7 @@ inline void Texture::allocateMemory(const DeviceContext& device, const TexturePa
     vkBindImageMemory(m_device, m_handle, m_memory, 0);
 }
 
-void Texture::transitionImageLayout(Layout oldLayout, Layout newLayout, CommandBuffer& commandBuffer)
+void Texture::transitionImageLayout(LayoutType oldLayout, LayoutType newLayout, CommandBuffer& commandBuffer)
 {
     VkImageMemoryBarrier barrier = {};
     barrier.sType                = VK_STRUCTURE_TYPE_IMAGE_MEMORY_BARRIER;

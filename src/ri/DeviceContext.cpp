@@ -52,6 +52,10 @@ namespace
                     break;
                 case DeviceFeature::eWireframe:
                     deviceFeatures.fillModeNonSolid = VK_TRUE;
+                    break;
+                case DeviceFeature::eAnisotropy:
+                    deviceFeatures.samplerAnisotropy = VK_TRUE;
+                    break;
                 default:
                     auto found = kDeviceStringMap.find(feature);
                     assert(found != kDeviceStringMap.end());
@@ -172,6 +176,9 @@ uint32_t DeviceContext::deviceScore(VkPhysicalDevice device, const std::vector<D
                 break;
             case DeviceFeature::eFloat64:
                 hasAllFeatures &= deviceFeatures.shaderFloat64 == VK_TRUE;
+                break;
+            case DeviceFeature::eAnisotropy:
+                hasAllFeatures &= deviceFeatures.samplerAnisotropy == VK_TRUE;
                 break;
             default:
                 auto found = kDeviceStringMap.find(feature);

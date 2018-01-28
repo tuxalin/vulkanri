@@ -10,6 +10,45 @@ class DeviceContext;
 class Buffer;
 class CommandBuffer;
 
+struct SamplerParams
+{
+    enum FilterType
+    {
+        eNearest = VK_FILTER_NEAREST,
+        eLinear  = VK_FILTER_LINEAR
+    };
+    enum AddressMode
+    {
+        // Repeat the texture when going beyond the image dimensions.
+        eRepeat = VK_SAMPLER_ADDRESS_MODE_REPEAT,
+        //  Like repeat, but inverts the coordinates to mirror the image when going beyond the dimensions.
+        eMirroredRepeat = VK_SAMPLER_ADDRESS_MODE_MIRRORED_REPEAT,
+        // Take the color of the edge closest to the coordinate beyond the image dimensions.
+        eClampToEdge = VK_SAMPLER_ADDRESS_MODE_CLAMP_TO_EDGE,
+        // Like clamp to edge, but instead uses the edge opposite to the closest edge.
+        eClampToBorder = VK_SAMPLER_ADDRESS_MODE_CLAMP_TO_BORDER,
+        // Return a solid color when sampling beyond the dimensions of the image.
+        eMirrorClampToEdge = VK_SAMPLER_ADDRESS_MODE_MIRROR_CLAMP_TO_EDGE
+    };
+
+    FilterType  magFilter    = eNearest;
+    FilterType  minFilter    = eNearest;
+    AddressMode addressModeU = eRepeat;
+    AddressMode addressModeV = eRepeat;
+    AddressMode addressModeW = eRepeat;
+
+    bool  anisotropyEnable = false;
+    float maxAnisotropy    = 0.f;
+
+    bool             compareEnable = false;
+    CompareOperation compareOp     = CompareOperation::eAlways;
+
+    FilterType mipmapMode = eLinear;
+    float      mipLodBias = 0.f;
+    float      minLod     = 0.f;
+    float      maxLod     = 0.f;
+};
+
 struct TextureParams
 {
     enum Samples
@@ -31,12 +70,15 @@ struct TextureParams
     uint32_t mipLevels   = 1;
     uint32_t arrayLevels = 1;
     Samples  samples     = eOne;
+
+    bool          samplerEnable = false;
+    SamplerParams samplerParams;
 };
 
 class Texture : util::noncopyable, public RenderObject<VkImage>
 {
 public:
-    enum Layout
+    enum LayoutType
     {
         eUndefined               = VK_IMAGE_LAYOUT_UNDEFINED,
         eGeneral                 = VK_IMAGE_LAYOUT_GENERAL,
@@ -51,8 +93,8 @@ public:
     struct CopyParams
     {
         // if equal then no transition will be performed
-        Layout oldLayout = eUndefined;
-        Layout newLayout = eUndefined;
+        LayoutType oldLayout = eUndefined;
+        LayoutType newLayout = eUndefined;
 
         int32_t offsetX = 0, offsetY = 0, offsetZ = 0;
         /// @note If zero then will use texture size.
@@ -75,12 +117,16 @@ private:
     Texture(VkImage handle, TextureType type, const Sizei& size);
 
     void createImage(const TextureParams& params);
+    void createImageView(const TextureParams& params);
+    void createSampler(const SamplerParams& params);
     void allocateMemory(const DeviceContext& device, const TextureParams& params);
-    void transitionImageLayout(Layout oldLayout, Layout newLayout, CommandBuffer& commandBuffer);
+    void transitionImageLayout(LayoutType oldLayout, LayoutType newLayout, CommandBuffer& commandBuffer);
 
 private:
-    VkDevice       m_device = VK_NULL_HANDLE;
-    VkDeviceMemory m_memory = VK_NULL_HANDLE;
+    VkDevice       m_device  = VK_NULL_HANDLE;
+    VkDeviceMemory m_memory  = VK_NULL_HANDLE;
+    VkImageView    m_view    = VK_NULL_HANDLE;
+    VkSampler      m_sampler = VK_NULL_HANDLE;
     TextureType    m_type;
     Sizei          m_size;
 

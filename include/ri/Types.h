@@ -11,6 +11,7 @@ SAFE_ENUM_DECLARE(DeviceFeature,
                   eFloat64 = 0,     //
                   eGeometryShader,  //
                   eSwapchain,       //
+                  eAnisotropy,
                   eWireframe);
 
 SAFE_ENUM_DECLARE(ShaderStage,
@@ -21,10 +22,10 @@ SAFE_ENUM_DECLARE(ShaderStage,
                   eAllGraphics = VK_SHADER_STAGE_ALL_GRAPHICS);
 
 SAFE_ENUM_DECLARE(PrimitiveTopology,
-                  eTriangles     = VK_PRIMITIVE_TOPOLOGY_TRIANGLE_LIST,   //
-                  eTriangleStrip = VK_PRIMITIVE_TOPOLOGY_TRIANGLE_STRIP,  //
-                  eLines         = VK_PRIMITIVE_TOPOLOGY_LINE_LIST,       //
-                  eLineStrip     = VK_PRIMITIVE_TOPOLOGY_LINE_STRIP,      //
+                  eTriangles     = VK_PRIMITIVE_TOPOLOGY_TRIANGLE_LIST,
+                  eTriangleStrip = VK_PRIMITIVE_TOPOLOGY_TRIANGLE_STRIP,
+                  eLines         = VK_PRIMITIVE_TOPOLOGY_LINE_LIST,
+                  eLineStrip     = VK_PRIMITIVE_TOPOLOGY_LINE_STRIP,
                   ePoints        = VK_PRIMITIVE_TOPOLOGY_POINT_LIST);
 
 SAFE_ENUM_DECLARE(CullMode,
@@ -54,16 +55,26 @@ SAFE_ENUM_DECLARE(BlendFactor,
                   eSrc_Alpha_Saturate       = VK_BLEND_FACTOR_SRC_ALPHA_SATURATE);
 
 SAFE_ENUM_DECLARE(BlendOperation,
-                  eAdd         = VK_BLEND_OP_ADD,               //
-                  eSubtract    = VK_BLEND_OP_SUBTRACT,          //
-                  eRevSubtract = VK_BLEND_OP_REVERSE_SUBTRACT,  //
-                  eMin         = VK_BLEND_OP_MIN,               //
-                  eMax         = VK_BLEND_OP_MAX,               //
+                  eAdd         = VK_BLEND_OP_ADD,
+                  eSubtract    = VK_BLEND_OP_SUBTRACT,
+                  eRevSubtract = VK_BLEND_OP_REVERSE_SUBTRACT,
+                  eMin         = VK_BLEND_OP_MIN,
+                  eMax         = VK_BLEND_OP_MAX,
                   eZero        = VK_BLEND_OP_ZERO_EXT);
 
-SAFE_ENUM_DECLARE(DynamicState,                              //
-                  eLineWidth = VK_DYNAMIC_STATE_LINE_WIDTH,  //
-                  eViewport  = VK_DYNAMIC_STATE_VIEWPORT,    //
+SAFE_ENUM_DECLARE(CompareOperation,
+                  eNever          = VK_COMPARE_OP_NEVER,
+                  eLess           = VK_COMPARE_OP_LESS,
+                  eEqual          = VK_COMPARE_OP_EQUAL,
+                  eLessOrEqual    = VK_COMPARE_OP_LESS_OR_EQUAL,
+                  eGreater        = VK_COMPARE_OP_GREATER,
+                  eNotEqual       = VK_COMPARE_OP_NOT_EQUAL,
+                  eGreaterOrEqual = VK_COMPARE_OP_GREATER_OR_EQUAL,
+                  eAlways         = VK_COMPARE_OP_ALWAYS);
+
+SAFE_ENUM_DECLARE(DynamicState,
+                  eLineWidth = VK_DYNAMIC_STATE_LINE_WIDTH,
+                  eViewport  = VK_DYNAMIC_STATE_VIEWPORT,
                   eScissor   = VK_DYNAMIC_STATE_SCISSOR);
 
 SAFE_ENUM_DECLARE(AttributeFormat,
