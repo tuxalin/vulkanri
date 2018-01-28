@@ -21,7 +21,8 @@ RenderTarget::RenderTarget(const DeviceContext& device, const RenderPass& pass,
     framebufferInfo.height                  = m_size.height;
     framebufferInfo.layers                  = 1;
 
-    RI_CHECK_RESULT() = vkCreateFramebuffer(m_device, &framebufferInfo, nullptr, &m_handle);
+    RI_CHECK_RESULT_MSG("couldn't create framebuffer") =
+        vkCreateFramebuffer(m_device, &framebufferInfo, nullptr, &m_handle);
 }
 
 RenderTarget::~RenderTarget()
@@ -54,8 +55,9 @@ void RenderTarget::createAttachments(const std::vector<AttachmentParams>& attach
         createInfo.subresourceRange.layerCount     = 1;
 
         m_attachments.emplace_back();
-        auto& imageView   = m_attachments.back();
-        RI_CHECK_RESULT() = vkCreateImageView(m_device, &createInfo, nullptr, &imageView);
+        auto& imageView = m_attachments.back();
+        RI_CHECK_RESULT_MSG("couldn't create image view for render target") =
+            vkCreateImageView(m_device, &createInfo, nullptr, &imageView);
     }
 }
 }

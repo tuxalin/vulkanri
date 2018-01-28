@@ -38,7 +38,8 @@ void CommandPool::create(std::vector<CommandBuffer*>& buffers, bool isPrimary /*
     allocInfo.level              = isPrimary ? VK_COMMAND_BUFFER_LEVEL_PRIMARY : VK_COMMAND_BUFFER_LEVEL_SECONDARY;
     allocInfo.commandBufferCount = bufferHandles.size();
 
-    RI_CHECK_RESULT() = vkAllocateCommandBuffers(m_device, &allocInfo, bufferHandles.data());
+    RI_CHECK_RESULT_MSG("error at allocating multiple buffers") =
+        vkAllocateCommandBuffers(m_device, &allocInfo, bufferHandles.data());
 
     std::transform(bufferHandles.begin(), bufferHandles.end(), buffers.begin(), [](auto handle) -> CommandBuffer* {
         assert(handle);
@@ -80,6 +81,6 @@ void CommandPool::initialize(VkDevice device, int queueIndex)
         flags |= VK_COMMAND_POOL_CREATE_RESET_COMMAND_BUFFER_BIT;
     poolInfo.flags = flags;
 
-    RI_CHECK_RESULT() = vkCreateCommandPool(m_device, &poolInfo, nullptr, &m_handle);
+    RI_CHECK_RESULT_MSG("couldn't create command pool") = vkCreateCommandPool(m_device, &poolInfo, nullptr, &m_handle);
 }
 }  // namespace ri

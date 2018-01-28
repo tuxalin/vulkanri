@@ -29,7 +29,8 @@ ShaderModule::ShaderModule(const DeviceContext& device, const std::string& filen
     createInfo.codeSize = code.size();
     createInfo.pCode    = reinterpret_cast<const uint32_t*>(code.data());
 
-    RI_CHECK_RESULT() = vkCreateShaderModule(m_device, &createInfo, nullptr, &m_handle);
+    RI_CHECK_RESULT_MSG("couldn't create shader module") =
+        vkCreateShaderModule(m_device, &createInfo, nullptr, &m_handle);
 }
 
 ShaderModule::~ShaderModule()

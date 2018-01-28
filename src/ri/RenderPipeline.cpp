@@ -55,7 +55,7 @@ RenderPipeline::RenderPipeline(const ri::DeviceContext&  device,          //
     const VkGraphicsPipelineCreateInfo info =
         getPipelineCreateInfo(pass, shaderPipeline, params, data, m_pipelineLayout);
 
-    RI_CHECK_RESULT() =
+    RI_CHECK_RESULT_MSG("couldn't create render pipeline") =
         vkCreateGraphicsPipelines(detail::getVkHandle(device), VK_NULL_HANDLE, 1, &info, nullptr, &m_handle);
 }
 
@@ -199,7 +199,8 @@ inline VkPipelineLayout RenderPipeline::createLayout(const VkDevice device, cons
     pipelineLayoutInfo.pPushConstantRanges        = 0;
 
     VkPipelineLayout pipelineLayout;
-    RI_CHECK_RESULT() = vkCreatePipelineLayout(device, &pipelineLayoutInfo, nullptr, &pipelineLayout);
+    RI_CHECK_RESULT_MSG("couldn't create pipeline layout") =
+        vkCreatePipelineLayout(device, &pipelineLayoutInfo, nullptr, &pipelineLayout);
     return pipelineLayout;
 }
 
@@ -270,8 +271,9 @@ void RenderPipeline::create(const ri::DeviceContext&                          de
             getPipelineCreateInfo(*pipelinesPass[i], *pipelinesShaders[i], pipelinesParams[i], data, layout));
     }
 
-    RI_CHECK_RESULT() = vkCreateGraphicsPipelines(detail::getVkHandle(device), VK_NULL_HANDLE, pipelineInfos.size(),
-                                                  pipelineInfos.data(), nullptr, pipelineHandles.data());
+    RI_CHECK_RESULT_MSG("couldn't create multiple render pipelines") =
+        vkCreateGraphicsPipelines(detail::getVkHandle(device), VK_NULL_HANDLE, pipelineInfos.size(),
+                                  pipelineInfos.data(), nullptr, pipelineHandles.data());
 
     pipelines.resize(pipelinesParams.size());
     for (size_t i = 0; i < pipelineHandles.size(); ++i)

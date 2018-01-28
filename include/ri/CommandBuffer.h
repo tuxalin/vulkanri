@@ -57,7 +57,7 @@ inline CommandBuffer::CommandBuffer(VkDevice device, VkCommandPool commandPool, 
     allocInfo.level              = isPrimary ? VK_COMMAND_BUFFER_LEVEL_PRIMARY : VK_COMMAND_BUFFER_LEVEL_SECONDARY;
     allocInfo.commandBufferCount = 1;
 
-    RI_CHECK_RESULT() = vkAllocateCommandBuffers(device, &allocInfo, &m_handle);
+    RI_CHECK_RESULT_MSG("error on allocating command buffer") = vkAllocateCommandBuffers(device, &allocInfo, &m_handle);
 }
 
 inline CommandBuffer::~CommandBuffer()
@@ -90,7 +90,7 @@ inline void CommandBuffer::begin(RecordFlags flags)
 
 inline void CommandBuffer::end()
 {
-    RI_CHECK_RESULT() = vkEndCommandBuffer(m_handle);
+    RI_CHECK_RESULT_MSG("error on command buffer end") = vkEndCommandBuffer(m_handle);
 }
 
 inline void CommandBuffer::reset(ResetFlags flags /*= ePreserve*/)

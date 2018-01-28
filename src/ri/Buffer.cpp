@@ -19,7 +19,7 @@ Buffer::Buffer(const DeviceContext& device, int flags, size_t size)
     bufferInfo.usage              = (VkBufferUsageFlags)flags;
     bufferInfo.sharingMode        = VK_SHARING_MODE_EXCLUSIVE;
 
-    RI_CHECK_RESULT() = vkCreateBuffer(m_device, &bufferInfo, nullptr, &m_handle);
+    RI_CHECK_RESULT_MSG("couldn't create buffer") = vkCreateBuffer(m_device, &bufferInfo, nullptr, &m_handle);
 
     const VkMemoryPropertyFlags kStagingFlags =
         VK_MEMORY_PROPERTY_HOST_VISIBLE_BIT | VK_MEMORY_PROPERTY_HOST_COHERENT_BIT;
@@ -56,9 +56,10 @@ inline void Buffer::allocateMemory(VkMemoryPropertyFlags flags)
     const VkPhysicalDeviceMemoryProperties& memProperties = detail::getDeviceMemoryProperties(*m_deviceContext);
     allocInfo.memoryTypeIndex = findMemoryIndex(memProperties, memRequirements.memoryTypeBits, flags);
 
-    RI_CHECK_RESULT() = vkAllocateMemory(m_device, &allocInfo, nullptr, &m_bufferMemory);
+    RI_CHECK_RESULT_MSG("couldn't allocate memory for buffer") =
+        vkAllocateMemory(m_device, &allocInfo, nullptr, &m_bufferMemory);
 
-    RI_CHECK_RESULT() = vkBindBufferMemory(m_device, m_handle, m_bufferMemory, 0);
+    RI_CHECK_RESULT_MSG("couldn't bind memory to buffer") = vkBindBufferMemory(m_device, m_handle, m_bufferMemory, 0);
 }
 
 void Buffer::copy(const Buffer& src, CommandPool& commandPool, size_t size, size_t srcOffset /*= 0*/,

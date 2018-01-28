@@ -70,7 +70,7 @@ ApplicationInstance::ApplicationInstance(const std::string& name, const std::str
     }
 #endif  // ! NDEBUG
 
-    RI_CHECK_RESULT() = vkCreateInstance(&createInfo, nullptr, &m_handle);
+    RI_CHECK_RESULT_MSG("couldn't create application instance") = vkCreateInstance(&createInfo, nullptr, &m_handle);
 }
 
 ApplicationInstance::~ApplicationInstance()

@@ -124,13 +124,14 @@ inline void Texture::allocateMemory(const DeviceContext& device, const TexturePa
 
 void Texture::transitionImageLayout(Layout oldLayout, Layout newLayout, CommandBuffer& commandBuffer)
 {
-    VkImageMemoryBarrier barrier            = {};
-    barrier.sType                           = VK_STRUCTURE_TYPE_IMAGE_MEMORY_BARRIER;
-    barrier.oldLayout                       = (VkImageLayout)oldLayout;
-    barrier.newLayout                       = (VkImageLayout)newLayout;
-    barrier.srcQueueFamilyIndex             = VK_QUEUE_FAMILY_IGNORED;
-    barrier.dstQueueFamilyIndex             = VK_QUEUE_FAMILY_IGNORED;
-    barrier.image                           = m_handle;
+    VkImageMemoryBarrier barrier = {};
+    barrier.sType                = VK_STRUCTURE_TYPE_IMAGE_MEMORY_BARRIER;
+    barrier.oldLayout            = (VkImageLayout)oldLayout;
+    barrier.newLayout            = (VkImageLayout)newLayout;
+    barrier.srcQueueFamilyIndex  = VK_QUEUE_FAMILY_IGNORED;
+    barrier.dstQueueFamilyIndex  = VK_QUEUE_FAMILY_IGNORED;
+    barrier.image                = m_handle;
+    // TODO: expose this
     barrier.subresourceRange.aspectMask     = VK_IMAGE_ASPECT_COLOR_BIT;
     barrier.subresourceRange.baseMipLevel   = 0;
     barrier.subresourceRange.levelCount     = 1;
@@ -139,7 +140,6 @@ void Texture::transitionImageLayout(Layout oldLayout, Layout newLayout, CommandB
 
     VkPipelineStageFlags sourceStage;
     VkPipelineStageFlags destinationStage;
-
     if (oldLayout == eUndefined && newLayout == eTransferDstOptimal)
     {
         barrier.srcAccessMask = 0;
@@ -156,6 +156,7 @@ void Texture::transitionImageLayout(Layout oldLayout, Layout newLayout, CommandB
     }
     else
     {
+        // invalid transition
         assert(false);
     }
 

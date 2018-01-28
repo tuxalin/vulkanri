@@ -294,7 +294,8 @@ void DeviceContext::createDevice(const std::vector<Surface*>&    surfaces,
             createInfo.enabledLayerCount = 0;
         }
 
-        RI_CHECK_RESULT() = vkCreateDevice(m_physicalDevice, &createInfo, nullptr, &m_handle);
+        RI_CHECK_RESULT_MSG("couldn't create logical device") =
+            vkCreateDevice(m_physicalDevice, &createInfo, nullptr, &m_handle);
 
         m_queues.fill(VK_NULL_HANDLE);
         for (size_t i = 0; i < m_queueIndices.size(); ++i)

@@ -65,7 +65,8 @@ RenderPass::RenderPass(const ri::DeviceContext& device, const std::vector<Attach
     renderPassInfo.subpassCount           = 1;
     renderPassInfo.pSubpasses             = &subpass;
 
-    RI_CHECK_RESULT() = vkCreateRenderPass(m_device, &renderPassInfo, nullptr, &m_handle);
+    RI_CHECK_RESULT_MSG("couldn't create render pass") =
+        vkCreateRenderPass(m_device, &renderPassInfo, nullptr, &m_handle);
 }
 
 RenderPass::~RenderPass()

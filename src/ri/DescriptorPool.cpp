@@ -19,7 +19,8 @@ DescriptorPool::DescriptorPool(const DeviceContext& device, DescriptorType type,
     poolInfo.maxSets                    = maxCount;
     poolInfo.flags                      = 0;
 
-    RI_CHECK_RESULT() = vkCreateDescriptorPool(m_device, &poolInfo, nullptr, &m_handle);
+    RI_CHECK_RESULT_MSG("couldn't create descriptor pool") =
+        vkCreateDescriptorPool(m_device, &poolInfo, nullptr, &m_handle);
 }
 DescriptorPool::~DescriptorPool()
 {
@@ -42,7 +43,7 @@ DescriptorSet DescriptorPool::create(const DescriptorSetParams& params, size_t l
     allocInfo.pSetLayouts                 = layouts;
 
     VkDescriptorSet handle;
-    RI_CHECK_RESULT() = vkAllocateDescriptorSets(m_device, &allocInfo, &handle);
+    RI_CHECK_RESULT_MSG("couldn't allocate descriptor sets") = vkAllocateDescriptorSets(m_device, &allocInfo, &handle);
 
     return DescriptorSet(m_device, handle, m_type, params);
 }
@@ -68,7 +69,8 @@ void DescriptorPool::create(const std::vector<DescriptorSetParams>& descriptorPa
     allocInfo.pSetLayouts                 = layouts.data();
 
     std::vector<VkDescriptorSet> handles(descriptorParams.size());
-    RI_CHECK_RESULT() = vkAllocateDescriptorSets(m_device, &allocInfo, handles.data());
+    RI_CHECK_RESULT_MSG("couldn't allocate descriptor sets") =
+        vkAllocateDescriptorSets(m_device, &allocInfo, handles.data());
 
     descriptors.clear();
     descriptors.reserve(descriptorParams.size());
@@ -100,7 +102,8 @@ DescriptorPool::CreateLayoutResult DescriptorPool::createLayout(const Descriptor
 
     m_descriptorLayouts.emplace_back();
     auto& descriptorSetLayout = m_descriptorLayouts.back();
-    RI_CHECK_RESULT()         = vkCreateDescriptorSetLayout(m_device, &layoutInfo, nullptr, &descriptorSetLayout);
+    RI_CHECK_RESULT_MSG("couldn't create descriptor set layout") =
+        vkCreateDescriptorSetLayout(m_device, &layoutInfo, nullptr, &descriptorSetLayout);
 
     return CreateLayoutResult({m_descriptorLayouts.back(), m_descriptorLayouts.size() - 1});
 }
@@ -139,7 +142,8 @@ std::vector<VkDescriptorSetLayout> DescriptorPool::createDescriptorLayouts(
         layoutInfo.pBindings                       = bindingInfos.data();
 
         auto& descriptorSetLayout = descriptors[i];
-        RI_CHECK_RESULT()         = vkCreateDescriptorSetLayout(m_device, &layoutInfo, nullptr, &descriptorSetLayout);
+        RI_CHECK_RESULT_MSG("couldn't create descriptor set layouts") =
+            vkCreateDescriptorSetLayout(m_device, &layoutInfo, nullptr, &descriptorSetLayout);
     }
     return descriptors;
 }

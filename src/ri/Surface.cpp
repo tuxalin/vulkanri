@@ -175,8 +175,10 @@ void Surface::create(ri::DeviceContext& device)
     // create semaphores
     VkSemaphoreCreateInfo semaphoreInfo = {};
     semaphoreInfo.sType                 = VK_STRUCTURE_TYPE_SEMAPHORE_CREATE_INFO;
-    RI_CHECK_RESULT() = vkCreateSemaphore(m_device, &semaphoreInfo, nullptr, &m_imageAvailableSemaphore);
-    RI_CHECK_RESULT() = vkCreateSemaphore(m_device, &semaphoreInfo, nullptr, &m_renderFinishedSemaphore);
+    RI_CHECK_RESULT_MSG("couldn't create surface's available semaphore") =
+        vkCreateSemaphore(m_device, &semaphoreInfo, nullptr, &m_imageAvailableSemaphore);
+    RI_CHECK_RESULT_MSG("couldn't create surface's finished semaphore") =
+        vkCreateSemaphore(m_device, &semaphoreInfo, nullptr, &m_renderFinishedSemaphore);
 }
 
 void Surface::createSwapchain(const SwapChainSupport& support, const VkSurfaceFormatKHR& surfaceFormat,
@@ -222,7 +224,8 @@ void Surface::createSwapchain(const SwapChainSupport& support, const VkSurfaceFo
         createInfo.pQueueFamilyIndices   = nullptr;
     }
 
-    RI_CHECK_RESULT() = vkCreateSwapchainKHR(m_device, &createInfo, nullptr, &m_swapchain);
+    RI_CHECK_RESULT_MSG("couldn't crate surface's swapchain") =
+        vkCreateSwapchainKHR(m_device, &createInfo, nullptr, &m_swapchain);
 
     assert(m_swapchainTargets.size() == m_swapchainCommandBuffers.size());
 }
@@ -294,7 +297,8 @@ bool Surface::present(const ri::DeviceContext& device)
         submitInfo.pCommandBuffers        = &handle;
 
         const auto queueHandle = detail::getDeviceQueue(device, DeviceOperation::eGraphics);
-        RI_CHECK_RESULT()      = vkQueueSubmit(queueHandle, 1, &submitInfo, VK_NULL_HANDLE);
+        RI_CHECK_RESULT_MSG("error at queue submit for surface present") =
+            vkQueueSubmit(queueHandle, 1, &submitInfo, VK_NULL_HANDLE);
     }
 
     // submit presentation
