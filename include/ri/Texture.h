@@ -7,6 +7,8 @@
 namespace ri
 {
 class DeviceContext;
+class Buffer;
+class CommandBuffer;
 
 struct TextureParams
 {
@@ -34,11 +36,39 @@ struct TextureParams
 class Texture : util::noncopyable, public RenderObject<VkImage>
 {
 public:
+    enum Layout
+    {
+        eUndefined               = VK_IMAGE_LAYOUT_UNDEFINED,
+        eGeneral                 = VK_IMAGE_LAYOUT_GENERAL,
+        eColorAttachement        = VK_IMAGE_LAYOUT_COLOR_ATTACHMENT_OPTIMAL,
+        eDepthStencilAttachement = VK_IMAGE_LAYOUT_DEPTH_STENCIL_ATTACHMENT_OPTIMAL,
+        eShaderReadOnly          = VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL,
+        eTransferSrcOptimal      = VK_IMAGE_LAYOUT_TRANSFER_SRC_OPTIMAL,
+        eTransferDstOptimal      = VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL,
+        ePreinitialized          = VK_IMAGE_LAYOUT_PREINITIALIZED
+    };
+
+    struct CopyParams
+    {
+        // if equal then no transition will be performed
+        Layout oldLayout = eUndefined;
+        Layout newLayout = eUndefined;
+
+        int32_t offsetX = 0, offsetY = 0, offsetZ = 0;
+        /// @note If zero then will use texture size.
+        Sizei    size;
+        uint32_t depth = 1;
+    };
+
     Texture(const DeviceContext& device, const TextureParams& params);
     ~Texture();
 
     TextureType  type() const;
     const Sizei& size() const;
+
+    /// Copy from a staging buffer and issue a transfer command to the given command buffer.
+    /// @note It's done asynchronously.
+    void copy(const Buffer& src, const CopyParams& params, CommandBuffer& commandBuffer);
 
 private:
     // create a reference texture
@@ -46,6 +76,7 @@ private:
 
     void createImage(const TextureParams& params);
     void allocateMemory(const DeviceContext& device, const TextureParams& params);
+    void transitionImageLayout(Layout oldLayout, Layout newLayout, CommandBuffer& commandBuffer);
 
 private:
     VkDevice       m_device = VK_NULL_HANDLE;

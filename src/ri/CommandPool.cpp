@@ -42,9 +42,7 @@ void CommandPool::create(std::vector<CommandBuffer*>& buffers, bool isPrimary /*
 
     std::transform(bufferHandles.begin(), bufferHandles.end(), buffers.begin(), [](auto handle) -> CommandBuffer* {
         assert(handle);
-        auto buffer      = new CommandBuffer();
-        buffer->m_handle = handle;
-        return buffer;
+        return new CommandBuffer(handle);
     });
 }
 

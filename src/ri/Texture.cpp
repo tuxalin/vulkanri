@@ -30,6 +30,8 @@ namespace
 
 Texture::Texture(const DeviceContext& device, const TextureParams& params)
     : m_device(detail::getVkHandle(device))
+    , m_type(params.type)
+    , m_size(params.size)
 {
     createImage(params);
     allocateMemory(device, params);
@@ -49,6 +51,35 @@ Texture::~Texture()
         vkDestroyImage(m_device, m_handle, nullptr);
         vkFreeMemory(m_device, m_memory, nullptr);
     }
+}
+
+void Texture::copy(const Buffer& src, const CopyParams& params, CommandBuffer& commandBuffer)
+{
+    assert(Sizei(params.offsetX + params.size.width, params.offsetY + params.size.height) <= m_size);
+
+    if (params.oldLayout != params.newLayout)
+        transitionImageLayout(params.oldLayout, eTransferDstOptimal, commandBuffer);
+
+    // copy buffer to image
+    VkBufferImageCopy region = {};
+    region.bufferOffset      = 0;
+    region.bufferRowLength   = 0;
+    region.bufferImageHeight = 0;
+
+    region.imageSubresource.aspectMask     = VK_IMAGE_ASPECT_COLOR_BIT;
+    region.imageSubresource.mipLevel       = 0;
+    region.imageSubresource.baseArrayLayer = 0;
+    region.imageSubresource.layerCount     = 1;
+
+    const Sizei size   = params.size.width == 0 || params.size.height == 0 ? m_size : params.size;
+    region.imageOffset = {params.offsetX, params.offsetY, params.offsetZ};
+    region.imageExtent = {size.width, size.height, params.depth};
+
+    vkCmdCopyBufferToImage(detail::getVkHandle(commandBuffer), detail::getVkHandle(src), m_handle,
+                           (VkImageLayout)eTransferDstOptimal, 1, &region);
+
+    if (params.oldLayout != params.newLayout)
+        transitionImageLayout(eTransferDstOptimal, params.newLayout, commandBuffer);
 }
 
 inline void Texture::createImage(const TextureParams& params)
@@ -89,6 +120,47 @@ inline void Texture::allocateMemory(const DeviceContext& device, const TexturePa
     RI_CHECK_RESULT_MSG("failed to allocate image memory") = vkAllocateMemory(m_device, &allocInfo, nullptr, &m_memory);
 
     vkBindImageMemory(m_device, m_handle, m_memory, 0);
+}
+
+void Texture::transitionImageLayout(Layout oldLayout, Layout newLayout, CommandBuffer& commandBuffer)
+{
+    VkImageMemoryBarrier barrier            = {};
+    barrier.sType                           = VK_STRUCTURE_TYPE_IMAGE_MEMORY_BARRIER;
+    barrier.oldLayout                       = (VkImageLayout)oldLayout;
+    barrier.newLayout                       = (VkImageLayout)newLayout;
+    barrier.srcQueueFamilyIndex             = VK_QUEUE_FAMILY_IGNORED;
+    barrier.dstQueueFamilyIndex             = VK_QUEUE_FAMILY_IGNORED;
+    barrier.image                           = m_handle;
+    barrier.subresourceRange.aspectMask     = VK_IMAGE_ASPECT_COLOR_BIT;
+    barrier.subresourceRange.baseMipLevel   = 0;
+    barrier.subresourceRange.levelCount     = 1;
+    barrier.subresourceRange.baseArrayLayer = 0;
+    barrier.subresourceRange.layerCount     = 1;
+
+    VkPipelineStageFlags sourceStage;
+    VkPipelineStageFlags destinationStage;
+
+    if (oldLayout == eUndefined && newLayout == eTransferDstOptimal)
+    {
+        barrier.srcAccessMask = 0;
+        barrier.dstAccessMask = VK_ACCESS_TRANSFER_WRITE_BIT;
+        sourceStage           = VK_PIPELINE_STAGE_TOP_OF_PIPE_BIT;
+        destinationStage      = VK_PIPELINE_STAGE_TRANSFER_BIT;
+    }
+    else if (oldLayout == eTransferDstOptimal && newLayout == eShaderReadOnly)
+    {
+        barrier.srcAccessMask = VK_ACCESS_TRANSFER_WRITE_BIT;
+        barrier.dstAccessMask = VK_ACCESS_SHADER_READ_BIT;
+        sourceStage           = VK_PIPELINE_STAGE_TRANSFER_BIT;
+        destinationStage      = VK_PIPELINE_STAGE_FRAGMENT_SHADER_BIT;
+    }
+    else
+    {
+        assert(false);
+    }
+
+    vkCmdPipelineBarrier(detail::getVkHandle(commandBuffer), sourceStage, destinationStage, 0, 0, nullptr, 0, nullptr,
+                         1, &barrier);
 }
 
 }  // namespace ri

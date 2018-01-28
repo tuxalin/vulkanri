@@ -1,10 +1,11 @@
 #pragma once
 
+#include <util/noncopyable.h>
 #include <ri/Types.h>
 
 namespace ri
 {
-class CommandBuffer : public RenderObject<VkCommandBuffer>
+class CommandBuffer : util::noncopyable, public RenderObject<VkCommandBuffer>
 {
 public:
     enum ResetFlags
@@ -29,7 +30,7 @@ public:
     void reset(ResetFlags flags = ePreserve);
 
 private:
-    CommandBuffer();
+    CommandBuffer(VkCommandBuffer handle);
     CommandBuffer(VkDevice device, VkCommandPool commandPool, bool isPrimary);
 
 private:
@@ -39,8 +40,9 @@ private:
     friend class CommandPool;  // command buffers can only be constructed from a pool
 };
 
-inline CommandBuffer::CommandBuffer()
-    : m_commandPool(VK_NULL_HANDLE)
+inline CommandBuffer::CommandBuffer(VkCommandBuffer handle)
+    : RenderObject<VkCommandBuffer>(handle)
+    , m_commandPool(VK_NULL_HANDLE)
     , m_device(VK_NULL_HANDLE)
 {
 }
