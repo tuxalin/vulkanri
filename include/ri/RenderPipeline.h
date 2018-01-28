@@ -16,6 +16,20 @@ class RenderPipeline : util::noncopyable, public RenderObject<VkPipeline>
 public:
     struct CreateParams
     {
+        struct PushParams
+        {
+            ShaderStage stages;
+            uint32_t    offset, size;
+
+            PushParams() {}
+            PushParams(ShaderStage stages, uint32_t offset, uint32_t size)
+                : stages(stages)
+                , offset(offset)
+                , size(size)
+            {
+            }
+        };
+
         PrimitiveTopology primitiveTopology = PrimitiveTopology::eTriangles;
         bool              primitiveRestart  = false;
         float             lineWidth         = 1.f;
@@ -57,6 +71,8 @@ public:
         // that it be more efficient (on either host or device) to switch/bind between children of the same parent.
         const RenderPipeline* pipelineDerivative      = nullptr;
         int                   pipelineDerivativeIndex = -1;
+
+        std::vector<PushParams> pushConstants;
     };
 
     struct DynamicState
@@ -109,6 +125,7 @@ public:
     /// @note Also binds the pipeline.
     void begin(const CommandBuffer& buffer, const RenderTarget& target) const;
     void end(const CommandBuffer& buffer) const;
+    void pushConstants(const void* src, ShaderStage stages, size_t offset, size_t size, CommandBuffer& buffer);
 
     /// @note Can use pipeline derivative index for faster creation.
     static void create(const ri::DeviceContext&                          device,            //
@@ -204,6 +221,12 @@ inline void RenderPipeline::end(const CommandBuffer& buffer) const
 {
     assert(m_renderPass);
     m_renderPass->end(buffer);
+}
+
+inline void RenderPipeline::pushConstants(const void* src, ShaderStage stages, size_t offset, size_t size,
+                                          CommandBuffer& buffer)
+{
+    vkCmdPushConstants(detail::getVkHandle(buffer), m_pipelineLayout, (VkShaderStageFlags)stages, offset, size, src);
 }
 
 inline ri::RenderPass& RenderPipeline::defaultPass()

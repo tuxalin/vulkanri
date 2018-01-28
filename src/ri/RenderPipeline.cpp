@@ -195,8 +195,18 @@ inline VkPipelineLayout RenderPipeline::createLayout(const VkDevice device, cons
     pipelineLayoutInfo.sType                      = VK_STRUCTURE_TYPE_PIPELINE_LAYOUT_CREATE_INFO;
     pipelineLayoutInfo.setLayoutCount             = descriptorLayouts.size();
     pipelineLayoutInfo.pSetLayouts                = descriptorLayouts.data();
-    pipelineLayoutInfo.pushConstantRangeCount     = 0;
-    pipelineLayoutInfo.pPushConstantRanges        = 0;
+
+    std::vector<VkPushConstantRange> ranges(params.pushConstants.size());
+    for (size_t i = 0; i < ranges.size(); ++i)
+    {
+        const auto& pushParam = params.pushConstants[i];
+        auto&       range     = ranges[i];
+        range.offset          = pushParam.offset;
+        range.size            = pushParam.size;
+        range.stageFlags      = (VkShaderStageFlags)pushParam.stages;
+    }
+    pipelineLayoutInfo.pushConstantRangeCount = ranges.size();
+    pipelineLayoutInfo.pPushConstantRanges    = ranges.data();
 
     VkPipelineLayout pipelineLayout;
     RI_CHECK_RESULT_MSG("couldn't create pipeline layout") =

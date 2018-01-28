@@ -11,6 +11,7 @@
  * -adding debug tags to resources
  * -how to create and set uniform buffers
  * -creating descriptor set and layouts via a descriptor pool
+ * -using push constants
  */
 #define GLFW_INCLUDE_VULKAN
 #include <GLFW/glfw3.h>
@@ -63,10 +64,11 @@ struct Matrices
     glm::mat4 proj;
 };
 
+const glm::vec3             kTintColor(0.0, 0.3, 0.15);
 const std::vector<Vertex>   kVertices = {{{-0.5f, -0.5f}, {1.0f, 0.0f, 0.0f}},
                                        {{0.5f, -0.5f}, {0.0f, 1.0f, 0.0f}},
                                        {{0.5f, 0.5f}, {0.0f, 0.0f, 1.0f}},
-                                       {{-0.5f, 0.5f}, {1.0f, 1.0f, 1.0f}}};
+                                       {{-0.5f, 0.5f}, {0.0f, 0.0f, 0.0f}}};
 const std::vector<uint16_t> kIndices  = {0, 1, 2, 2, 3, 0};
 
 class HelloTriangleApplication
@@ -204,7 +206,7 @@ private:
             descriptorLayout = res.layout;
 
             m_descriptor = m_descriptorPool->create(
-                ri::DescriptorSetParams({m_uniformBuffer.get(), 0, sizeof(Matrices)}), res.index);
+                ri::DescriptorSetParams(0, m_uniformBuffer.get(), 0, sizeof(Matrices)), res.index);
         }
 
         // create the render/graphics pipeline
@@ -221,6 +223,8 @@ private:
             params.frontFaceCW       = false;  // since we inverted the Y axis
             // add a descriptor layout
             params.descriptorLayouts.push_back(descriptorLayout);
+            // add a push constant for the tint color
+            params.pushConstants.emplace_back(ri::ShaderStage::eVertex, 0, sizeof(kTintColor));
 
             m_renderPipeline.reset(
                 new ri::RenderPipeline(*m_context, pass, *m_shaderPipeline, params, ri::Sizei(kWidth, kHeight)));
@@ -249,6 +253,7 @@ private:
         m_vertexDescription.bind(commandBuffer);
         // bind the uniform buffer to the render pipeline
         m_descriptor.bind(commandBuffer, *m_renderPipeline);
+        m_renderPipeline->pushConstants(&kTintColor[0], ri::ShaderStage::eVertex, 0, sizeof(glm::vec3), commandBuffer);
         commandBuffer.drawIndexed(kIndices.size());
 
         m_renderPipeline->end(commandBuffer);
