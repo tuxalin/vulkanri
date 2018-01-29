@@ -49,12 +49,8 @@ struct Vertex
     {
         float x, y;
     };
-    struct Color
-    {
-        float r, g, b;
-    };
-    Pos   pos;
-    Color color;
+    Pos pos;
+    Pos uv;
 };
 
 struct Matrices
@@ -64,16 +60,16 @@ struct Matrices
     glm::mat4 proj;
 };
 
-const std::vector<Vertex>   kVertices = {{{-0.5f, -0.5f}, {1.0f, 0.0f, 0.0f}},
-                                       {{0.5f, -0.5f}, {0.0f, 1.0f, 0.0f}},
-                                       {{0.5f, 0.5f}, {0.0f, 0.0f, 1.0f}},
-                                       {{-0.5f, 0.5f}, {1.0f, 1.0f, 1.0f}}};
+const std::vector<Vertex>   kVertices = {{{-0.5f, -0.5f}, {1.0f, 0.0f}},
+                                       {{0.5f, -0.5f}, {0.0f, 0.0f}},
+                                       {{0.5f, 0.5f}, {0.0f, 1.0f}},
+                                       {{-0.5f, 0.5f}, {1.0f, 1.0f}}};
 const std::vector<uint16_t> kIndices  = {0, 1, 2, 2, 3, 0};
 
-class HelloTriangleApplication
+class DemoApplication
 {
 public:
-    HelloTriangleApplication()
+    DemoApplication()
         : m_validation(nullptr)
     {
     }
@@ -96,7 +92,7 @@ private:
         m_window = glfwCreateWindow(kWidth, kHeight, "Vertex Buffers", nullptr, nullptr);
 
         glfwSetWindowUserPointer(m_window, this);
-        glfwSetWindowSizeCallback(m_window, HelloTriangleApplication::onWindowResized);
+        glfwSetWindowSizeCallback(m_window, DemoApplication::onWindowResized);
     }
 
     static void onWindowResized(GLFWwindow* window, int width, int height)
@@ -104,7 +100,7 @@ private:
         if (width < 32 || height < 32)
             return;
 
-        HelloTriangleApplication* app = reinterpret_cast<HelloTriangleApplication*>(glfwGetWindowUserPointer(window));
+        DemoApplication* app = reinterpret_cast<DemoApplication*>(glfwGetWindowUserPointer(window));
         app->resizeWindow();
     }
 
@@ -123,7 +119,8 @@ private:
 
         // create the device context
         {
-            const std::vector<ri::DeviceFeature>   requiredFeatures   = {ri::DeviceFeature::eSwapchain};
+            const std::vector<ri::DeviceFeature>   requiredFeatures   = {ri::DeviceFeature::eSwapchain,
+                                                                     ri::DeviceFeature::eAnisotropy};
             const std::vector<ri::DeviceOperation> requiredOperations = {ri::DeviceOperation::eGraphics,
                                                                          // required for buffer transfer
                                                                          ri::DeviceOperation::eTransfer};
@@ -181,7 +178,7 @@ private:
 
             {
                 ri::VertexBinding binding({{0, ri::AttributeFormat::eFloat2, offsetof(Vertex, pos)},
-                                           {1, ri::AttributeFormat::eFloat4, offsetof(Vertex, color)}});
+                                           {1, ri::AttributeFormat::eFloat2, offsetof(Vertex, uv)}});
                 binding.bindingIndex = 0;
                 binding.buffer       = m_vertexBuffer.get();
                 binding.offset       = 0;
@@ -196,7 +193,7 @@ private:
         {
             // TODO: load multiple textures and use later
 
-            const std::string path = examplePath + "textures/Floor_Color.png";
+            const std::string path = "../resources/textures/Floor_Color.png";
             int               texChannels;
             ri::Sizei         size;
             stbi_uc*          pixels =
@@ -211,12 +208,9 @@ private:
             stbi_image_free(pixels);
 
             // create a transfer command buffer
-            std::unique_ptr<ri::CommandBuffer> commandBuffer;
-            {
-                auto& commandPool =
-                    m_context->commandPool(ri::DeviceOperation::eTransfer, ri::DeviceCommandHint::eRecorded);
-                commandBuffer.reset(commandPool.create());
-            }
+            auto& commandPool =
+                m_context->commandPool(ri::DeviceOperation::eTransfer, ri::DeviceCommandHint::eRecorded);
+            ri::CommandBuffer commandBuffer = commandPool.create();
 
             // create texture
             ri::TextureParams params;
@@ -224,7 +218,7 @@ private:
             params.format = ri::ColorFormat::eRGBA;
             params.size   = size;
             params.flags  = ri::TextureUsageFlags::eDst | ri::TextureUsageFlags::eSampled;
-            ri::Texture texture(*m_context, params);
+            m_textures.emplace_back(new ri::Texture(*m_context, params));
 
             // issue copy commands
             ri::Texture::CopyParams copyParams;
@@ -232,9 +226,10 @@ private:
             copyParams.newLayout = ri::Texture::eShaderReadOnly;
             copyParams.size      = size;
 
-            commandBuffer->begin(ri::RecordFlags::eOneTime);
-            texture.copy(*stagingBuffer, copyParams, *commandBuffer);
-            commandBuffer->end();
+            commandBuffer.begin(ri::RecordFlags::eOneTime);
+            m_textures[0]->copy(*stagingBuffer, copyParams, commandBuffer);
+            commandBuffer.end();
+            commandBuffer.destroy();
         }
 
         // create a uniform buffer
@@ -243,16 +238,26 @@ private:
             m_uniformBuffer->setTagName("UniformBuffer");
         }
 
-        ri::DescriptorSetLayout descriptorLayout;
-        // create a descriptor pool
+        ri::RenderPipeline::CreateParams params;
+        // create a descriptor pool and descriptor for the shader
         {
-            m_descriptorPool.reset(new ri::DescriptorPool(*m_context, ri::DescriptorType::eUniformBuffer, 1));
-            auto res = m_descriptorPool->createLayout(
-                ri::DescriptorLayoutParam({0, ri::ShaderStage::eVertex, ri::DescriptorType::eUniformBuffer}));
-            descriptorLayout = res.layout;
+            std::vector<ri::DescriptorPool::TypeSize> avaialbleTypes(
+                {{ri::DescriptorType::eUniformBuffer, 1}, {ri::DescriptorType::eCombinedSampler, 10}});
+            m_descriptorPool.reset(new ri::DescriptorPool(*m_context, avaialbleTypes));
 
-            m_descriptor = m_descriptorPool->create(
-                ri::DescriptorSetParams({m_uniformBuffer.get(), 0, sizeof(Matrices)}), res.index);
+            // create descriptor layout
+            ri::DescriptorLayoutParam layoutsParams(
+                {{0, ri::ShaderStage::eVertex, ri::DescriptorType::eUniformBuffer},
+                 {1, ri::ShaderStage::eFragment, ri::DescriptorType::eCombinedSampler}});
+            auto res = m_descriptorPool->createLayout(layoutsParams);
+            params.descriptorLayouts.push_back(res.layout);
+
+            // create descriptor
+            ri::DescriptorSetParams descriptorParams;
+            descriptorParams.infos.emplace_back(0, m_uniformBuffer.get(), 0, sizeof(Matrices));
+            descriptorParams.infos.emplace_back(1, m_textures[0].get());
+
+            m_descriptor = m_descriptorPool->create(res.index, descriptorParams);
         }
 
         // create the render/graphics pipeline
@@ -262,13 +267,10 @@ private:
             ri::RenderPass* pass = new ri::RenderPass(*m_context, passParams);
             pass->setTagName("SimplePass");
 
-            ri::RenderPipeline::CreateParams params;
             // neded to change viewport for multiple windows
             params.dynamicStates     = {ri::DynamicState::eViewport, ri::DynamicState::eScissor};
             params.vertexDescription = &m_vertexDescription;
             params.frontFaceCW       = false;  // since we inverted the Y axis
-            // add a descriptor layout
-            params.descriptorLayouts.push_back(descriptorLayout);
 
             m_renderPipeline.reset(
                 new ri::RenderPipeline(*m_context, pass, *m_shaderPipeline, params, ri::Sizei(kWidth, kHeight)));
@@ -386,14 +388,14 @@ private:
     std::unique_ptr<ri::Buffer>                m_vertexBuffer;
     std::unique_ptr<ri::Buffer>                m_indexBuffer;
     std::unique_ptr<ri::Buffer>                m_uniformBuffer;
-    std::vector<std::shared_ptr<ri::Texture> > m_textures;
     ri::IndexedVertexDescription               m_vertexDescription;
     ri::DescriptorSet                          m_descriptor;
+    std::vector<std::shared_ptr<ri::Texture> > m_textures;
 };
 
 int main()
 {
-    HelloTriangleApplication app;
+    DemoApplication app;
 
     try
     {
