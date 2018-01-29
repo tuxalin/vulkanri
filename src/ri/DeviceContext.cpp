@@ -180,6 +180,9 @@ uint32_t DeviceContext::deviceScore(VkPhysicalDevice device, const std::vector<D
             case DeviceFeature::eAnisotropy:
                 hasAllFeatures &= deviceFeatures.samplerAnisotropy == VK_TRUE;
                 break;
+            case DeviceFeature::eWireframe:
+                hasAllFeatures &= deviceFeatures.fillModeNonSolid == VK_TRUE;
+                break;
             default:
                 auto found = kDeviceStringMap.find(feature);
                 assert(found != kDeviceStringMap.end());
