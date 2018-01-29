@@ -39,10 +39,10 @@ const int kHeight = 600;
 
 #define RECORDED_MODE 1
 
-class HelloTriangleApplication
+class DemoApplication
 {
 public:
-    HelloTriangleApplication()
+    DemoApplication()
         : m_validation(nullptr)
     {
     }
@@ -68,7 +68,7 @@ private:
         for (auto window : m_windows)
         {
             glfwSetWindowUserPointer(window, this);
-            glfwSetWindowSizeCallback(window, HelloTriangleApplication::onWindowResized);
+            glfwSetWindowSizeCallback(window, DemoApplication::onWindowResized);
         }
     }
 
@@ -77,7 +77,7 @@ private:
         if (width < 32 || height < 32)
             return;
 
-        HelloTriangleApplication* app = reinterpret_cast<HelloTriangleApplication*>(glfwGetWindowUserPointer(window));
+        DemoApplication* app = reinterpret_cast<DemoApplication*>(glfwGetWindowUserPointer(window));
         app->resizeWindows();
     }
 
@@ -258,7 +258,7 @@ private:
 
 int main()
 {
-    HelloTriangleApplication app;
+    DemoApplication app;
 
     try
     {

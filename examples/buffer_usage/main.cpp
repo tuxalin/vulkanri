@@ -71,10 +71,10 @@ const std::vector<Vertex>   kVertices = {{{-0.5f, -0.5f}, {1.0f, 0.0f, 0.0f}},
                                        {{-0.5f, 0.5f}, {0.0f, 0.0f, 0.0f}}};
 const std::vector<uint16_t> kIndices  = {0, 1, 2, 2, 3, 0};
 
-class HelloTriangleApplication
+class DemoApplication
 {
 public:
-    HelloTriangleApplication()
+    DemoApplication()
         : m_validation(nullptr)
     {
     }
@@ -97,7 +97,7 @@ private:
         m_window = glfwCreateWindow(kWidth, kHeight, "Vertex Buffers", nullptr, nullptr);
 
         glfwSetWindowUserPointer(m_window, this);
-        glfwSetWindowSizeCallback(m_window, HelloTriangleApplication::onWindowResized);
+        glfwSetWindowSizeCallback(m_window, DemoApplication::onWindowResized);
     }
 
     static void onWindowResized(GLFWwindow* window, int width, int height)
@@ -105,7 +105,7 @@ private:
         if (width < 32 || height < 32)
             return;
 
-        HelloTriangleApplication* app = reinterpret_cast<HelloTriangleApplication*>(glfwGetWindowUserPointer(window));
+        DemoApplication* app = reinterpret_cast<DemoApplication*>(glfwGetWindowUserPointer(window));
         app->resizeWindow();
     }
 
@@ -349,7 +349,7 @@ private:
 
 int main()
 {
-    HelloTriangleApplication app;
+    DemoApplication app;
 
     try
     {
