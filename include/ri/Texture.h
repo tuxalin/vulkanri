@@ -71,7 +71,6 @@ struct TextureParams
     uint32_t arrayLevels = 1;
     Samples  samples     = eOne;
 
-    bool          samplerEnable = false;
     SamplerParams samplerParams;
 };
 
@@ -107,6 +106,7 @@ public:
 
     TextureType  type() const;
     const Sizei& size() const;
+    bool         isSampled() const;
 
     /// Copy from a staging buffer and issue a transfer command to the given command buffer.
     /// @note It's done asynchronously.
@@ -130,8 +130,19 @@ private:
     TextureType    m_type;
     Sizei          m_size;
 
-    friend const Texture* detail::createReferenceTexture(VkImage handle, int type, const Sizei& size);
+    friend const Texture*                detail::createReferenceTexture(VkImage handle, int type, const Sizei& size);
+    friend detail::TextureDescriptorInfo detail::getTextureDescriptorInfo(const Texture& texture);
 };
+
+namespace detail
+{
+    inline TextureDescriptorInfo getTextureDescriptorInfo(const Texture& texture)
+    {
+        assert(texture.m_view);
+        assert(texture.m_sampler);
+        return TextureDescriptorInfo({texture.m_view, texture.m_sampler, VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL});
+    }
+}
 
 inline TextureType Texture::type() const
 {
@@ -141,5 +152,10 @@ inline TextureType Texture::type() const
 inline const Sizei& Texture::size() const
 {
     return m_size;
+}
+
+inline bool Texture::isSampled() const
+{
+    return m_sampler != VK_NULL_HANDLE;
 }
 }  // namespace ri

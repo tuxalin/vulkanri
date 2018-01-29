@@ -12,13 +12,13 @@ struct DescriptorBinding
 {
     uint32_t       index = 0;
     ShaderStage    stageFlags;
-    DescriptorType descriptorType = DescriptorType::eUniformBuffer;
+    DescriptorType type;
 
     DescriptorBinding() {}
-    DescriptorBinding(uint32_t index, ShaderStage stageFlags, DescriptorType descriptorType)
+    DescriptorBinding(uint32_t index, ShaderStage stageFlags, DescriptorType type)
         : index(index)
         , stageFlags(stageFlags)
-        , descriptorType(descriptorType)
+        , type(type)
     {
     }
 };
@@ -41,6 +41,7 @@ struct DescriptorLayoutParam
 class DescriptorPool : util::noncopyable, public RenderObject<VkDescriptorPool>
 {
 public:
+    typedef std::pair<DescriptorType, size_t> TypeSize;
     struct CreateLayoutResult
     {
         DescriptorSetLayout layout;
@@ -48,33 +49,34 @@ public:
     };
 
     DescriptorPool(const DeviceContext& device, DescriptorType type, size_t maxCount);
+    DescriptorPool(const DeviceContext& device, const std::vector<TypeSize>& availableDescriptors);
     ///@warning The RenderPipeline that use the layout descriptors must be destroyed before the pool.
     ~DescriptorPool();
 
-    DescriptorSet create(const DescriptorSetParams& params, size_t layoutIndex);
-    void create(const std::vector<DescriptorSetParams>& descriptorParams, const std::vector<size_t>& layoutIndices,
-                std::vector<DescriptorSet>& descriptors);
+    DescriptorSet create(uint32_t layoutIndex);
+    ///@note Also calls descriptor update.
+    DescriptorSet create(uint32_t layoutIndex, const DescriptorSetParams& params);
+    void          create(const std::vector<uint32_t>& layoutIndices, std::vector<DescriptorSet>& descriptors);
 
     ///@note New layout will be appended.
     CreateLayoutResult createLayout(const DescriptorLayoutParam& param);
     ///@note New layouts will be appended.
     size_t createLayouts(const std::vector<DescriptorLayoutParam>& layoutParams);
 
-    DescriptorType type() const;
+    const std::vector<DescriptorSetLayout>& layouts() const;
 
 private:
     std::vector<VkDescriptorSetLayout> createDescriptorLayouts(const std::vector<DescriptorLayoutParam>& layoutParams);
 
 private:
-    VkDevice       m_device = VK_NULL_HANDLE;
-    DescriptorType m_type;
+    VkDevice m_device = VK_NULL_HANDLE;
 
     std::vector<VkDescriptorSetLayout> m_descriptorLayouts;
 };
 
-inline DescriptorType DescriptorPool::type() const
+inline const std::vector<DescriptorSetLayout>& DescriptorPool::layouts() const
 {
-    return m_type;
+    return m_descriptorLayouts;
 }
 
 }  // namespace ri

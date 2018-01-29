@@ -36,7 +36,7 @@ Texture::Texture(const DeviceContext& device, const TextureParams& params)
     createImage(params);
     allocateMemory(device, params);
 
-    if (params.samplerEnable)
+    if (params.flags & TextureUsageFlags::eSampled)
     {
         createSampler(params.samplerParams);
         createImageView(params);
@@ -71,10 +71,10 @@ void Texture::copy(const Buffer& src, const CopyParams& params, CommandBuffer& c
 
     // copy buffer to image
     VkBufferImageCopy region = {};
-    region.bufferOffset      = 0;
-    region.bufferRowLength   = 0;
-    region.bufferImageHeight = 0;
-
+    // TODO: expose these
+    region.bufferOffset                    = 0;
+    region.bufferRowLength                 = 0;
+    region.bufferImageHeight               = 0;
     region.imageSubresource.aspectMask     = VK_IMAGE_ASPECT_COLOR_BIT;
     region.imageSubresource.mipLevel       = 0;
     region.imageSubresource.baseArrayLayer = 0;

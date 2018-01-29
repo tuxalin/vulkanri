@@ -206,7 +206,7 @@ private:
             descriptorLayout = res.layout;
 
             m_descriptor = m_descriptorPool->create(
-                ri::DescriptorSetParams(0, m_uniformBuffer.get(), 0, sizeof(Matrices)), res.index);
+                res.index, ri::DescriptorSetParams(0, m_uniformBuffer.get(), 0, sizeof(Matrices)));
         }
 
         // create the render/graphics pipeline

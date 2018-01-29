@@ -15,6 +15,7 @@ namespace ri
 class Texture;
 class Surface;
 class ShaderPipeline;
+class CommandBuffer;
 class DeviceContext;
 class RenderPipeline;
 class VertexDescription;
@@ -31,13 +32,20 @@ namespace detail
             assert(!res);
         }
     };
+    struct TextureDescriptorInfo
+    {
+        VkImageView   imageView;
+        VkSampler     sampler;
+        VkImageLayout layout;
+    };
 
     VkDeviceQueueCreateInfo attachSurfaceTo(Surface& surface, const DeviceContext& device);
     void                    initializeSurface(DeviceContext& device, Surface& surface);
 
     const std::vector<VkPipelineShaderStageCreateInfo>& getStageCreateInfos(const ShaderPipeline& pipeline);
 
-    const Texture* createReferenceTexture(VkImage handle, int type, const Sizei& size);
+    const Texture*        createReferenceTexture(VkImage handle, int type, const Sizei& size);
+    TextureDescriptorInfo getTextureDescriptorInfo(const Texture& texture);
 
     VkPhysicalDevice                        getDevicePhysicalHandle(const ri::DeviceContext& device);
     VkQueue                                 getDeviceQueue(const ri::DeviceContext& device, int deviceOperation);

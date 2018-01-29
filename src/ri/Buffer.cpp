@@ -65,23 +65,23 @@ inline void Buffer::allocateMemory(VkMemoryPropertyFlags flags)
 void Buffer::copy(const Buffer& src, CommandPool& commandPool, size_t size, size_t srcOffset /*= 0*/,
                   size_t dstOffset /*= 0*/)
 {
-    CommandBuffer* commandBuffer = commandPool.create();
+    CommandBuffer commandBuffer = commandPool.create();
 
-    commandBuffer->begin(RecordFlags::eOneTime);
-    copy(src, *commandBuffer, size, srcOffset, dstOffset);
-    commandBuffer->end();
+    commandBuffer.begin(RecordFlags::eOneTime);
+    copy(src, commandBuffer, size, srcOffset, dstOffset);
+    commandBuffer.end();
 
     VkSubmitInfo submitInfo       = {};
     submitInfo.sType              = VK_STRUCTURE_TYPE_SUBMIT_INFO;
     submitInfo.commandBufferCount = 1;
-    const auto handle             = detail::getVkHandle(*commandBuffer);
+    const auto handle             = detail::getVkHandle(commandBuffer);
     submitInfo.pCommandBuffers    = &handle;
 
     auto transferQueue = detail::getDeviceQueue(*m_deviceContext, DeviceOperation::eTransfer);
     vkQueueSubmit(transferQueue, 1, &submitInfo, VK_NULL_HANDLE);
     vkQueueWaitIdle(transferQueue);
 
-    delete commandBuffer;
+    commandBuffer.destroy();
 }
 
 void Buffer::copy(const Buffer& src, CommandBuffer& commandBuffer, size_t size,  //
