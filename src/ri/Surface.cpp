@@ -124,8 +124,6 @@ void Surface::cleanup(bool cleanSwapchain)
 
     for (auto& target : m_swapchainTargets)
         delete target, target = nullptr;
-    for (auto& buffer : m_swapchainCommandBuffers)
-        delete buffer, buffer = nullptr;
 
     vkDestroySemaphore(m_device, m_imageAvailableSemaphore, nullptr);
     vkDestroySemaphore(m_device, m_renderFinishedSemaphore, nullptr);
@@ -136,7 +134,7 @@ void Surface::recreate(ri::DeviceContext& device, const Sizei& size)
     m_size = size;
 
     device.waitIdle();
-    device.commandPool().free(m_swapchainCommandBuffers);
+    device.commandPool().free(reinterpret_cast<std::vector<CommandBuffer>&>(m_swapchainCommandBuffers));
 
     auto oldSwapchain = m_swapchain;
     cleanup(false);
@@ -263,9 +261,17 @@ inline void Surface::createRenderTargets(const ri::DeviceContext& device)
 
 inline void Surface::createCommandBuffers(ri::DeviceContext& device)
 {
-    m_swapchainCommandBuffers.resize(m_swapchainTargets.size(), nullptr);
+    m_swapchainCommandBuffers.resize(m_swapchainTargets.size());
     assert(!m_swapchainCommandBuffers.empty());
-    device.commandPool().create(m_swapchainCommandBuffers);
+
+    device.commandPool().create(reinterpret_cast<std::vector<CommandBuffer>&>(m_swapchainCommandBuffers));
+#ifndef NDEBUG
+    int i = 0;
+    for (auto& buffer : m_swapchainCommandBuffers)
+    {
+        buffer.setTagName(tagName() + ":CommandBuffer" + std::to_string(i++));
+    }
+#endif  // !NDEBUG
 }
 
 uint32_t Surface::acquire(uint64_t timeout /*= std::numeric_limits<uint64_t>::max()*/)
@@ -293,7 +299,7 @@ bool Surface::present(const ri::DeviceContext& device)
         submitInfo.pSignalSemaphores      = &m_renderFinishedSemaphore;
         submitInfo.pWaitDstStageMask      = waitStages;
         submitInfo.commandBufferCount     = 1;
-        const auto handle                 = detail::getVkHandle(*m_swapchainCommandBuffers[m_currentTargetIndex]);
+        const auto handle                 = detail::getVkHandle(m_swapchainCommandBuffers[m_currentTargetIndex].cast());
         submitInfo.pCommandBuffers        = &handle;
 
         const auto queueHandle = detail::getDeviceQueue(device, DeviceOperation::eGraphics);

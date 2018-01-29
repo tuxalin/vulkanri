@@ -1,11 +1,10 @@
 #pragma once
 
-#include <util/noncopyable.h>
 #include <ri/Types.h>
 
 namespace ri
 {
-class CommandBuffer : util::noncopyable, public RenderObject<VkCommandBuffer>
+class CommandBuffer : public RenderObject<VkCommandBuffer>
 {
 public:
     enum ResetFlags
@@ -17,8 +16,6 @@ public:
         eRelease = VK_COMMAND_BUFFER_RESET_RELEASE_RESOURCES_BIT
     };
 
-    ~CommandBuffer();
-
     void begin(RecordFlags flags);
     void end();
     void draw(uint32_t vertexCount, uint32_t instanceCount = 1,  //
@@ -28,22 +25,23 @@ public:
 
     ///@note Can only be used if the buffer was created from a pool with reset mode.
     void reset(ResetFlags flags = ePreserve);
+    void destroy();
 
 private:
-    CommandBuffer(VkCommandBuffer handle);
+    CommandBuffer(VkDevice device, VkCommandPool commandPool, VkCommandBuffer handle);
     CommandBuffer(VkDevice device, VkCommandPool commandPool, bool isPrimary);
 
 private:
-    VkCommandPool m_commandPool;
-    VkDevice      m_device;
+    VkCommandPool m_commandPool = VK_NULL_HANDLE;
+    VkDevice      m_device      = VK_NULL_HANDLE;
 
     friend class CommandPool;  // command buffers can only be constructed from a pool
 };
 
-inline CommandBuffer::CommandBuffer(VkCommandBuffer handle)
+inline CommandBuffer::CommandBuffer(VkDevice device, VkCommandPool commandPool, VkCommandBuffer handle)
     : RenderObject<VkCommandBuffer>(handle)
-    , m_commandPool(VK_NULL_HANDLE)
-    , m_device(VK_NULL_HANDLE)
+    , m_commandPool(commandPool)
+    , m_device(device)
 {
 }
 
@@ -51,6 +49,14 @@ inline CommandBuffer::CommandBuffer(VkDevice device, VkCommandPool commandPool, 
     : m_commandPool(commandPool)
     , m_device(device)
 {
+    static_assert(offsetof(CommandBuffer, m_handle) == offsetof(detail::CommandBufferStorage, m_handle),
+                  "INVALID_FORMAT");
+    static_assert(offsetof(CommandBuffer, m_commandPool) == offsetof(detail::CommandBufferStorage, m_commandPool),
+                  "INVALID_FORMAT");
+    static_assert(offsetof(CommandBuffer, m_device) == offsetof(detail::CommandBufferStorage, m_device),
+                  "INVALID_FORMAT");
+    static_assert(sizeof(CommandBuffer) == sizeof(detail::CommandBufferStorage), "INVALID_FORMAT");
+
     VkCommandBufferAllocateInfo allocInfo = {};
     allocInfo.sType                       = VK_STRUCTURE_TYPE_COMMAND_BUFFER_ALLOCATE_INFO;
     allocInfo.commandPool                 = commandPool;
@@ -60,10 +66,13 @@ inline CommandBuffer::CommandBuffer(VkDevice device, VkCommandPool commandPool, 
     RI_CHECK_RESULT_MSG("error on allocating command buffer") = vkAllocateCommandBuffers(device, &allocInfo, &m_handle);
 }
 
-inline CommandBuffer::~CommandBuffer()
+inline void CommandBuffer::destroy()
 {
     if (m_commandPool)
+    {
         vkFreeCommandBuffers(m_device, m_commandPool, 1, &m_handle);
+        m_handle = VK_NULL_HANDLE;
+    }
 }
 
 inline void CommandBuffer::draw(uint32_t vertexCount, uint32_t instanceCount,  //

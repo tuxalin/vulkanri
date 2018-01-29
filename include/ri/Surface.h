@@ -61,19 +61,19 @@ private:
     void cleanup(bool cleanSwapchain);
 
 private:
-    const ApplicationInstance&  m_instance;
-    VkSwapchainKHR              m_swapchain = VK_NULL_HANDLE;
-    VkDevice                    m_device    = VK_NULL_HANDLE;
-    std::vector<RenderTarget*>  m_swapchainTargets;
-    std::vector<CommandBuffer*> m_swapchainCommandBuffers;
-    int                         m_presentQueueIndex = -1;
-    VkQueue                     m_presentQueue;
-    Sizei                       m_size;
-    PresentMode                 m_presentMode;
-    ColorFormat                 m_format;
-    VkExtent2D                  m_extent;
-    uint32_t                    m_currentTargetIndex = 0xFFFF;
-    RenderPass*                 m_renderPass         = nullptr;
+    const ApplicationInstance&                m_instance;
+    VkSwapchainKHR                            m_swapchain = VK_NULL_HANDLE;
+    VkDevice                                  m_device    = VK_NULL_HANDLE;
+    std::vector<RenderTarget*>                m_swapchainTargets;
+    std::vector<detail::CommandBufferStorage> m_swapchainCommandBuffers;
+    int                                       m_presentQueueIndex = -1;
+    VkQueue                                   m_presentQueue;
+    Sizei                                     m_size;
+    PresentMode                               m_presentMode;
+    ColorFormat                               m_format;
+    VkExtent2D                                m_extent;
+    uint32_t                                  m_currentTargetIndex = 0xFFFF;
+    RenderPass*                               m_renderPass         = nullptr;
 
     VkSemaphore m_imageAvailableSemaphore = VK_NULL_HANDLE;
     VkSemaphore m_renderFinishedSemaphore = VK_NULL_HANDLE;
@@ -99,15 +99,13 @@ inline uint32_t Surface::swapCount() const
 
 inline CommandBuffer& Surface::commandBuffer(uint32_t index)
 {
-    auto res = m_swapchainCommandBuffers[index];
-    assert(res);
-    return *res;
+    auto& res = m_swapchainCommandBuffers[index].cast();
+    return res;
 }
 
 inline const RenderTarget& Surface::renderTarget(uint32_t index) const
 {
-    auto res = m_swapchainTargets[index];
-    assert(res);
+    const auto& res = m_swapchainTargets[index];
     return *res;
 }
 }  // namespace ri

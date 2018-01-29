@@ -92,6 +92,8 @@ private:
             new ri::Surface(*m_instance, ri::Sizei(kWidth, kHeight), m_windows[0], ri::PresentMode::eMailbox));
         m_surfaces[1].reset(  //
             new ri::Surface(*m_instance, ri::Sizei(kWidth / 2, kHeight / 2), m_windows[1], ri::PresentMode::eNormal));
+        m_surfaces[0]->setTagName("MailboxSurface");
+        m_surfaces[1]->setTagName("NormalSurface");
 
         // create the device context
         {

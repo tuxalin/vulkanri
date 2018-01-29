@@ -134,7 +134,7 @@ void DeviceContext::addCommandPool(DeviceOperation operation, const CommandPoolP
     if (!commandPool)
     {
         commandPool = new CommandPool(param.resetMode, param.hints);
-        commandPool->initialize(m_handle, m_queueIndices[static_cast<size_t>(operation)]);
+        commandPool->initialize(*this, m_queueIndices[static_cast<size_t>(operation)]);
     }
     assert(param.resetMode == commandPool->resetMode());
 }

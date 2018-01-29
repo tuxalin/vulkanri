@@ -19,6 +19,22 @@ class Buffer;
 
 namespace detail
 {
+    struct CommandBufferStorage : public RenderObject<VkCommandBuffer>
+    {
+        VkCommandPool m_commandPool;
+        VkDevice      m_device;
+
+        inline CommandBuffer& cast()
+        {
+            return reinterpret_cast<CommandBuffer&>(*this);
+        }
+        inline const CommandBuffer& cast() const
+        {
+            return reinterpret_cast<const CommandBuffer&>(*this);
+        }
+        friend class CommandBuffer;
+    };
+
     template <typename HandleClass>
     HandleClass getVkHandle(const RenderObject<HandleClass>& obj)
     {
