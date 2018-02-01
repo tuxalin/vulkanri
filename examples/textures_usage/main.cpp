@@ -207,17 +207,16 @@ private:
             stagingBuffer->update(pixels);
             stbi_image_free(pixels);
 
-            // create a transfer command buffer
-            auto& commandPool =
-                m_context->commandPool(ri::DeviceOperation::eTransfer, ri::DeviceCommandHint::eRecorded);
-            ri::CommandBuffer commandBuffer = commandPool.create();
-
             // create texture
             ri::TextureParams params;
             params.type   = ri::TextureType::e2D;
             params.format = ri::ColorFormat::eRGBA;
             params.size   = size;
             params.flags  = ri::TextureUsageFlags::eDst | ri::TextureUsageFlags::eSampled;
+            // sampler params
+            params.samplerParams.magFilter = params.samplerParams.minFilter = ri::SamplerParams::eLinear;
+            params.samplerParams.anisotropyEnable                           = true;
+            params.samplerParams.maxAnisotropy                              = 16.f;
             m_textures.emplace_back(new ri::Texture(*m_context, params));
 
             // issue copy commands
@@ -226,10 +225,13 @@ private:
             copyParams.newLayout = ri::Texture::eShaderReadOnly;
             copyParams.size      = size;
 
-            commandBuffer.begin(ri::RecordFlags::eOneTime);
+            // create a one time transfer command buffer and submit commands
+            auto& commandPool =
+                m_context->commandPool(ri::DeviceOperation::eTransfer, ri::DeviceCommandHint::eRecorded);
+
+            ri::CommandBuffer commandBuffer = commandPool.begin();
             m_textures[0]->copy(*stagingBuffer, copyParams, commandBuffer);
-            commandBuffer.end();
-            commandBuffer.destroy();
+            commandPool.end(commandBuffer);
         }
 
         // create a uniform buffer
