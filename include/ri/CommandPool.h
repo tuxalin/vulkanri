@@ -13,12 +13,13 @@ class CommandPool : util::noncopyable, public RenderObject<VkCommandPool>
 public:
     CommandBuffer create(bool isPrimary = true);
     void          create(std::vector<CommandBuffer>& buffers, bool isPrimary = true);
+    /// Creates a one time command buffer, must be always followed by an flush command.
+    /// @note Calls begin on the created buffer.
+    CommandBuffer begin();
+    /// @note Also destroys the buffer and waits for completion.
+    void end(CommandBuffer& buffer);
 
     void free(std::vector<CommandBuffer>& buffers);
-
-    /// Creates a one time command buffer, must be always followed by an end command.
-    CommandBuffer begin();
-    void          end(CommandBuffer& buffer);
 
 private:
     // @param resetMode Allows any command buffer to be individually reset, via CommandBuffer::reset or implicit reset

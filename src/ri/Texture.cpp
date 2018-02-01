@@ -1,6 +1,7 @@
 
 #include <ri/Texture.h>
 
+#include <ri/CommandBuffer.h>
 #include <ri/DeviceContext.h>
 
 namespace ri
@@ -177,44 +178,65 @@ inline void Texture::allocateMemory(const DeviceContext& device, const TexturePa
 
 void Texture::transitionImageLayout(LayoutType oldLayout, LayoutType newLayout, CommandBuffer& commandBuffer)
 {
-    VkImageMemoryBarrier barrier = {};
-    barrier.sType                = VK_STRUCTURE_TYPE_IMAGE_MEMORY_BARRIER;
-    barrier.oldLayout            = (VkImageLayout)oldLayout;
-    barrier.newLayout            = (VkImageLayout)newLayout;
-    barrier.srcQueueFamilyIndex  = VK_QUEUE_FAMILY_IGNORED;
-    barrier.dstQueueFamilyIndex  = VK_QUEUE_FAMILY_IGNORED;
-    barrier.image                = m_handle;
+    VkImageMemoryBarrier imageMemoryBarrier = {};
+    imageMemoryBarrier.sType                = VK_STRUCTURE_TYPE_IMAGE_MEMORY_BARRIER;
+    imageMemoryBarrier.oldLayout            = (VkImageLayout)oldLayout;
+    imageMemoryBarrier.newLayout            = (VkImageLayout)newLayout;
+    imageMemoryBarrier.image                = m_handle;
+    imageMemoryBarrier.srcQueueFamilyIndex  = VK_QUEUE_FAMILY_IGNORED;
+    imageMemoryBarrier.dstQueueFamilyIndex  = VK_QUEUE_FAMILY_IGNORED;
     // TODO: expose this
-    barrier.subresourceRange.aspectMask     = VK_IMAGE_ASPECT_COLOR_BIT;
-    barrier.subresourceRange.baseMipLevel   = 0;
-    barrier.subresourceRange.levelCount     = 1;
-    barrier.subresourceRange.baseArrayLayer = 0;
-    barrier.subresourceRange.layerCount     = 1;
+    imageMemoryBarrier.subresourceRange.aspectMask     = VK_IMAGE_ASPECT_COLOR_BIT;
+    imageMemoryBarrier.subresourceRange.baseMipLevel   = 0;
+    imageMemoryBarrier.subresourceRange.levelCount     = 1;
+    imageMemoryBarrier.subresourceRange.baseArrayLayer = 0;
+    imageMemoryBarrier.subresourceRange.layerCount     = 1;
 
-    VkPipelineStageFlags sourceStage;
-    VkPipelineStageFlags destinationStage;
-    if (oldLayout == eUndefined && newLayout == eTransferDstOptimal)
+    VkPipelineStageFlags srcStageFlags  = VK_PIPELINE_STAGE_TOP_OF_PIPE_BIT;
+    VkPipelineStageFlags destStageFlags = VK_PIPELINE_STAGE_TOP_OF_PIPE_BIT;
+
+    switch (oldLayout)
     {
-        barrier.srcAccessMask = 0;
-        barrier.dstAccessMask = VK_ACCESS_TRANSFER_WRITE_BIT;
-        sourceStage           = VK_PIPELINE_STAGE_TOP_OF_PIPE_BIT;
-        destinationStage      = VK_PIPELINE_STAGE_TRANSFER_BIT;
-    }
-    else if (oldLayout == eTransferDstOptimal && newLayout == eShaderReadOnly)
-    {
-        barrier.srcAccessMask = VK_ACCESS_TRANSFER_WRITE_BIT;
-        barrier.dstAccessMask = VK_ACCESS_SHADER_READ_BIT;
-        sourceStage           = VK_PIPELINE_STAGE_TRANSFER_BIT;
-        destinationStage      = VK_PIPELINE_STAGE_FRAGMENT_SHADER_BIT;
-    }
-    else
-    {
-        // invalid transition
-        assert(false);
+        case VK_IMAGE_LAYOUT_UNDEFINED:
+            // Only valid as initial layout, memory contents are not preserved
+            // Can be accessed directly, no source dependency required
+            imageMemoryBarrier.srcAccessMask = 0;
+            break;
+        case VK_IMAGE_LAYOUT_PREINITIALIZED:
+            // Only valid as initial layout for linear images, preserves memory contents
+            // Make sure host writes to the image have been finished
+            imageMemoryBarrier.srcAccessMask = VK_ACCESS_HOST_WRITE_BIT;
+            break;
+        case VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL:
+            // Old layout is transfer destination
+            // Make sure any writes to the image have been finished
+            imageMemoryBarrier.srcAccessMask = VK_ACCESS_TRANSFER_WRITE_BIT;
+            srcStageFlags                    = VK_PIPELINE_STAGE_TRANSFER_BIT;
+            break;
     }
 
-    vkCmdPipelineBarrier(detail::getVkHandle(commandBuffer), sourceStage, destinationStage, 0, 0, nullptr, 0, nullptr,
-                         1, &barrier);
+    switch (newLayout)
+    {
+        case VK_IMAGE_LAYOUT_TRANSFER_SRC_OPTIMAL:
+            // Transfer source (copy, blit)
+            // Make sure any reads from the image have been finished
+            imageMemoryBarrier.dstAccessMask = VK_ACCESS_TRANSFER_READ_BIT;
+            break;
+        case VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL:
+            // Transfer destination (copy, blit)
+            // Make sure any writes to the image have been finished
+            imageMemoryBarrier.dstAccessMask = VK_ACCESS_TRANSFER_WRITE_BIT;
+            destStageFlags                   = VK_PIPELINE_STAGE_TRANSFER_BIT;
+            break;
+        case VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL:
+            // Shader read (sampler, input attachment)
+            imageMemoryBarrier.dstAccessMask = VK_ACCESS_SHADER_READ_BIT;
+            destStageFlags                   = VK_PIPELINE_STAGE_FRAGMENT_SHADER_BIT;
+            break;
+    }
+
+    vkCmdPipelineBarrier(detail::getVkHandle(commandBuffer), srcStageFlags, destStageFlags, 0, 0, nullptr, 0, nullptr,
+                         1, &imageMemoryBarrier);
 }
 
 }  // namespace ri

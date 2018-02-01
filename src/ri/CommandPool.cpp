@@ -50,7 +50,7 @@ void CommandPool::create(std::vector<CommandBuffer>& buffers, bool isPrimary /*=
 
 CommandBuffer CommandPool::begin()
 {
-    CommandBuffer commandBuffer = CommandBuffer(detail::getVkHandle(*m_device), m_handle, true);
+    CommandBuffer commandBuffer(detail::getVkHandle(*m_device), m_handle, true);
     commandBuffer.begin(RecordFlags::eOneTime);
 
     return commandBuffer;
