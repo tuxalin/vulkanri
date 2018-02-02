@@ -16,7 +16,7 @@ class Surface : util::noncopyable, public RenderObject<VkSurfaceKHR>
 {
 public:
     // @note If the present mode is not available it'll fallback to the PresentMode::eNormal mode.
-    Surface(const ApplicationInstance& instance, const Sizei& size, const SurfaceCreateParam& param,
+    Surface(const ApplicationInstance& instance, const Sizei& size, const SurfaceCreateParams& params,
             PresentMode mode = PresentMode::eNormal);
     ~Surface();
 

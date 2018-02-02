@@ -86,6 +86,7 @@ private:
     {
         glfwInit();
 
+        glfwWindowHint(GLFW_SAMPLES, 16);
         glfwWindowHint(GLFW_CLIENT_API, GLFW_NO_API);
         glfwWindowHint(GLFW_RESIZABLE, true);
 
@@ -113,9 +114,11 @@ private:
         m_instance.reset(new ri::ApplicationInstance("Vertex Buffers"));
         m_validation.reset(new ri::ValidationReport(*m_instance, ri::ReportLevel::eWarning));
 
-        m_surface.reset(  //
-            new ri::Surface(*m_instance, ri::Sizei(kWidth, kHeight), m_window, ri::PresentMode::eMailbox));
-        m_surface->setTagName("MainWindowSurface");
+        {
+            m_surface.reset(  //
+                new ri::Surface(*m_instance, ri::Sizei(kWidth, kHeight), m_window, ri::PresentMode::eMailbox));
+            m_surface->setTagName("MainWindowSurface");
+        }
 
         // create the device context
         {
@@ -266,6 +269,7 @@ private:
         {
             ri::RenderPass::AttachmentParams passParams;
             passParams.format    = m_surface->format();
+            passParams.samples   = 1;
             ri::RenderPass* pass = new ri::RenderPass(*m_context, passParams);
             pass->setTagName("SimplePass");
 

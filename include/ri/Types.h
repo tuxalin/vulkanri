@@ -209,14 +209,15 @@ union ClearValue {
     ClearDepthStencilValue depthStencil;
 };
 
-struct SurfaceCreateParam
+struct SurfaceCreateParams
 {
+    SurfaceCreateParams() {}
 #if RI_PLATFORM == RI_PLATFORM_WINDOWS
     int       flags     = 0;
     HINSTANCE hinstance = nullptr;
     HWND      hwnd      = nullptr;
 #elif RI_PLATFORM == RI_PLATFORM_GLFW
-    SurfaceCreateParam(GLFWwindow* window)
+    SurfaceCreateParams(GLFWwindow* window)
         : window(window)
     {
     }

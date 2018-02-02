@@ -83,22 +83,22 @@ namespace detail
     }
 }
 
-Surface::Surface(const ApplicationInstance& instance, const Sizei& size, const SurfaceCreateParam& param,
+Surface::Surface(const ApplicationInstance& instance, const Sizei& size, const SurfaceCreateParams& params,
                  PresentMode mode)
     : m_instance(instance)
     , m_size(size)
     , m_presentMode(mode)
 {
 #if RI_PLATFORM == RI_PLATFORM_GLFW
-    assert(param.window);
-    RI_CHECK_RESULT() = glfwCreateWindowSurface(detail::getVkHandle(m_instance), param.window, nullptr, &m_handle);
+    assert(params.window);
+    RI_CHECK_RESULT() = glfwCreateWindowSurface(detail::getVkHandle(m_instance), params.window, nullptr, &m_handle);
 #elif RI_PLATFORM == RI_PLATFORM_WINDOWS
     assert(param.hwnd && param.hinstance);
     VkWin32SurfaceCreateInfoKHR info = {};
     info.sType                       = VK_STRUCTURE_TYPE_WIN32_SURFACE_CREATE_INFO_KHR;
-    info.hinstance                   = param.hinstance;
-    info.hwnd                        = param.hwnd;
-    info.flags                       = param.flags;
+    info.hinstance                   = params.hinstance;
+    info.hwnd                        = params.hwnd;
+    info.flags                       = params.flags;
     vkCreateWin32SurfaceKHR(detail::getVkHandle(m_instance), &info, nullptr, &m_surface);
 #else
 #error "Unknown platform!"
