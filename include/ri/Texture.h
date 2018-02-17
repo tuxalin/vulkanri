@@ -1,5 +1,6 @@
 #pragma once
 
+#include <array>
 #include <util/noncopyable.h>
 #include <ri/Size.h>
 #include <ri/Types.h>
@@ -19,15 +20,15 @@ struct SamplerParams
     };
     enum AddressMode
     {
-        // Repeat the texture when going beyond the image dimensions.
+        /// Repeat the texture when going beyond the image dimensions.
         eRepeat = VK_SAMPLER_ADDRESS_MODE_REPEAT,
-        //  Like repeat, but inverts the coordinates to mirror the image when going beyond the dimensions.
+        ///  Like repeat, but inverts the coordinates to mirror the image when going beyond the dimensions.
         eMirroredRepeat = VK_SAMPLER_ADDRESS_MODE_MIRRORED_REPEAT,
-        // Take the color of the edge closest to the coordinate beyond the image dimensions.
+        /// Take the color of the edge closest to the coordinate beyond the image dimensions.
         eClampToEdge = VK_SAMPLER_ADDRESS_MODE_CLAMP_TO_EDGE,
-        // Like clamp to edge, but instead uses the edge opposite to the closest edge.
+        /// Like clamp to edge, but instead uses the edge opposite to the closest edge.
         eClampToBorder = VK_SAMPLER_ADDRESS_MODE_CLAMP_TO_BORDER,
-        // Return a solid color when sampling beyond the dimensions of the image.
+        /// Return a solid color when sampling beyond the dimensions of the image.
         eMirrorClampToEdge = VK_SAMPLER_ADDRESS_MODE_MIRROR_CLAMP_TO_EDGE
     };
 
@@ -46,7 +47,6 @@ struct SamplerParams
     FilterType mipmapMode = eLinear;
     float      mipLodBias = 0.f;
     float      minLod     = 0.f;
-    float      maxLod     = 0.f;
 };
 
 struct TextureParams
@@ -65,8 +65,9 @@ struct TextureParams
     ///@see ri:: TextureUsageFlags
     uint32_t flags;
     Sizei    size;
-    // Depth of a texture, eg a 3D texture is described as width x height x depth
-    uint32_t depth       = 1;
+    /// Depth of a texture, eg a 3D texture is described as width x height x depth
+    uint32_t depth = 1;
+    /// @note If zero the it'll auto calculate the levels based on the width and height of the texture.
     uint32_t mipLevels   = 1;
     uint32_t arrayLevels = 1;
     Samples  samples     = eOne;
@@ -92,13 +93,27 @@ public:
     struct CopyParams
     {
         // if equal then no transition will be performed
-        LayoutType oldLayout = eUndefined;
-        LayoutType newLayout = eUndefined;
+        union {
+            struct
+            {
+                LayoutType oldLayout;
+                LayoutType transferLayout;
+                LayoutType finalLayout;
+            };
+            std::array<LayoutType, 3> layouts;
+        };
 
         int32_t offsetX = 0, offsetY = 0, offsetZ = 0;
         /// @note If zero then will use texture size.
         Sizei    size;
         uint32_t depth = 1;
+
+        CopyParams()
+            : oldLayout(eUndefined)
+            , transferLayout(eUndefined)
+            , finalLayout(eUndefined)
+        {
+        }
     };
 
     Texture(const DeviceContext& device, const TextureParams& params);
@@ -111,16 +126,25 @@ public:
     /// Copy from a staging buffer and issue a transfer command to the given command buffer.
     /// @note It's done asynchronously.
     void copy(const Buffer& src, const CopyParams& params, CommandBuffer& commandBuffer);
+    void generateMipMaps(CommandBuffer& commandBuffer);
 
 private:
+    typedef std::tuple<VkImageMemoryBarrier, VkPipelineStageFlags, VkPipelineStageFlags> PipelineBarrierSettings;
     // create a reference texture
     Texture(VkImage handle, TextureType type, const Sizei& size);
 
-    void createImage(const TextureParams& params);
-    void createImageView(const TextureParams& params);
-    void createSampler(const SamplerParams& params);
-    void allocateMemory(const DeviceContext& device, const TextureParams& params);
+    void                    createImage(const TextureParams& params);
+    void                    createImageView(const TextureParams& params);
+    void                    createSampler(const SamplerParams& params);
+    void                    allocateMemory(const DeviceContext& device, const TextureParams& params);
+    PipelineBarrierSettings getPipelineBarrierSettings(LayoutType oldLayout, LayoutType newLayout,
+                                                       const VkImageSubresourceRange& subresourceRange);
     void transitionImageLayout(LayoutType oldLayout, LayoutType newLayout, CommandBuffer& commandBuffer);
+    void transitionImageLayout(LayoutType oldLayout, LayoutType newLayout, VkPipelineStageFlags srcStageFlags,
+                               VkPipelineStageFlags dstStageFlags, const VkImageSubresourceRange& subresourceRange,
+                               CommandBuffer& commandBuffer);
+    void transitionImageLayout(LayoutType oldLayout, LayoutType newLayout,
+                               const VkImageSubresourceRange& subresourceRange, CommandBuffer& commandBuffer);
 
 private:
     VkDevice       m_device  = VK_NULL_HANDLE;
@@ -129,6 +153,7 @@ private:
     VkSampler      m_sampler = VK_NULL_HANDLE;
     TextureType    m_type;
     Sizei          m_size;
+    uint32_t       m_mipLevels;
 
     friend const Texture*                detail::createReferenceTexture(VkImage handle, int type, const Sizei& size);
     friend detail::TextureDescriptorInfo detail::getTextureDescriptorInfo(const Texture& texture);

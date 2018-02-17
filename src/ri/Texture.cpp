@@ -33,6 +33,8 @@ Texture::Texture(const DeviceContext& device, const TextureParams& params)
     : m_device(detail::getVkHandle(device))
     , m_type(params.type)
     , m_size(params.size)
+    , m_mipLevels(params.mipLevels ? params.mipLevels
+                                   : (uint32_t)floor(log2(std::max(params.size.width, params.size.height))) + 1)
 {
     createImage(params);
     allocateMemory(device, params);
@@ -67,8 +69,8 @@ void Texture::copy(const Buffer& src, const CopyParams& params, CommandBuffer& c
 {
     assert(Sizei(params.offsetX + params.size.width, params.offsetY + params.size.height) <= m_size);
 
-    if (params.oldLayout != params.newLayout)
-        transitionImageLayout(params.oldLayout, eTransferDstOptimal, commandBuffer);
+    if (params.oldLayout != params.transferLayout)
+        transitionImageLayout(params.oldLayout, params.transferLayout, commandBuffer);
 
     // copy buffer to image
     VkBufferImageCopy region = {};
@@ -88,8 +90,64 @@ void Texture::copy(const Buffer& src, const CopyParams& params, CommandBuffer& c
     vkCmdCopyBufferToImage(detail::getVkHandle(commandBuffer), detail::getVkHandle(src), m_handle,
                            (VkImageLayout)eTransferDstOptimal, 1, &region);
 
-    if (params.oldLayout != params.newLayout)
-        transitionImageLayout(eTransferDstOptimal, params.newLayout, commandBuffer);
+    if (params.transferLayout != params.finalLayout)
+        transitionImageLayout(params.transferLayout, params.finalLayout, commandBuffer);
+}
+
+void Texture::generateMipMaps(CommandBuffer& commandBuffer)
+{
+    // Copy down mips from n-1 to n
+    for (uint32_t i = 1; i < m_mipLevels; i++)
+    {
+        VkImageBlit imageBlit{};
+
+        // Source
+        imageBlit.srcSubresource.aspectMask = VK_IMAGE_ASPECT_COLOR_BIT;
+        imageBlit.srcSubresource.layerCount = 1;
+        imageBlit.srcSubresource.mipLevel   = i - 1;
+        imageBlit.srcOffsets[1].x           = int32_t(m_size.width >> (i - 1));
+        imageBlit.srcOffsets[1].y           = int32_t(m_size.height >> (i - 1));
+        imageBlit.srcOffsets[1].z           = 1;
+
+        // Destination
+        imageBlit.dstSubresource.aspectMask = VK_IMAGE_ASPECT_COLOR_BIT;
+        imageBlit.dstSubresource.layerCount = 1;
+        imageBlit.dstSubresource.mipLevel   = i;
+        imageBlit.dstOffsets[1].x           = int32_t(m_size.width >> i);
+        imageBlit.dstOffsets[1].y           = int32_t(m_size.height >> i);
+        imageBlit.dstOffsets[1].z           = 1;
+
+        VkImageSubresourceRange mipSubRange = {};
+        mipSubRange.aspectMask              = VK_IMAGE_ASPECT_COLOR_BIT;
+        mipSubRange.baseMipLevel            = i;
+        mipSubRange.levelCount              = 1;
+        mipSubRange.layerCount              = 1;
+
+        // Transition current mip level to transfer destination
+        transitionImageLayout(eUndefined, eTransferDstOptimal, mipSubRange, commandBuffer);
+
+        // Blit from previous level
+        vkCmdBlitImage(detail::getVkHandle(commandBuffer),
+                       m_handle,
+                       VK_IMAGE_LAYOUT_TRANSFER_SRC_OPTIMAL,
+                       m_handle,
+                       VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL,
+                       1,
+                       &imageBlit,
+                       VK_FILTER_LINEAR);
+
+        // Transition current mip level to transfer source for read in next iteration
+        transitionImageLayout(eTransferDstOptimal, eTransferSrcOptimal, mipSubRange, commandBuffer);
+    }
+
+    // After the loop, all mip layers transfer src, so transition all to shader access
+    VkImageSubresourceRange subresourceRange = {};
+    subresourceRange.aspectMask              = VK_IMAGE_ASPECT_COLOR_BIT;
+    subresourceRange.baseMipLevel            = 0;
+    subresourceRange.levelCount              = m_mipLevels;
+    subresourceRange.baseArrayLayer          = 0;
+    subresourceRange.layerCount              = 1;
+    transitionImageLayout(eTransferSrcOptimal, eShaderReadOnly, subresourceRange, commandBuffer);
 }
 
 inline void Texture::createImage(const TextureParams& params)
@@ -100,7 +158,7 @@ inline void Texture::createImage(const TextureParams& params)
     imageInfo.extent.width      = static_cast<uint32_t>(params.size.width);
     imageInfo.extent.height     = static_cast<uint32_t>(params.size.height);
     imageInfo.extent.depth      = params.depth;
-    imageInfo.mipLevels         = params.mipLevels;
+    imageInfo.mipLevels         = m_mipLevels;
     imageInfo.arrayLayers       = params.arrayLevels;
     imageInfo.format            = (VkFormat)params.format;
     imageInfo.tiling            = VK_IMAGE_TILING_OPTIMAL;
@@ -121,10 +179,12 @@ void Texture::createImageView(const TextureParams& params)
     viewInfo.image                 = m_handle;
     viewInfo.viewType              = (VkImageViewType)m_type;
     viewInfo.format                = (VkFormat)params.format;
+    viewInfo.components            = {VK_COMPONENT_SWIZZLE_R, VK_COMPONENT_SWIZZLE_G,  //
+                           VK_COMPONENT_SWIZZLE_B, VK_COMPONENT_SWIZZLE_A};
     // TODO: expose this
     viewInfo.subresourceRange.aspectMask     = VK_IMAGE_ASPECT_COLOR_BIT;
     viewInfo.subresourceRange.baseMipLevel   = 0;
-    viewInfo.subresourceRange.levelCount     = 1;
+    viewInfo.subresourceRange.levelCount     = m_mipLevels;
     viewInfo.subresourceRange.baseArrayLayer = 0;
     viewInfo.subresourceRange.layerCount     = 1;
 
@@ -133,6 +193,8 @@ void Texture::createImageView(const TextureParams& params)
 
 void Texture::createSampler(const SamplerParams& params)
 {
+    assert(params.minLod <= m_mipLevels);
+
     VkSamplerCreateInfo samplerInfo = {};
     samplerInfo.sType               = VK_STRUCTURE_TYPE_SAMPLER_CREATE_INFO;
     samplerInfo.magFilter           = (VkFilter)params.magFilter;
@@ -152,7 +214,7 @@ void Texture::createSampler(const SamplerParams& params)
         params.mipmapMode == SamplerParams::eLinear ? VK_SAMPLER_MIPMAP_MODE_LINEAR : VK_SAMPLER_MIPMAP_MODE_NEAREST;
     samplerInfo.mipLodBias = params.mipLodBias;
     samplerInfo.minLod     = params.minLod;
-    samplerInfo.maxLod     = params.maxLod;
+    samplerInfo.maxLod     = m_mipLevels;
 
     RI_CHECK_RESULT_MSG("failed to create texture sampler") =
         vkCreateSampler(m_device, &samplerInfo, nullptr, &m_sampler);
@@ -176,7 +238,8 @@ inline void Texture::allocateMemory(const DeviceContext& device, const TexturePa
     vkBindImageMemory(m_device, m_handle, m_memory, 0);
 }
 
-void Texture::transitionImageLayout(LayoutType oldLayout, LayoutType newLayout, CommandBuffer& commandBuffer)
+Texture::PipelineBarrierSettings Texture::getPipelineBarrierSettings(LayoutType oldLayout, LayoutType newLayout,
+                                                                     const VkImageSubresourceRange& subresourceRange)
 {
     VkImageMemoryBarrier imageMemoryBarrier = {};
     imageMemoryBarrier.sType                = VK_STRUCTURE_TYPE_IMAGE_MEMORY_BARRIER;
@@ -185,16 +248,10 @@ void Texture::transitionImageLayout(LayoutType oldLayout, LayoutType newLayout, 
     imageMemoryBarrier.image                = m_handle;
     imageMemoryBarrier.srcQueueFamilyIndex  = VK_QUEUE_FAMILY_IGNORED;
     imageMemoryBarrier.dstQueueFamilyIndex  = VK_QUEUE_FAMILY_IGNORED;
-    // TODO: expose this
-    imageMemoryBarrier.subresourceRange.aspectMask     = VK_IMAGE_ASPECT_COLOR_BIT;
-    imageMemoryBarrier.subresourceRange.baseMipLevel   = 0;
-    imageMemoryBarrier.subresourceRange.levelCount     = 1;
-    imageMemoryBarrier.subresourceRange.baseArrayLayer = 0;
-    imageMemoryBarrier.subresourceRange.layerCount     = 1;
+    imageMemoryBarrier.subresourceRange     = subresourceRange;
 
-    VkPipelineStageFlags srcStageFlags  = VK_PIPELINE_STAGE_TOP_OF_PIPE_BIT;
-    VkPipelineStageFlags destStageFlags = VK_PIPELINE_STAGE_TOP_OF_PIPE_BIT;
-
+    VkPipelineStageFlags srcStageFlags = VK_PIPELINE_STAGE_TOP_OF_PIPE_BIT;
+    VkPipelineStageFlags dstStageFlags = VK_PIPELINE_STAGE_TOP_OF_PIPE_BIT;
     switch (oldLayout)
     {
         case VK_IMAGE_LAYOUT_UNDEFINED:
@@ -207,6 +264,27 @@ void Texture::transitionImageLayout(LayoutType oldLayout, LayoutType newLayout, 
             // Make sure host writes to the image have been finished
             imageMemoryBarrier.srcAccessMask = VK_ACCESS_HOST_WRITE_BIT;
             break;
+        case VK_IMAGE_LAYOUT_COLOR_ATTACHMENT_OPTIMAL:
+            // Image is a color attachment
+            // Make sure any writes to the color buffer have been finished
+            imageMemoryBarrier.srcAccessMask = VK_ACCESS_COLOR_ATTACHMENT_WRITE_BIT;
+            break;
+        case VK_IMAGE_LAYOUT_DEPTH_STENCIL_ATTACHMENT_OPTIMAL:
+            // Image is a depth/stencil attachment
+            // Make sure any writes to the depth/stencil buffer have been finished
+            imageMemoryBarrier.srcAccessMask = VK_ACCESS_DEPTH_STENCIL_ATTACHMENT_WRITE_BIT;
+            break;
+        case VK_IMAGE_LAYOUT_TRANSFER_SRC_OPTIMAL:
+            // Image is a transfer source
+            // Make sure any reads from the image have been finished
+            srcStageFlags                    = VK_ACCESS_TRANSFER_WRITE_BIT;
+            imageMemoryBarrier.srcAccessMask = VK_ACCESS_TRANSFER_READ_BIT;
+            break;
+        case VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL:
+            // Image is read by a shader
+            // Make sure any shader reads from the image have been finished
+            imageMemoryBarrier.srcAccessMask = VK_ACCESS_SHADER_READ_BIT;
+            break;
         case VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL:
             // Old layout is transfer destination
             // Make sure any writes to the image have been finished
@@ -214,29 +292,81 @@ void Texture::transitionImageLayout(LayoutType oldLayout, LayoutType newLayout, 
             srcStageFlags                    = VK_PIPELINE_STAGE_TRANSFER_BIT;
             break;
     }
-
     switch (newLayout)
     {
         case VK_IMAGE_LAYOUT_TRANSFER_SRC_OPTIMAL:
             // Transfer source (copy, blit)
             // Make sure any reads from the image have been finished
             imageMemoryBarrier.dstAccessMask = VK_ACCESS_TRANSFER_READ_BIT;
+            dstStageFlags                    = VK_PIPELINE_STAGE_TRANSFER_BIT;
             break;
         case VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL:
             // Transfer destination (copy, blit)
             // Make sure any writes to the image have been finished
             imageMemoryBarrier.dstAccessMask = VK_ACCESS_TRANSFER_WRITE_BIT;
-            destStageFlags                   = VK_PIPELINE_STAGE_TRANSFER_BIT;
+            dstStageFlags                    = VK_PIPELINE_STAGE_TRANSFER_BIT;
+            break;
+        case VK_IMAGE_LAYOUT_COLOR_ATTACHMENT_OPTIMAL:
+            // Image will be used as a color attachment
+            // Make sure any writes to the color buffer have been finished
+            imageMemoryBarrier.dstAccessMask = VK_ACCESS_COLOR_ATTACHMENT_WRITE_BIT;
+            break;
+        case VK_IMAGE_LAYOUT_DEPTH_STENCIL_ATTACHMENT_OPTIMAL:
+            // Image layout will be used as a depth/stencil attachment
+            // Make sure any writes to depth/stencil buffer have been finished
+            imageMemoryBarrier.dstAccessMask =
+                imageMemoryBarrier.dstAccessMask | VK_ACCESS_DEPTH_STENCIL_ATTACHMENT_WRITE_BIT;
             break;
         case VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL:
             // Shader read (sampler, input attachment)
             imageMemoryBarrier.dstAccessMask = VK_ACCESS_SHADER_READ_BIT;
-            destStageFlags                   = VK_PIPELINE_STAGE_FRAGMENT_SHADER_BIT;
+            dstStageFlags                    = VK_PIPELINE_STAGE_FRAGMENT_SHADER_BIT | VK_PIPELINE_STAGE_HOST_BIT;
             break;
     }
+    if (oldLayout == VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL && newLayout == VK_IMAGE_LAYOUT_TRANSFER_SRC_OPTIMAL)
+    {
+        dstStageFlags = srcStageFlags = VK_PIPELINE_STAGE_ALL_COMMANDS_BIT;
+    }
 
-    vkCmdPipelineBarrier(detail::getVkHandle(commandBuffer), srcStageFlags, destStageFlags, 0, 0, nullptr, 0, nullptr,
-                         1, &imageMemoryBarrier);
+    return std::make_tuple(imageMemoryBarrier, srcStageFlags, dstStageFlags);
+}
+
+void Texture::transitionImageLayout(LayoutType oldLayout, LayoutType newLayout,  //
+                                    VkPipelineStageFlags srcStageFlags, VkPipelineStageFlags dstStageFlags,
+                                    const VkImageSubresourceRange& subresourceRange,  //
+                                    CommandBuffer&                 commandBuffer)
+{
+    const PipelineBarrierSettings settings = getPipelineBarrierSettings(oldLayout, newLayout, subresourceRange);
+    VkImageMemoryBarrier          imageMemoryBarrier = std::get<0>(settings);
+
+    vkCmdPipelineBarrier(detail::getVkHandle(commandBuffer), srcStageFlags, dstStageFlags, 0, 0, nullptr, 0, nullptr, 1,
+                         &imageMemoryBarrier);
+}
+
+void Texture::transitionImageLayout(LayoutType oldLayout, LayoutType newLayout, CommandBuffer& commandBuffer)
+{
+    VkImageSubresourceRange subresourceRange = {};
+    subresourceRange.aspectMask              = VK_IMAGE_ASPECT_COLOR_BIT;
+    subresourceRange.baseMipLevel            = 0;
+    subresourceRange.levelCount              = 1;
+    subresourceRange.baseArrayLayer          = 0;
+    subresourceRange.layerCount              = 1;
+
+    const PipelineBarrierSettings settings = getPipelineBarrierSettings(oldLayout, newLayout, subresourceRange);
+    const VkImageMemoryBarrier    imageMemoryBarrier = std::get<0>(settings);
+
+    vkCmdPipelineBarrier(detail::getVkHandle(commandBuffer), std::get<1>(settings), std::get<2>(settings), 0, 0,
+                         nullptr, 0, nullptr, 1, &imageMemoryBarrier);
+}
+
+void Texture::transitionImageLayout(LayoutType oldLayout, LayoutType newLayout,
+                                    const VkImageSubresourceRange& subresourceRange, CommandBuffer& commandBuffer)
+{
+    const PipelineBarrierSettings settings = getPipelineBarrierSettings(oldLayout, newLayout, subresourceRange);
+    const VkImageMemoryBarrier    imageMemoryBarrier = std::get<0>(settings);
+
+    vkCmdPipelineBarrier(detail::getVkHandle(commandBuffer), std::get<1>(settings), std::get<2>(settings), 0, 0,
+                         nullptr, 0, nullptr, 1, &imageMemoryBarrier);
 }
 
 }  // namespace ri
