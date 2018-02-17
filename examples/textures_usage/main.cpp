@@ -90,7 +90,7 @@ private:
         glfwWindowHint(GLFW_CLIENT_API, GLFW_NO_API);
         glfwWindowHint(GLFW_RESIZABLE, true);
 
-        m_window = glfwCreateWindow(kWidth, kHeight, "Vertex Buffers", nullptr, nullptr);
+        m_window = glfwCreateWindow(kWidth, kHeight, "Texture Usage", nullptr, nullptr);
 
         glfwSetWindowUserPointer(m_window, this);
         glfwSetWindowSizeCallback(m_window, DemoApplication::onWindowResized);
@@ -111,7 +111,7 @@ private:
 
         initWindow();
 
-        m_instance.reset(new ri::ApplicationInstance("Vertex Buffers"));
+        m_instance.reset(new ri::ApplicationInstance("Texture Usage"));
         m_validation.reset(new ri::ValidationReport(*m_instance, ri::ReportLevel::eWarning));
 
         {
@@ -215,25 +215,29 @@ private:
             params.type   = ri::TextureType::e2D;
             params.format = ri::ColorFormat::eRGBA;
             params.size   = size;
-            params.flags  = ri::TextureUsageFlags::eDst | ri::TextureUsageFlags::eSampled;
+            params.flags  = ri::TextureUsageFlags::eDst | ri::TextureUsageFlags::eSrc | ri::TextureUsageFlags::eSampled;
             // sampler params
             params.samplerParams.magFilter = params.samplerParams.minFilter = ri::SamplerParams::eLinear;
             params.samplerParams.anisotropyEnable                           = true;
             params.samplerParams.maxAnisotropy                              = 16.f;
+            // set mip levels to zero to generate all levels
+            params.mipLevels = 0;
             m_textures.emplace_back(new ri::Texture(*m_context, params));
 
-            // issue copy commands
-            ri::Texture::CopyParams copyParams;
-            copyParams.oldLayout = ri::Texture::eUndefined;
-            copyParams.newLayout = ri::Texture::eShaderReadOnly;
-            copyParams.size      = size;
-
-            // create a one time transfer command buffer and submit commands
             auto& commandPool =
                 m_context->commandPool(ri::DeviceOperation::eTransfer, ri::DeviceCommandHint::eRecorded);
 
+            // issue copy commands
+            ri::Texture::CopyParams copyParams;
+            copyParams.layouts = {ri::Texture::eUndefined,           //
+                                  ri::Texture::eTransferDstOptimal,  //
+                                  ri::Texture::eTransferSrcOptimal};
+            copyParams.size    = size;
+
+            // create a one time transfer command buffer and submit commands
             ri::CommandBuffer commandBuffer = commandPool.begin();
             m_textures[0]->copy(*stagingBuffer, copyParams, commandBuffer);
+            m_textures[0]->generateMipMaps(commandBuffer);
             commandPool.end(commandBuffer);
         }
 
