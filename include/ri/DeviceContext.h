@@ -45,15 +45,16 @@ public:
     const std::vector<DeviceOperation>& requiredOperations() const;
 
 private:
+    using SurfacePtr       = Surface*;
     using FamilyQueueIndex = int;
     using OperationIndices = std::array<FamilyQueueIndex, (size_t)DeviceOperation::Count>;
     using OperationQueues  = std::array<VkQueue, (size_t)DeviceOperation::Count>;
 
     uint32_t         deviceScore(VkPhysicalDevice device, const std::vector<DeviceFeature>& requiredFeatures);
     OperationIndices searchQueueFamilies(const std::vector<DeviceOperation>& requiredOperations);
-    void             createDevice(const std::vector<Surface*>& surfaces, const VkPhysicalDeviceFeatures& deviceFeatures,
-                                  const std::vector<const char*>& deviceExtensions);
-    std::vector<VkDeviceQueueCreateInfo> determineQueueCreation(const std::vector<Surface*>& surfaces);
+    void             createDevice(const std::vector<VkDeviceQueueCreateInfo>& queueCreateInfos,
+                                  const VkPhysicalDeviceFeatures& deviceFeatures, const std::vector<const char*>& deviceExtensions);
+    std::vector<VkDeviceQueueCreateInfo> attachSurfaces(const SurfacePtr* surfaces, size_t surfacesCount);
 
 private:
     const ApplicationInstance&       m_instance;

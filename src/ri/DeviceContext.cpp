@@ -110,10 +110,13 @@ void DeviceContext::initialize(const std::vector<Surface*>&        surfaces,
     vkGetPhysicalDeviceMemoryProperties(m_physicalDevice, &m_memoryProperties);
 
     // create a logical device
-    m_requiredOperations = requiredOperations;
-    const auto& features = getDevicesFeatures(requiredFeatures);
-    createDevice(surfaces, features.first, features.second);
-    assert(m_handle != VK_NULL_HANDLE);
+    {
+        m_requiredOperations                                        = requiredOperations;
+        const auto&                                features         = getDevicesFeatures(requiredFeatures);
+        const std::vector<VkDeviceQueueCreateInfo> queueCreateInfos = attachSurfaces(surfaces.data(), surfaces.size());
+        createDevice(queueCreateInfos, features.first, features.second);
+        assert(m_handle != VK_NULL_HANDLE);
+    }
 
     addCommandPool(DeviceOperation::eGraphics, commandParam);
     m_defaultCommandPool = &commandPool(DeviceOperation::eGraphics, commandParam.hints);
@@ -237,7 +240,8 @@ DeviceContext::OperationIndices DeviceContext::searchQueueFamilies(
     return indices;
 }
 
-inline std::vector<VkDeviceQueueCreateInfo> DeviceContext::determineQueueCreation(const std::vector<Surface*>& surfaces)
+inline std::vector<VkDeviceQueueCreateInfo> DeviceContext::attachSurfaces(const SurfacePtr* surfaces,
+                                                                          size_t            surfacesCount)
 {
     m_queueIndices = searchQueueFamilies(m_requiredOperations);
 
@@ -264,9 +268,10 @@ inline std::vector<VkDeviceQueueCreateInfo> DeviceContext::determineQueueCreatio
     }
 
     // get the presentation queue for each surface
-    for (Surface* surface : surfaces)
+    for (size_t i = 0; i < surfacesCount; ++i)
     {
-        auto queueCreateInfo = ri::detail::attachSurfaceTo(*surface, *this);
+        Surface& surface         = *surfaces[i];
+        auto     queueCreateInfo = ri::detail::attachSurfaceTo(surface, *this);
         if (queueFamilies.find(queueCreateInfo.queueFamilyIndex) == queueFamilies.end())  // index already used
         {
             assert(queueCreateInfo.queueFamilyIndex >= 0);
@@ -276,12 +281,10 @@ inline std::vector<VkDeviceQueueCreateInfo> DeviceContext::determineQueueCreatio
     return queueCreateInfos;
 }
 
-void DeviceContext::createDevice(const std::vector<Surface*>&    surfaces,
-                                 const VkPhysicalDeviceFeatures& deviceFeatures,
-                                 const std::vector<const char*>& deviceExtensions)
+void DeviceContext::createDevice(const std::vector<VkDeviceQueueCreateInfo>& queueCreateInfos,
+                                 const VkPhysicalDeviceFeatures&             deviceFeatures,
+                                 const std::vector<const char*>&             deviceExtensions)
 {
-    const std::vector<VkDeviceQueueCreateInfo> queueCreateInfos = determineQueueCreation(surfaces);
-
     // create logical device
     {
         VkDeviceCreateInfo createInfo   = {};
