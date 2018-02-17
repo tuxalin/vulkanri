@@ -5,32 +5,32 @@
 
 namespace ri
 {
-RenderPass::RenderPass(const ri::DeviceContext& device, const std::vector<AttachmentParams>& attachments)
+RenderPass::RenderPass(const ri::DeviceContext& device, const AttachmentParams* attachments, size_t attachmentsCount)
     : m_device(detail::getVkHandle(device))
 {
-    std::vector<VkAttachmentDescription> colorAttachments(attachments.size());
-    std::vector<VkAttachmentReference>   colorAttachmentRefs(attachments.size());
+    std::vector<VkAttachmentDescription> colorAttachments(attachmentsCount);
+    std::vector<VkAttachmentReference>   colorAttachmentRefs(attachmentsCount);
 
-    size_t i = 0;
-    m_clearValues.resize(attachments.size());
-    for (const auto& attachment : attachments)
+    m_clearValues.resize(attachmentsCount);
+    for (size_t i = 0; i < attachmentsCount; ++i)
     {
-        auto& colorAttachment = colorAttachments[i];
-        assert(attachment.format != ColorFormat::eUndefined);
-        colorAttachment.format = (VkFormat)attachment.format;
-        assert(math::isPowerOfTwo(attachment.samples) && attachment.samples <= 64);
-        colorAttachment.samples = (VkSampleCountFlagBits)attachment.samples;
-        colorAttachment.loadOp  = (VkAttachmentLoadOp)attachment.colorLoad;
+        const auto& attachmentParam = attachments[i];
+        auto&       colorAttachment = colorAttachments[i];
+        assert(attachmentParam.format != ColorFormat::eUndefined);
+        colorAttachment.format = (VkFormat)attachmentParam.format;
+        assert(math::isPowerOfTwo(attachmentParam.samples) && attachmentParam.samples <= 64);
+        colorAttachment.samples = (VkSampleCountFlagBits)attachmentParam.samples;
+        colorAttachment.loadOp  = (VkAttachmentLoadOp)attachmentParam.colorLoad;
         colorAttachment.storeOp =
-            attachment.colorSore ? VK_ATTACHMENT_STORE_OP_STORE : VK_ATTACHMENT_STORE_OP_DONT_CARE;
-        colorAttachment.stencilLoadOp = (VkAttachmentLoadOp)attachment.stencilLoad;
+            attachmentParam.colorSore ? VK_ATTACHMENT_STORE_OP_STORE : VK_ATTACHMENT_STORE_OP_DONT_CARE;
+        colorAttachment.stencilLoadOp = (VkAttachmentLoadOp)attachmentParam.stencilLoad;
         colorAttachment.stencilStoreOp =
-            attachment.stencilStore ? VK_ATTACHMENT_STORE_OP_STORE : VK_ATTACHMENT_STORE_OP_DONT_CARE;
+            attachmentParam.stencilStore ? VK_ATTACHMENT_STORE_OP_STORE : VK_ATTACHMENT_STORE_OP_DONT_CARE;
 
         // setup the default clear value
         {
             ClearValue& clear = m_clearValues[i];
-            switch (attachment.format.get())
+            switch (attachmentParam.format.get())
             {
                 case ColorFormat::eDepth32:
                     clear.depthStencil = {1.f, 0};

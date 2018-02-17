@@ -214,7 +214,7 @@ void Texture::createSampler(const SamplerParams& params)
         params.mipmapMode == SamplerParams::eLinear ? VK_SAMPLER_MIPMAP_MODE_LINEAR : VK_SAMPLER_MIPMAP_MODE_NEAREST;
     samplerInfo.mipLodBias = params.mipLodBias;
     samplerInfo.minLod     = params.minLod;
-    samplerInfo.maxLod     = m_mipLevels;
+    samplerInfo.maxLod     = static_cast<float>(m_mipLevels);
 
     RI_CHECK_RESULT_MSG("failed to create texture sampler") =
         vkCreateSampler(m_device, &samplerInfo, nullptr, &m_sampler);

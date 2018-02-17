@@ -33,7 +33,8 @@ public:
     };
 
     RenderPass(const ri::DeviceContext& device, const AttachmentParams& attachment);
-    ///@note Atachement order must match the layout index in the shaders.
+    ///@note Attachment order must match the layout index in the shaders.
+    RenderPass(const ri::DeviceContext& device, const AttachmentParams* attachments, size_t attachmentsCount);
     RenderPass(const ri::DeviceContext& device, const std::vector<AttachmentParams>& attachments);
     ~RenderPass();
 
@@ -53,7 +54,12 @@ private:
 };
 
 inline RenderPass::RenderPass(const ri::DeviceContext& device, const AttachmentParams& attachment)
-    : RenderPass(device, std::vector<AttachmentParams>({attachment}))
+    : RenderPass(device, &attachment, 1)
+{
+}
+
+inline RenderPass::RenderPass(const ri::DeviceContext& device, const std::vector<AttachmentParams>& attachments)
+    : RenderPass(device, attachments.data(), attachments.size())
 {
 }
 

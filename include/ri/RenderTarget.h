@@ -33,19 +33,27 @@ public:
         };
     };
 
+    RenderTarget(const DeviceContext& device, const RenderPass& pass, const AttachmentParams* attachments,
+                 size_t attachmentsCount);
     RenderTarget(const DeviceContext& device, const RenderPass& pass, const std::vector<AttachmentParams>& attachments);
     ~RenderTarget();
 
     const Sizei& size() const;
 
 private:
-    void createAttachments(const std::vector<AttachmentParams>& attachments);
+    void createAttachments(const AttachmentParams* attachments, size_t attachmentsCount);
 
 private:
     VkDevice                 m_device = VK_NULL_HANDLE;
     std::vector<VkImageView> m_attachments;
     Sizei                    m_size;
 };
+
+inline RenderTarget::RenderTarget(const DeviceContext& device, const RenderPass& pass,
+                                  const std::vector<AttachmentParams>& attachments)
+    : RenderTarget(device, pass, attachments.data(), attachments.size())
+{
+}
 
 inline const Sizei& RenderTarget::size() const
 {

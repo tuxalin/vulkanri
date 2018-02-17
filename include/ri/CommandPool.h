@@ -12,6 +12,7 @@ class CommandPool : util::noncopyable, public RenderObject<VkCommandPool>
 {
 public:
     CommandBuffer create(bool isPrimary = true);
+    void          create(CommandBuffer* buffers, size_t buffersCount, bool isPrimary = true);
     void          create(std::vector<CommandBuffer>& buffers, bool isPrimary = true);
     /// Creates a one time command buffer, must be always followed by an flush command.
     /// @note Calls begin on the created buffer.
@@ -19,6 +20,7 @@ public:
     /// @note Also destroys the buffer and waits for completion.
     void end(CommandBuffer& buffer);
 
+    void free(CommandBuffer* buffers, size_t buffersCount);
     void free(std::vector<CommandBuffer>& buffers);
 
 private:
@@ -50,4 +52,5 @@ inline bool CommandPool::resetMode() const
 {
     return m_resetMode;
 }
+
 }  // namespace ri

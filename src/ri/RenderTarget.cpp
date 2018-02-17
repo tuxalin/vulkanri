@@ -5,12 +5,12 @@
 
 namespace ri
 {
-RenderTarget::RenderTarget(const DeviceContext& device, const RenderPass& pass,
-                           const std::vector<AttachmentParams>& attachments)
+RenderTarget::RenderTarget(const DeviceContext& device, const RenderPass& pass, const AttachmentParams* attachments,
+                           size_t attachmentsCount)
     : m_device(detail::getVkHandle(device))
     , m_size(attachments[0].texture->size())
 {
-    createAttachments(attachments);
+    createAttachments(attachments, attachmentsCount);
 
     VkFramebufferCreateInfo framebufferInfo = {};
     framebufferInfo.sType                   = VK_STRUCTURE_TYPE_FRAMEBUFFER_CREATE_INFO;
@@ -32,10 +32,11 @@ RenderTarget::~RenderTarget()
         vkDestroyImageView(m_device, imageView, nullptr);
 }
 
-void RenderTarget::createAttachments(const std::vector<AttachmentParams>& attachments)
+void RenderTarget::createAttachments(const AttachmentParams* attachments, size_t attachmentsCount)
 {
-    for (const auto& attachment : attachments)
+    for (size_t i = 0; i < attachmentsCount; ++i)
     {
+        const auto& attachment = attachments[i];
         assert(attachment.texture);
 
         VkImageViewCreateInfo createInfo = {};

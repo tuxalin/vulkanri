@@ -25,12 +25,12 @@ CommandBuffer CommandPool::create(bool isPrimary /*= true*/)
     return CommandBuffer(detail::getVkHandle(*m_device), m_handle, isPrimary);
 }
 
-void CommandPool::create(std::vector<CommandBuffer>& buffers, bool isPrimary /*= true*/)
+void CommandPool::create(CommandBuffer* buffers, size_t buffersCount, bool isPrimary /*= true*/)
 {
     assert(m_device && m_handle);
-    assert(!buffers.empty());
+    assert(buffers);
 
-    std::vector<VkCommandBuffer> bufferHandles(buffers.size());
+    std::vector<VkCommandBuffer> bufferHandles(buffersCount);
 
     VkCommandBufferAllocateInfo allocInfo = {};
     allocInfo.sType                       = VK_STRUCTURE_TYPE_COMMAND_BUFFER_ALLOCATE_INFO;
@@ -41,11 +41,17 @@ void CommandPool::create(std::vector<CommandBuffer>& buffers, bool isPrimary /*=
     RI_CHECK_RESULT_MSG("error at allocating multiple buffers") =
         vkAllocateCommandBuffers(detail::getVkHandle(*m_device), &allocInfo, bufferHandles.data());
 
-    std::transform(bufferHandles.begin(), bufferHandles.end(), buffers.begin(),
+    std::transform(bufferHandles.begin(), bufferHandles.end(), buffers,
                    [this, isPrimary](auto handle) -> CommandBuffer {
                        assert(handle);
                        return CommandBuffer(detail::getVkHandle(*m_device), m_handle, handle);
                    });
+}
+
+void CommandPool::create(std::vector<CommandBuffer>& buffers, bool isPrimary /*= true*/)
+{
+    assert(!buffers.empty());
+    create(buffers.data(), buffers.size());
 }
 
 CommandBuffer CommandPool::begin()
@@ -73,15 +79,19 @@ void CommandPool::end(CommandBuffer& commandBuffer)
     commandBuffer.destroy();
 }
 
-void CommandPool::free(std::vector<CommandBuffer>& buffers)
+void CommandPool::free(CommandBuffer* buffers, size_t buffersCount)
 {
-    std::vector<VkCommandBuffer> bufferHandles(buffers.size());
-    std::transform(buffers.begin(), buffers.end(), bufferHandles.begin(),
-                   [](auto buffer) -> VkCommandBuffer { return buffer.m_handle; });
+    std::vector<VkCommandBuffer> bufferHandles(buffersCount);
+    std::transform(buffers, buffers + buffersCount, bufferHandles.begin(),
+                   [](const CommandBuffer& buffer) -> VkCommandBuffer { return buffer.m_handle; });
 
     vkFreeCommandBuffers(detail::getVkHandle(*m_device), m_handle, bufferHandles.size(), bufferHandles.data());
-    for (auto& buffer : buffers)
-        buffer.m_handle = VK_NULL_HANDLE;
+    std::for_each(buffers, buffers + buffersCount, [](CommandBuffer& buffer) { buffer.m_handle = VK_NULL_HANDLE; });
+}
+
+void CommandPool::free(std::vector<CommandBuffer>& buffers)
+{
+    free(buffers.data(), buffers.size());
 }
 
 void CommandPool::initialize(const DeviceContext& device, int queueIndex)

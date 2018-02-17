@@ -4,7 +4,7 @@
  *
  * Covers the following:
  * -creating multiple textures
- * -loading multiple textures using a stanging buffer
+ * -loading multiple textures using a staging buffer
  * -mip-map generation for the textures
  * -using a shader with multi-texturing
  */

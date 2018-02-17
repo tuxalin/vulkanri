@@ -34,14 +34,14 @@ class VertexDescription : public TagableObject
 public:
     VertexDescription();
     VertexDescription(const VertexBinding& binding);
-    VertexDescription(const std::vector<VertexBinding>& bindings);
     VertexDescription(const VertexBinding* bindings, size_t count);
+    VertexDescription(const std::vector<VertexBinding>& bindings);
 
     bool empty() const;
 
     void create(const VertexBinding& binding);
-    void create(const std::vector<VertexBinding>& bindings);
     void create(const VertexBinding* bindings, size_t count);
+    void create(const std::vector<VertexBinding>& bindings);
 
     void bind(CommandBuffer& buffer) const;
 
@@ -67,9 +67,9 @@ public:
     IndexedVertexDescription();
     IndexedVertexDescription(const VertexBinding& binding,  //
                              const Buffer& indexBuffer, IndexType indexType = IndexType::eInt16, uint32_t offset = 0);
-    IndexedVertexDescription(const std::vector<VertexBinding>& bindings,  //
-                             const Buffer& indexBuffer, IndexType indexType = IndexType::eInt16, uint32_t offset = 0);
     IndexedVertexDescription(const VertexBinding* bindings, size_t count,  //
+                             const Buffer& indexBuffer, IndexType indexType = IndexType::eInt16, uint32_t offset = 0);
+    IndexedVertexDescription(const std::vector<VertexBinding>& bindings,  //
                              const Buffer& indexBuffer, IndexType indexType = IndexType::eInt16, uint32_t offset = 0);
 
     void bind(CommandBuffer& buffer);
@@ -92,15 +92,14 @@ inline VertexDescription::VertexDescription(const VertexBinding& binding)
 {
     create(&binding, 1);
 }
+inline VertexDescription::VertexDescription(const VertexBinding* bindings, size_t count)
+{
+    create(bindings, count);
+}
 
 inline VertexDescription::VertexDescription(const std::vector<VertexBinding>& bindings)
 {
     create(bindings.data(), bindings.size());
-}
-
-inline VertexDescription::VertexDescription(const VertexBinding* bindings, size_t count)
-{
-    create(bindings, count);
 }
 
 inline void VertexDescription::create(const VertexBinding& binding)
@@ -142,10 +141,10 @@ inline IndexedVertexDescription::IndexedVertexDescription(const VertexBinding& b
 {
 }
 
-inline IndexedVertexDescription::IndexedVertexDescription(const std::vector<VertexBinding>& bindings,  //
+inline IndexedVertexDescription::IndexedVertexDescription(const VertexBinding* bindings, size_t count,  //
                                                           const Buffer& indexBuffer, IndexType indexType,
                                                           uint32_t offset)
-    : VertexDescription(bindings)
+    : VertexDescription(bindings, count)
     , m_indexBuffer(detail::getVkHandle(indexBuffer))
     , m_indexType(indexType)
     , m_offset(offset)
@@ -155,10 +154,10 @@ inline IndexedVertexDescription::IndexedVertexDescription(const std::vector<Vert
 {
 }
 
-inline IndexedVertexDescription::IndexedVertexDescription(const VertexBinding* bindings, size_t count,  //
+inline IndexedVertexDescription::IndexedVertexDescription(const std::vector<VertexBinding>& bindings,  //
                                                           const Buffer& indexBuffer, IndexType indexType,
                                                           uint32_t offset)
-    : VertexDescription(bindings, count)
+    : VertexDescription(bindings)
     , m_indexBuffer(detail::getVkHandle(indexBuffer))
     , m_indexType(indexType)
     , m_offset(offset)
