@@ -91,7 +91,7 @@ public:
     template <typename T>
     void set(T v);
 
-    /// The number defining a value's position in a series, such as “first,” “second,” or “third.”
+    /// The number defining a value's position in a series, such as first, second, or third.
     size_t             ordinal() const;
     const std::string& str() const;
 
@@ -108,7 +108,8 @@ public:
     static SafeEnum from(T v);
     /// @note Doesn't asserts if the value is incorrect.
     template <typename T>
-    static SafeEnum fromUnsafe(T v);
+    static SafeEnum                  fromUnsafe(T v);
+    static std::pair<bool, SafeEnum> fromString(const std::string& string);
 
     static const std::string& toString(const SafeEnum& val);
     static const std::string& toString(type val);
@@ -184,7 +185,7 @@ template <typename T>
 ENUM_QUAL::SafeEnum(T v)
     : val_(static_cast<type>(v))
 {
-    assert(def::format().validValue(v));
+    SAFE_ENUM_ASSERT(def::format().validValue(v), "Invalid enum value!");
 }
 
 ENUM_TEMPLATE
@@ -198,7 +199,7 @@ ENUM_TEMPLATE
 template <typename CastType>
 ENUM_QUAL::operator CastType() const
 {
-    return (CastType)val_;
+    return static_cast<CastType>(val_);
 }
 #endif
 
@@ -243,7 +244,7 @@ ENUM_TEMPLATE
 template <typename T>
 void ENUM_QUAL::set(T v)
 {
-    assert(def::format().validValue(v));
+    SAFE_ENUM_ASSERT(def::format().validValue(v), "Invalid enum value!");
     val_ = static_cast<type>(v);
 }
 
@@ -251,7 +252,7 @@ ENUM_TEMPLATE
 template <typename T>
 ENUM_QUAL& ENUM_QUAL::operator&=(T bitmask)
 {
-    assert(def::format().validValue(val_ & bitmask));
+    SAFE_ENUM_ASSERT(def::format().validValue(val_ & bitmask), "Invalid bitmask for enum value!");
     val_ = static_cast<type>(val_ & bitmask);
     return *this;
 }
@@ -260,7 +261,7 @@ ENUM_TEMPLATE
 template <typename T>
 ENUM_QUAL& ENUM_QUAL::operator|=(T bitmask)
 {
-    assert(def::format().validValue(bitmask));
+    SAFE_ENUM_ASSERT(def::format().validValue(bitmask), "Invalid bitmask for enum value!");
     val_ = static_cast<type>(val_ | bitmask);
     return *this;
 }
@@ -268,7 +269,7 @@ ENUM_QUAL& ENUM_QUAL::operator|=(T bitmask)
 ENUM_TEMPLATE
 ENUM_QUAL& ENUM_QUAL::operator&=(SafeEnum bitmask)
 {
-    assert(def::format().validValue(val_ & bitmask.get()));
+    SAFE_ENUM_ASSERT(def::format().validValue(val_ & bitmask.get()), "Invalid bitmask for enum value!");
     val_ = static_cast<type>(val_ & bitmask.get());
     return *this;
 }
@@ -276,7 +277,7 @@ ENUM_QUAL& ENUM_QUAL::operator&=(SafeEnum bitmask)
 ENUM_TEMPLATE
 ENUM_QUAL& ENUM_QUAL::operator|=(SafeEnum bitmask)
 {
-    assert(def::format().validValue(bitmask.get()));
+    SAFE_ENUM_ASSERT(def::format().validValue(bitmask.get()), "Invalid bitmask for enum value!");
     val_ = static_cast<type>(val_ | bitmask.get());
     return *this;
 }
@@ -292,7 +293,7 @@ ENUM_TEMPLATE
 template <typename T>
 ENUM_QUAL ENUM_QUAL::from(T v)
 {
-    assert(def::format().validValue(v));
+    SAFE_ENUM_ASSERT(def::format().validValue(v), "Invalid enum value!");
     return SafeEnum(static_cast<type>(v));
 }
 
@@ -301,6 +302,12 @@ template <typename T>
 ENUM_QUAL ENUM_QUAL::fromUnsafe(T v)
 {
     return SafeEnum(static_cast<type>(v));
+}
+
+ENUM_TEMPLATE
+std::pair<bool, ENUM_QUAL> ENUM_QUAL::fromString(const std::string& string)
+{
+    return def::format().findValue(string);
 }
 
 ENUM_TEMPLATE
@@ -386,25 +393,26 @@ namespace tr1
 
 // internals
 
-#define SAFE_ENUM_DEFINE_FORMAT(...)                                                         \
-    enum type                                                                                \
-    {                                                                                        \
-        __VA_ARGS__,                                                                         \
-        Count = _SAFE_ENUM_COUNT_VARARGS(__VA_ARGS__)                                        \
-    };                                                                                       \
-                                                                                             \
-    static const util::safe_enum::detail::ParsedFormat<type>& format()                       \
-    {                                                                                        \
-        static const util::safe_enum::detail::ParsedFormat<type> __PARSED_FORMAT__ = init(); \
-        return __PARSED_FORMAT__;                                                            \
-    }                                                                                        \
-    static util::safe_enum::detail::ParsedFormat<type> init()                                \
-    {                                                                                        \
-        util::safe_enum::detail::ParsedFormat<type> __PARSED_FORMAT__;                       \
-        int                                         ___LAST_VALUE___ = -1;                   \
-        _SAFE_ENUM_IMPL_FORMAT(__VA_ARGS__);                                                 \
-        return __PARSED_FORMAT__;                                                            \
+#define _SAFE_ENUM_DEFINE_FORMAT(enumType, ...)                                                  \
+    enum type                                                                                    \
+    {                                                                                            \
+        __VA_ARGS__,                                                                             \
+        Count = _SAFE_ENUM_COUNT_VARARGS(__VA_ARGS__)                                            \
+    };                                                                                           \
+                                                                                                 \
+    static const util::safe_enum::detail::ParsedFormat<enumType>& format()                       \
+    {                                                                                            \
+        static const util::safe_enum::detail::ParsedFormat<enumType> __PARSED_FORMAT__ = init(); \
+        return __PARSED_FORMAT__;                                                                \
+    }                                                                                            \
+    static util::safe_enum::detail::ParsedFormat<enumType> init()                                \
+    {                                                                                            \
+        util::safe_enum::detail::ParsedFormat<enumType> __PARSED_FORMAT__;                       \
+        int                                             ___LAST_VALUE___ = -1;                   \
+        _SAFE_ENUM_IMPL_FORMAT(__VA_ARGS__);                                                     \
+        return __PARSED_FORMAT__;                                                                \
     }
+#define SAFE_ENUM_DEFINE_FORMAT(...) _SAFE_ENUM_DEFINE_FORMAT(type, __VA_ARGS__)
 
 #define SAFE_ENUM_DECLARE(enumName, ...)      \
     struct enumName##_                        \
@@ -413,11 +421,11 @@ namespace tr1
     };                                        \
     typedef util::SafeEnum<enumName##_> enumName
 
-#define SAFE_ENUM_TYPE_DECLARE(enumName, enumType, ...) \
-    struct enumName##_                                  \
-    {                                                   \
-        SAFE_ENUM_DEFINE_FORMAT(__VA_ARGS__);           \
-    };                                                  \
+#define SAFE_ENUM_TYPE_DECLARE(enumName, enumType, ...)  \
+    struct enumName##_                                   \
+    {                                                    \
+        _SAFE_ENUM_DEFINE_FORMAT(enumType, __VA_ARGS__); \
+    };                                                   \
     typedef util::SafeEnum<enumName##_, enumType> enumName
 
 namespace util
@@ -432,19 +440,24 @@ namespace safe_enum
         template <typename T>
         struct ParsedFormat
         {
-#ifdef SAFE_ENUM_USE_CPP11
-            typedef std::unordered_map<T, std::string> StringMap;
-            typedef std::unordered_map<T, size_t>      IntMap;
-#else
             struct KeyHasher
             {
                 std::size_t operator()(const T k) const
                 {
-                    return std::tr1::hash<size_t>()(k);
+#ifdef SAFE_ENUM_USE_CPP11
+                    using namespace std;
+#else
+                    using namespace std::tr1;
+#endif
+                    return hash<size_t>()(k);
                 }
             };
+#ifdef SAFE_ENUM_USE_CPP11
+            typedef std::unordered_map<T, std::string, KeyHasher> StringMap;
+            typedef std::unordered_map<T, size_t, KeyHasher>      IntMap;
+#else
             typedef std::tr1::unordered_map<T, std::string, KeyHasher> StringMap;
-            typedef std::tr1::unordered_map<T, size_t, KeyHasher>      IntMap;
+            typedef std::tr1::unordered_map<T, size_t, KeyHasher> IntMap;
 #endif  //  SAFE_ENUM_USE_CPP11
 
             StringMap      strings;
@@ -470,6 +483,16 @@ namespace safe_enum
                 typename StringMap::const_iterator it     = strings.find(mapVal);
                 assert(it != strings.end());
                 return it->second;
+            }
+
+            std::pair<bool, T> findValue(const std::string& name) const
+            {
+                for (typename StringMap::const_iterator it = strings.begin(); it != strings.end(); ++it)
+                {
+                    if (it->second == name)
+                        return std::make_pair(true, it->first);
+                }
+                return std::make_pair(true, strings.begin()->first);
             }
 
             template <typename OtherType>
@@ -512,3 +535,4 @@ namespace safe_enum
 #undef ENUM_TEMPLATE
 #undef ENUM_QUAL
 #undef SAFE_ENUM_USE_CPP11
+#undef SAFE_ENUM_ASSERT

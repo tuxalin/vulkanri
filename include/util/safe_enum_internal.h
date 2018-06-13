@@ -30,6 +30,10 @@
 #define SAFE_ENUM_USE_CPP11
 #endif
 
+#ifndef SAFE_ENUM_ASSERT
+#define SAFE_ENUM_ASSERT(cond, msg) assert(cond)
+#endif
+
 namespace util
 {
 	namespace safe_enum

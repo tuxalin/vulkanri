@@ -42,6 +42,8 @@ public:
 
     void waitIdle();
 
+    TextureProperties                   textureProperties(ColorFormat format, TextureType type, TextureTiling tiling,
+                                                          uint32_t flags) const;
     const std::vector<DeviceOperation>& requiredOperations() const;
 
 private:
@@ -79,6 +81,15 @@ inline void DeviceContext::initialize(Surface&                            surfac
 {
     const std::vector<Surface*> data(1, &surface);
     initialize(data, requiredFeatures, requiredOperations, commandParam);
+}
+
+inline TextureProperties DeviceContext::textureProperties(ColorFormat format, TextureType type, TextureTiling tiling,
+                                                          uint32_t flags) const
+{
+    VkImageFormatProperties props;
+    vkGetPhysicalDeviceImageFormatProperties(m_physicalDevice, (VkFormat)format, (VkImageType)type,
+                                             (VkImageTiling)tiling, flags, 0, &props);
+    return props;
 }
 
 inline const std::vector<DeviceOperation>& DeviceContext::requiredOperations() const
