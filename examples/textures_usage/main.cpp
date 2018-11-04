@@ -229,9 +229,9 @@ private:
 
             // issue copy commands
             ri::Texture::CopyParams copyParams;
-            copyParams.layouts = {ri::Texture::eUndefined,           //
-                                  ri::Texture::eTransferDstOptimal,  //
-                                  ri::Texture::eTransferSrcOptimal};
+            copyParams.layouts = {ri::TextureLayoutType::eUndefined,           //
+                                  ri::TextureLayoutType::eTransferDstOptimal,  //
+                                  ri::TextureLayoutType::eTransferSrcOptimal};
             copyParams.size    = size;
 
             // create a one time transfer command buffer and submit commands

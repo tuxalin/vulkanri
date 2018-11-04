@@ -9,24 +9,25 @@ namespace ri
 class CommandBuffer;
 class RenderTarget;
 
+SAFE_ENUM_DECLARE(AttachmentLoad,
+                  // Preserve the existing contents of the attachment.
+                  eLoad = VK_ATTACHMENT_LOAD_OP_LOAD,
+                  // Clear the values to pass's clear values at the start.
+                  eClear    = VK_ATTACHMENT_LOAD_OP_CLEAR,
+                  eDontCare = VK_ATTACHMENT_LOAD_OP_DONT_CARE);
+
 class RenderPass : util::noncopyable, public RenderObject<VkRenderPass>
 {
 public:
     struct AttachmentParams
     {
-        enum AttachmentLoad
-        {
-            // Preserve the existing contents of the attachment.
-            eLoad = VK_ATTACHMENT_LOAD_OP_LOAD,
-            // Clear the values to pass's clear values at the start.
-            eClear    = VK_ATTACHMENT_LOAD_OP_CLEAR,
-            eDontCare = VK_ATTACHMENT_LOAD_OP_DONT_CARE
-        };
-
         ColorFormat    format      = ColorFormat::eUndefined;
         uint32_t       samples     = 1;
-        AttachmentLoad colorLoad   = eClear;
-        AttachmentLoad stencilLoad = eDontCare;
+        AttachmentLoad colorLoad   = AttachmentLoad::eClear;
+        AttachmentLoad stencilLoad = AttachmentLoad::eDontCare;
+        //
+        TextureLayoutType initialLayout = TextureLayoutType::eUndefined;
+        TextureLayoutType finalLayout;
         // Rendered contents will be stored in memory and can be read later, otherwise we dont care if stored.
         bool colorSore    = true;
         bool stencilStore = false;

@@ -43,7 +43,7 @@ void RenderTarget::createAttachments(const AttachmentParams* attachments, size_t
         createInfo.sType                 = VK_STRUCTURE_TYPE_IMAGE_VIEW_CREATE_INFO;
         createInfo.image                 = detail::getVkHandle(*attachment.texture);
         createInfo.viewType              = (VkImageViewType)attachment.texture->type();
-        createInfo.format                = (VkFormat)attachment.format;
+        createInfo.format                = (VkFormat)attachment.texture->format();
         createInfo.components.r          = (VkComponentSwizzle)attachment.redSwizzle;
         createInfo.components.g          = (VkComponentSwizzle)attachment.greenSwizzle;
         createInfo.components.b          = (VkComponentSwizzle)attachment.blueSwizzle;

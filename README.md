@@ -1,4 +1,8 @@
 # VulkanRI
+[![Language](https://img.shields.io/badge/language-C++-blue.svg)](https://isocpp.org/)
+[![Language](https://img.shields.io/badge/language-GLSL-blue.svg)](https://www.khronos.org/opengl/wiki/Core_Language_(GLSL))
+[![License](http://img.shields.io/badge/license-WTFPL-blue.svg)](http://www.wtfpl.net/)
+
 An OOP render interface over Vulkan for personal projects.
 	
 ## Installation

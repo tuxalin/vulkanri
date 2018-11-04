@@ -8,9 +8,9 @@ namespace ri
 {
 namespace detail
 {
-    const ri::Texture* createReferenceTexture(VkImage handle, int type, const Sizei& size)
+    const ri::Texture* createReferenceTexture(VkImage handle, int type, int format, const Sizei& size)
     {
-        return new ri::Texture(handle, TextureType::from(type), size);
+        return new ri::Texture(handle, TextureType::from(type), ColorFormat::from(format), size);
     }
 }
 
@@ -32,10 +32,21 @@ namespace
 Texture::Texture(const DeviceContext& device, const TextureParams& params)
     : m_device(detail::getVkHandle(device))
     , m_type(params.type)
+    , m_format(params.format)
     , m_size(params.size)
     , m_mipLevels(params.mipLevels ? params.mipLevels
                                    : (uint32_t)floor(log2(std::max(params.size.width, params.size.height))) + 1)
 {
+#ifndef NDEBUG
+    TextureProperties props =
+        device.textureProperties(params.format, params.type, TextureTiling::eOptimal, params.flags);
+    assert(props.sampleCounts >= params.samples);
+    assert(props.maxExtent.width >= params.size.width);
+    assert(props.maxExtent.height >= params.size.height);
+    assert(props.maxExtent.depth >= params.depth);
+    assert(props.maxMipLevels >= m_mipLevels);
+    assert(props.maxArrayLayers >= params.arrayLevels);
+#endif
     createImage(params);
     allocateMemory(device, params);
 
@@ -46,9 +57,10 @@ Texture::Texture(const DeviceContext& device, const TextureParams& params)
     }
 }
 
-Texture::Texture(VkImage handle, TextureType type, const Sizei& size)
+Texture::Texture(VkImage handle, TextureType type, ColorFormat format, const Sizei& size)
     : RenderObject<VkImage>(handle)
     , m_type(type)
+    , m_format(format)
     , m_size(size)
 {
 }
@@ -88,7 +100,7 @@ void Texture::copy(const Buffer& src, const CopyParams& params, CommandBuffer& c
     region.imageExtent = {size.width, size.height, params.depth};
 
     vkCmdCopyBufferToImage(detail::getVkHandle(commandBuffer), detail::getVkHandle(src), m_handle,
-                           (VkImageLayout)eTransferDstOptimal, 1, &region);
+                           (VkImageLayout)TextureLayoutType::eTransferDstOptimal, 1, &region);
 
     if (params.transferLayout != params.finalLayout)
         transitionImageLayout(params.transferLayout, params.finalLayout, commandBuffer);
@@ -124,7 +136,8 @@ void Texture::generateMipMaps(CommandBuffer& commandBuffer)
         mipSubRange.layerCount              = 1;
 
         // Transition current mip level to transfer destination
-        transitionImageLayout(eUndefined, eTransferDstOptimal, mipSubRange, commandBuffer);
+        transitionImageLayout(TextureLayoutType::eUndefined, TextureLayoutType::eTransferDstOptimal,  //
+                              mipSubRange, commandBuffer);
 
         // Blit from previous level
         vkCmdBlitImage(detail::getVkHandle(commandBuffer),
@@ -137,7 +150,8 @@ void Texture::generateMipMaps(CommandBuffer& commandBuffer)
                        VK_FILTER_LINEAR);
 
         // Transition current mip level to transfer source for read in next iteration
-        transitionImageLayout(eTransferDstOptimal, eTransferSrcOptimal, mipSubRange, commandBuffer);
+        transitionImageLayout(TextureLayoutType::eTransferDstOptimal, TextureLayoutType::eTransferSrcOptimal,
+                              mipSubRange, commandBuffer);
     }
 
     // After the loop, all mip layers transfer src, so transition all to shader access
@@ -147,7 +161,8 @@ void Texture::generateMipMaps(CommandBuffer& commandBuffer)
     subresourceRange.levelCount              = m_mipLevels;
     subresourceRange.baseArrayLayer          = 0;
     subresourceRange.layerCount              = 1;
-    transitionImageLayout(eTransferSrcOptimal, eShaderReadOnly, subresourceRange, commandBuffer);
+    transitionImageLayout(TextureLayoutType::eTransferSrcOptimal, TextureLayoutType::eShaderReadOnly,  //
+                          subresourceRange, commandBuffer);
 }
 
 inline void Texture::createImage(const TextureParams& params)
@@ -166,8 +181,9 @@ inline void Texture::createImage(const TextureParams& params)
     imageInfo.usage             = (VkImageUsageFlags)params.flags;
     // the image will only be used by one queue family: the one that supports graphics and transfer operations.
     imageInfo.sharingMode = VK_SHARING_MODE_EXCLUSIVE;
-    imageInfo.samples     = (VkSampleCountFlagBits)params.samples;
-    imageInfo.flags       = 0;
+    assert(math::isPowerOfTwo(params.samples));
+    imageInfo.samples = (VkSampleCountFlagBits)params.samples;
+    imageInfo.flags   = 0;
 
     RI_CHECK_RESULT_MSG("failed to create image") = vkCreateImage(m_device, &imageInfo, nullptr, &m_handle);
 }
@@ -238,7 +254,8 @@ inline void Texture::allocateMemory(const DeviceContext& device, const TexturePa
     vkBindImageMemory(m_device, m_handle, m_memory, 0);
 }
 
-Texture::PipelineBarrierSettings Texture::getPipelineBarrierSettings(LayoutType oldLayout, LayoutType newLayout,
+Texture::PipelineBarrierSettings Texture::getPipelineBarrierSettings(TextureLayoutType              oldLayout,
+                                                                     TextureLayoutType              newLayout,
                                                                      const VkImageSubresourceRange& subresourceRange)
 {
     VkImageMemoryBarrier imageMemoryBarrier = {};
@@ -252,7 +269,7 @@ Texture::PipelineBarrierSettings Texture::getPipelineBarrierSettings(LayoutType 
 
     VkPipelineStageFlags srcStageFlags = VK_PIPELINE_STAGE_TOP_OF_PIPE_BIT;
     VkPipelineStageFlags dstStageFlags = VK_PIPELINE_STAGE_TOP_OF_PIPE_BIT;
-    switch (oldLayout)
+    switch (oldLayout.get())
     {
         case VK_IMAGE_LAYOUT_UNDEFINED:
             // Only valid as initial layout, memory contents are not preserved
@@ -292,7 +309,7 @@ Texture::PipelineBarrierSettings Texture::getPipelineBarrierSettings(LayoutType 
             srcStageFlags                    = VK_PIPELINE_STAGE_TRANSFER_BIT;
             break;
     }
-    switch (newLayout)
+    switch (newLayout.get())
     {
         case VK_IMAGE_LAYOUT_TRANSFER_SRC_OPTIMAL:
             // Transfer source (copy, blit)
@@ -331,7 +348,7 @@ Texture::PipelineBarrierSettings Texture::getPipelineBarrierSettings(LayoutType 
     return std::make_tuple(imageMemoryBarrier, srcStageFlags, dstStageFlags);
 }
 
-void Texture::transitionImageLayout(LayoutType oldLayout, LayoutType newLayout,  //
+void Texture::transitionImageLayout(TextureLayoutType oldLayout, TextureLayoutType newLayout,  //
                                     VkPipelineStageFlags srcStageFlags, VkPipelineStageFlags dstStageFlags,
                                     const VkImageSubresourceRange& subresourceRange,  //
                                     CommandBuffer&                 commandBuffer)
@@ -343,7 +360,8 @@ void Texture::transitionImageLayout(LayoutType oldLayout, LayoutType newLayout, 
                          &imageMemoryBarrier);
 }
 
-void Texture::transitionImageLayout(LayoutType oldLayout, LayoutType newLayout, CommandBuffer& commandBuffer)
+void Texture::transitionImageLayout(TextureLayoutType oldLayout, TextureLayoutType newLayout,
+                                    CommandBuffer& commandBuffer)
 {
     VkImageSubresourceRange subresourceRange = {};
     subresourceRange.aspectMask              = VK_IMAGE_ASPECT_COLOR_BIT;
@@ -359,7 +377,7 @@ void Texture::transitionImageLayout(LayoutType oldLayout, LayoutType newLayout, 
                          nullptr, 0, nullptr, 1, &imageMemoryBarrier);
 }
 
-void Texture::transitionImageLayout(LayoutType oldLayout, LayoutType newLayout,
+void Texture::transitionImageLayout(TextureLayoutType oldLayout, TextureLayoutType newLayout,
                                     const VkImageSubresourceRange& subresourceRange, CommandBuffer& commandBuffer)
 {
     const PipelineBarrierSettings settings = getPipelineBarrierSettings(oldLayout, newLayout, subresourceRange);

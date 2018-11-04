@@ -15,15 +15,10 @@ class RenderTarget : util::noncopyable, public RenderObject<VkFramebuffer>
 public:
     struct AttachmentParams
     {
-        AttachmentParams()
-            : texture(nullptr)
-            , rgbaSwizzle{ComponentSwizzle::eIdentity, ComponentSwizzle::eIdentity,  //
-                          ComponentSwizzle::eIdentity, ComponentSwizzle::eIdentity}
-        {
-        }
+        AttachmentParams();
+        AttachmentParams(const Texture* texture);
 
         const Texture* texture;
-        ColorFormat    format;
         union {
             ComponentSwizzle rgbaSwizzle[4];
             struct
@@ -33,6 +28,7 @@ public:
         };
     };
 
+    RenderTarget(const DeviceContext& device, const RenderPass& pass, const AttachmentParams& attachment);
     RenderTarget(const DeviceContext& device, const RenderPass& pass, const AttachmentParams* attachments,
                  size_t attachmentsCount);
     RenderTarget(const DeviceContext& device, const RenderPass& pass, const std::vector<AttachmentParams>& attachments);
@@ -48,6 +44,26 @@ private:
     std::vector<VkImageView> m_attachments;
     Sizei                    m_size;
 };
+
+inline RenderTarget::AttachmentParams::AttachmentParams()
+    : texture(nullptr)
+    , rgbaSwizzle{ComponentSwizzle::eIdentity, ComponentSwizzle::eIdentity,  //
+                  ComponentSwizzle::eIdentity, ComponentSwizzle::eIdentity}
+{
+}
+
+inline RenderTarget::AttachmentParams::AttachmentParams(const Texture* texture)
+    : texture(texture)
+    , rgbaSwizzle{ComponentSwizzle::eIdentity, ComponentSwizzle::eIdentity,  //
+                  ComponentSwizzle::eIdentity, ComponentSwizzle::eIdentity}
+{
+}
+
+inline RenderTarget::RenderTarget(const DeviceContext& device, const RenderPass& pass,
+                                  const AttachmentParams& attachment)
+    : RenderTarget(device, pass, &attachment, 1)
+{
+}
 
 inline RenderTarget::RenderTarget(const DeviceContext& device, const RenderPass& pass,
                                   const std::vector<AttachmentParams>& attachments)

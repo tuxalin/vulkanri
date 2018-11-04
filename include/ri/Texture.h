@@ -51,26 +51,18 @@ struct SamplerParams
 
 struct TextureParams
 {
-    enum Samples
-    {
-        eOne     = VK_SAMPLE_COUNT_1_BIT,
-        eTwo     = VK_SAMPLE_COUNT_2_BIT,
-        eFour    = VK_SAMPLE_COUNT_4_BIT,
-        eEight   = VK_SAMPLE_COUNT_8_BIT,
-        eSixteen = VK_SAMPLE_COUNT_16_BIT
-    };
-
     TextureType type   = TextureType::e2D;
     ColorFormat format = ColorFormat::eRGBA;
-    ///@see ri:: TextureUsageFlags
+    ///@see ri::TextureUsageFlags
     uint32_t flags;
     Sizei    size;
-    /// Depth of a texture, eg a 3D texture is described as width x height x depth
+    /// Depth of a texture, eg. a 3D texture is described as width x height x depth
     uint32_t depth = 1;
     /// @note If zero the it'll auto calculate the levels based on the width and height of the texture.
     uint32_t mipLevels   = 1;
     uint32_t arrayLevels = 1;
-    Samples  samples     = eOne;
+    /// @note Must be a power of two.
+    uint32_t samples = 1;
 
     SamplerParams samplerParams;
 };
@@ -78,29 +70,17 @@ struct TextureParams
 class Texture : util::noncopyable, public RenderObject<VkImage>
 {
 public:
-    enum LayoutType
-    {
-        eUndefined               = VK_IMAGE_LAYOUT_UNDEFINED,
-        eGeneral                 = VK_IMAGE_LAYOUT_GENERAL,
-        eColorAttachement        = VK_IMAGE_LAYOUT_COLOR_ATTACHMENT_OPTIMAL,
-        eDepthStencilAttachement = VK_IMAGE_LAYOUT_DEPTH_STENCIL_ATTACHMENT_OPTIMAL,
-        eShaderReadOnly          = VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL,
-        eTransferSrcOptimal      = VK_IMAGE_LAYOUT_TRANSFER_SRC_OPTIMAL,
-        eTransferDstOptimal      = VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL,
-        ePreinitialized          = VK_IMAGE_LAYOUT_PREINITIALIZED
-    };
-
     struct CopyParams
     {
         // if equal then no transition will be performed
         union {
             struct
             {
-                LayoutType oldLayout;
-                LayoutType transferLayout;
-                LayoutType finalLayout;
+                TextureLayoutType oldLayout;
+                TextureLayoutType transferLayout;
+                TextureLayoutType finalLayout;
             };
-            std::array<LayoutType, 3> layouts;
+            std::array<TextureLayoutType, 3> layouts;
         };
 
         int32_t offsetX = 0, offsetY = 0, offsetZ = 0;
@@ -109,9 +89,9 @@ public:
         uint32_t depth = 1;
 
         CopyParams()
-            : oldLayout(eUndefined)
-            , transferLayout(eUndefined)
-            , finalLayout(eUndefined)
+            : oldLayout(TextureLayoutType::eUndefined)
+            , transferLayout(TextureLayoutType::eUndefined)
+            , finalLayout(TextureLayoutType::eUndefined)
         {
         }
     };
@@ -120,6 +100,7 @@ public:
     ~Texture();
 
     TextureType  type() const;
+    ColorFormat  format() const;
     const Sizei& size() const;
     bool         isSampled() const;
 
@@ -131,19 +112,19 @@ public:
 private:
     typedef std::tuple<VkImageMemoryBarrier, VkPipelineStageFlags, VkPipelineStageFlags> PipelineBarrierSettings;
     // create a reference texture
-    Texture(VkImage handle, TextureType type, const Sizei& size);
+    Texture(VkImage handle, TextureType type, ColorFormat format, const Sizei& size);
 
     void                    createImage(const TextureParams& params);
     void                    createImageView(const TextureParams& params);
     void                    createSampler(const SamplerParams& params);
     void                    allocateMemory(const DeviceContext& device, const TextureParams& params);
-    PipelineBarrierSettings getPipelineBarrierSettings(LayoutType oldLayout, LayoutType newLayout,
+    PipelineBarrierSettings getPipelineBarrierSettings(TextureLayoutType oldLayout, TextureLayoutType newLayout,
                                                        const VkImageSubresourceRange& subresourceRange);
-    void transitionImageLayout(LayoutType oldLayout, LayoutType newLayout, CommandBuffer& commandBuffer);
-    void transitionImageLayout(LayoutType oldLayout, LayoutType newLayout, VkPipelineStageFlags srcStageFlags,
-                               VkPipelineStageFlags dstStageFlags, const VkImageSubresourceRange& subresourceRange,
-                               CommandBuffer& commandBuffer);
-    void transitionImageLayout(LayoutType oldLayout, LayoutType newLayout,
+    void transitionImageLayout(TextureLayoutType oldLayout, TextureLayoutType newLayout, CommandBuffer& commandBuffer);
+    void transitionImageLayout(TextureLayoutType oldLayout, TextureLayoutType newLayout,
+                               VkPipelineStageFlags srcStageFlags, VkPipelineStageFlags dstStageFlags,
+                               const VkImageSubresourceRange& subresourceRange, CommandBuffer& commandBuffer);
+    void transitionImageLayout(TextureLayoutType oldLayout, TextureLayoutType newLayout,
                                const VkImageSubresourceRange& subresourceRange, CommandBuffer& commandBuffer);
 
 private:
@@ -152,10 +133,11 @@ private:
     VkImageView    m_view    = VK_NULL_HANDLE;
     VkSampler      m_sampler = VK_NULL_HANDLE;
     TextureType    m_type;
+    ColorFormat    m_format;
     Sizei          m_size;
     uint32_t       m_mipLevels;
 
-    friend const Texture*                detail::createReferenceTexture(VkImage handle, int type, const Sizei& size);
+    friend const Texture* detail::createReferenceTexture(VkImage handle, int type, int format, const Sizei& size);
     friend detail::TextureDescriptorInfo detail::getTextureDescriptorInfo(const Texture& texture);
 };
 
@@ -172,6 +154,11 @@ namespace detail
 inline TextureType Texture::type() const
 {
     return m_type;
+}
+
+inline ColorFormat Texture::format() const
+{
+    return m_format;
 }
 
 inline const Sizei& Texture::size() const

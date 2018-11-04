@@ -241,18 +241,19 @@ inline void Surface::createRenderTargets(const ri::DeviceContext& device)
 
     auto& attachment = attachments[0];
     {
-        attachment.format = m_format;
         // create a general compatible render pass
         RenderPass::AttachmentParams params;
-        params.format = m_format;
-        m_renderPass  = new RenderPass(device, params);
+        params.format      = m_format;
+        params.finalLayout = TextureLayoutType::ePresentSrc;
+        m_renderPass       = new RenderPass(device, params);
     }
 
     uint32_t i = 0;
     for (auto& target : m_swapchainTargets)
     {
         // TODO: find a nicer way for reference textures
-        attachment.texture = detail::createReferenceTexture(swapchainImages[i++], TextureType::e2D, m_size);
+        attachment.texture =
+            detail::createReferenceTexture(swapchainImages[i++], TextureType::e2D, m_format.get(), m_size);
 
         target = new RenderTarget(device, *m_renderPass, attachments);
         delete attachment.texture;

@@ -44,7 +44,7 @@ namespace detail
 
     const std::vector<VkPipelineShaderStageCreateInfo>& getStageCreateInfos(const ShaderPipeline& pipeline);
 
-    const Texture*        createReferenceTexture(VkImage handle, int type, const Sizei& size);
+    const Texture*        createReferenceTexture(VkImage handle, int type, int format, const Sizei& size);
     TextureDescriptorInfo getTextureDescriptorInfo(const Texture& texture);
 
     VkPhysicalDevice                        getDevicePhysicalHandle(const ri::DeviceContext& device);

@@ -119,6 +119,19 @@ SAFE_ENUM_DECLARE(TextureType,
                   eArray1D = VK_IMAGE_VIEW_TYPE_1D_ARRAY,
                   eArray2D = VK_IMAGE_VIEW_TYPE_2D_ARRAY);
 
+SAFE_ENUM_DECLARE(TextureLayoutType,                                  //
+                  eUndefined            = VK_IMAGE_LAYOUT_UNDEFINED,  //
+                  eGeneral              = VK_IMAGE_LAYOUT_GENERAL,
+                  eColorOptimal         = VK_IMAGE_LAYOUT_COLOR_ATTACHMENT_OPTIMAL,
+                  eDepthStencilOptimal  = VK_IMAGE_LAYOUT_DEPTH_STENCIL_ATTACHMENT_OPTIMAL,
+                  eDepthStencilReadOnly = VK_IMAGE_LAYOUT_DEPTH_STENCIL_READ_ONLY_OPTIMAL,
+                  eShaderReadOnly       = VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL,
+                  eTransferSrcOptimal   = VK_IMAGE_LAYOUT_TRANSFER_SRC_OPTIMAL,
+                  eTransferDstOptimal   = VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL,
+                  ePresentSrc           = VK_IMAGE_LAYOUT_PRESENT_SRC_KHR,
+                  eSharedPresentSrc     = VK_IMAGE_LAYOUT_SHARED_PRESENT_KHR,
+                  ePreinitialized       = VK_IMAGE_LAYOUT_PREINITIALIZED);
+
 SAFE_ENUM_DECLARE(TextureUsageFlags,
                   eSrc          = VK_IMAGE_USAGE_TRANSFER_SRC_BIT,
                   eDst          = VK_IMAGE_USAGE_TRANSFER_DST_BIT,
@@ -127,6 +140,10 @@ SAFE_ENUM_DECLARE(TextureUsageFlags,
                   eColor        = VK_IMAGE_USAGE_COLOR_ATTACHMENT_BIT,
                   eDepthStencil = VK_IMAGE_USAGE_DEPTH_STENCIL_ATTACHMENT_BIT,
                   eTransient    = VK_IMAGE_USAGE_TRANSIENT_ATTACHMENT_BIT);
+
+SAFE_ENUM_DECLARE(TextureTiling,                       //
+                  eOptimal = VK_IMAGE_TILING_OPTIMAL,  //
+                  eLinear  = VK_IMAGE_TILING_LINEAR);
 
 SAFE_ENUM_DECLARE(DescriptorType,
                   eUniformBuffer        = VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER,
@@ -190,7 +207,8 @@ SAFE_ENUM_DECLARE(
     // newer ones.
     eMailbox = VK_PRESENT_MODE_MAILBOX_KHR);
 
-typedef VkDescriptorSetLayout DescriptorSetLayout;
+typedef VkDescriptorSetLayout   DescriptorSetLayout;
+typedef VkImageFormatProperties TextureProperties;
 
 union ClearColorValue {
     float    float32[4];
