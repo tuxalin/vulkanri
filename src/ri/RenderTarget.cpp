@@ -15,8 +15,8 @@ RenderTarget::RenderTarget(const DeviceContext& device, const RenderPass& pass, 
     VkFramebufferCreateInfo framebufferInfo = {};
     framebufferInfo.sType                   = VK_STRUCTURE_TYPE_FRAMEBUFFER_CREATE_INFO;
     framebufferInfo.renderPass              = detail::getVkHandle(pass);
-    framebufferInfo.attachmentCount         = m_attachments.size();
-    framebufferInfo.pAttachments            = m_attachments.data();
+    framebufferInfo.attachmentCount         = m_imageViews.size();
+    framebufferInfo.pAttachments            = m_imageViews.data();
     framebufferInfo.width                   = m_size.width;
     framebufferInfo.height                  = m_size.height;
     framebufferInfo.layers                  = 1;
@@ -28,37 +28,44 @@ RenderTarget::RenderTarget(const DeviceContext& device, const RenderPass& pass, 
 RenderTarget::~RenderTarget()
 {
     vkDestroyFramebuffer(m_device, m_handle, nullptr);
-    for (auto imageView : m_attachments)
+    for (auto imageView : m_imageViews)
         vkDestroyImageView(m_device, imageView, nullptr);
+    for (auto texture : m_textures)
+        delete texture;
 }
 
 void RenderTarget::createAttachments(const AttachmentParams* attachments, size_t attachmentsCount)
 {
     for (size_t i = 0; i < attachmentsCount; ++i)
     {
-        const auto& attachment = attachments[i];
-        assert(attachment.texture);
+        const auto& attachmentParam = attachments[i];
+        assert(attachmentParam.texture);
 
         VkImageViewCreateInfo createInfo = {};
         createInfo.sType                 = VK_STRUCTURE_TYPE_IMAGE_VIEW_CREATE_INFO;
-        createInfo.image                 = detail::getVkHandle(*attachment.texture);
-        createInfo.viewType              = (VkImageViewType)attachment.texture->type();
-        createInfo.format                = (VkFormat)attachment.texture->format();
-        createInfo.components.r          = (VkComponentSwizzle)attachment.redSwizzle;
-        createInfo.components.g          = (VkComponentSwizzle)attachment.greenSwizzle;
-        createInfo.components.b          = (VkComponentSwizzle)attachment.blueSwizzle;
-        createInfo.components.a          = (VkComponentSwizzle)attachment.alphaSwizzle;
+        createInfo.image                 = detail::getVkHandle(*attachmentParam.texture);
+        createInfo.viewType              = (VkImageViewType)attachmentParam.texture->type();
+        createInfo.format                = (VkFormat)attachmentParam.texture->format();
+        createInfo.components.r          = (VkComponentSwizzle)attachmentParam.redSwizzle;
+        createInfo.components.g          = (VkComponentSwizzle)attachmentParam.greenSwizzle;
+        createInfo.components.b          = (VkComponentSwizzle)attachmentParam.blueSwizzle;
+        createInfo.components.a          = (VkComponentSwizzle)attachmentParam.alphaSwizzle;
         // no mipmapping or layers
-        createInfo.subresourceRange.aspectMask     = VK_IMAGE_ASPECT_COLOR_BIT;
+
+        const VkImageAspectFlags flags = detail::getImageAspectFlags((VkFormat)attachmentParam.texture->format());
+        createInfo.subresourceRange.aspectMask     = flags;
         createInfo.subresourceRange.baseMipLevel   = 0;
         createInfo.subresourceRange.levelCount     = 1;
         createInfo.subresourceRange.baseArrayLayer = 0;
         createInfo.subresourceRange.layerCount     = 1;
 
-        m_attachments.emplace_back();
-        auto& imageView = m_attachments.back();
+        m_imageViews.emplace_back();
+        auto& imageView = m_imageViews.back();
         RI_CHECK_RESULT_MSG("couldn't create image view for render target") =
             vkCreateImageView(m_device, &createInfo, nullptr, &imageView);
+
+        if (attachmentParam.takeOwnership)
+            m_textures.push_back(attachmentParam.texture);
     }
 }
 }

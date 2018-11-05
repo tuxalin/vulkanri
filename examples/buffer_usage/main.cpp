@@ -237,7 +237,7 @@ private:
         m_surface->acquire();
         m_surface->present(*m_context);
 
-        //  valdidation layer requires to be synched each frame
+        //  validation layer requires to be synced each frame
         if (ri::ValidationReport::kEnabled)
             m_surface->waitIdle();
     }

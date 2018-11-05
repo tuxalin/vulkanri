@@ -16,9 +16,10 @@ public:
     struct AttachmentParams
     {
         AttachmentParams();
-        AttachmentParams(const Texture* texture);
+        AttachmentParams(const Texture* texture, bool takeOwnership = false);
 
         const Texture* texture;
+        bool           takeOwnership = false;
         union {
             ComponentSwizzle rgbaSwizzle[4];
             struct
@@ -40,22 +41,24 @@ private:
     void createAttachments(const AttachmentParams* attachments, size_t attachmentsCount);
 
 private:
-    VkDevice                 m_device = VK_NULL_HANDLE;
-    std::vector<VkImageView> m_attachments;
-    Sizei                    m_size;
+    VkDevice                    m_device = VK_NULL_HANDLE;
+    std::vector<VkImageView>    m_imageViews;
+    std::vector<const Texture*> m_textures;
+    Sizei                       m_size;
 };
 
 inline RenderTarget::AttachmentParams::AttachmentParams()
     : texture(nullptr)
-    , rgbaSwizzle{ComponentSwizzle::eIdentity, ComponentSwizzle::eIdentity,  //
-                  ComponentSwizzle::eIdentity, ComponentSwizzle::eIdentity}
+    , rgbaSwizzle {ComponentSwizzle::eIdentity, ComponentSwizzle::eIdentity,  //
+                   ComponentSwizzle::eIdentity, ComponentSwizzle::eIdentity}
 {
 }
 
-inline RenderTarget::AttachmentParams::AttachmentParams(const Texture* texture)
+inline RenderTarget::AttachmentParams::AttachmentParams(const Texture* texture, bool takeOwnership /*= false*/)
     : texture(texture)
-    , rgbaSwizzle{ComponentSwizzle::eIdentity, ComponentSwizzle::eIdentity,  //
-                  ComponentSwizzle::eIdentity, ComponentSwizzle::eIdentity}
+    , takeOwnership(takeOwnership)
+    , rgbaSwizzle {ComponentSwizzle::eIdentity, ComponentSwizzle::eIdentity,  //
+                   ComponentSwizzle::eIdentity, ComponentSwizzle::eIdentity}
 {
 }
 

@@ -46,7 +46,7 @@ RenderPipeline::RenderPipeline(const ri::DeviceContext&  device,          //
     : m_device(detail::getVkHandle(device))
 {
     const ViewportParam      viewportParam = {viewportSize, viewportX, viewportY};
-    const PipelineCreateData data(params, viewportParam);
+    const PipelineCreateData data(pass, params, viewportParam);
 
     m_viewport = getViewportFrom(viewportParam);
     m_scissor  = getScissorFrom(viewportParam);
@@ -188,6 +188,33 @@ inline VkPipelineDynamicStateCreateInfo RenderPipeline::getDynamicStateInfo(cons
     return dynamicState;
 }
 
+inline VkPipelineDepthStencilStateCreateInfo RenderPipeline::getDepthStencilInfo(const ri::RenderPass& pass,
+                                                                                 const CreateParams&   params)
+{
+    VkPipelineDepthStencilStateCreateInfo depthStencil = {};
+
+    const bool hasDepth =
+        std::find_if(pass.attachments().begin(), pass.attachments().end(), [](const auto& attachment) {
+            return attachment.layout == VK_IMAGE_LAYOUT_DEPTH_STENCIL_ATTACHMENT_OPTIMAL;
+        }) != pass.attachments().end();
+    if (hasDepth)
+    {
+        depthStencil.sType            = VK_STRUCTURE_TYPE_PIPELINE_DEPTH_STENCIL_STATE_CREATE_INFO;
+        depthStencil.depthTestEnable  = params.depthTestEnable;
+        depthStencil.depthWriteEnable = params.depthWriteEnable;
+        depthStencil.depthCompareOp   = (VkCompareOp)params.depthCompareOp;
+
+        depthStencil.depthBoundsTestEnable = params.depthBoundsTestEnable;
+        depthStencil.minDepthBounds        = params.depthMinBounds;
+        depthStencil.maxDepthBounds        = params.depthMaxBounds;
+
+        depthStencil.stencilTestEnable = params.stencilTestEnable;
+        depthStencil.front             = params.stencilFrontState;
+        depthStencil.back              = params.stencilBackState;
+    }
+    return depthStencil;
+}
+
 inline VkPipelineLayout RenderPipeline::createLayout(const VkDevice device, const CreateParams& params,
                                                      const std::vector<VkDescriptorSetLayout>& descriptorLayouts)
 {
@@ -230,9 +257,12 @@ inline VkGraphicsPipelineCreateInfo RenderPipeline::getPipelineCreateInfo(const 
     pipelineInfo.pViewportState               = &data.viewportState;
     pipelineInfo.pRasterizationState          = &data.rasterizer;
     pipelineInfo.pMultisampleState            = &data.multisampling;
-    pipelineInfo.pDepthStencilState           = nullptr;
     pipelineInfo.pColorBlendState             = &data.colorBlending;
     pipelineInfo.pDynamicState                = &data.dynamicState;
+    if (data.depthStencil.sType == VK_STRUCTURE_TYPE_PIPELINE_DEPTH_STENCIL_STATE_CREATE_INFO)
+        pipelineInfo.pDepthStencilState = &data.depthStencil;
+    else
+        pipelineInfo.pDepthStencilState = nullptr;
 
     assert(pipelineLayout);
     pipelineInfo.layout     = pipelineLayout;
@@ -272,7 +302,7 @@ void RenderPipeline::create(const ri::DeviceContext&                          de
     for (size_t i = 0; i < pipelinesParams.size(); ++i)
     {
         const auto& params = pipelinesParams[i];
-        pipelineCreateData.emplace_back(params,
+        pipelineCreateData.emplace_back(*pipelinesPass[i], params,
                                         pipelinesViewportParams[std::min(i, pipelinesViewportParams.size() - 1)]);
         const auto& data   = pipelineCreateData.back();
         const auto  layout = createLayout(detail::getVkHandle(device), params, descriptorLayouts);
@@ -295,7 +325,7 @@ void RenderPipeline::create(const ri::DeviceContext&                          de
     }
 }
 
-inline RenderPipeline::PipelineCreateData::PipelineCreateData(const CreateParams&  params,
+inline RenderPipeline::PipelineCreateData::PipelineCreateData(const ri::RenderPass& pass, const CreateParams& params,
                                                               const ViewportParam& viewportParam)
     : vertexInput(getVertexInputInfo(params))
     , inputAssembly(getInputAssemblyInfo(params))
@@ -307,6 +337,7 @@ inline RenderPipeline::PipelineCreateData::PipelineCreateData(const CreateParams
     , colorBlendAttachment(getColorBlendAttachmentInfo(params))
     , colorBlending(getColorBlendingInfo(params, colorBlendAttachment))
     , dynamicState(getDynamicStateInfo(params))
+    , depthStencil(getDepthStencilInfo(pass, params))
 {
 }
 

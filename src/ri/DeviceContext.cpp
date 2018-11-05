@@ -144,9 +144,8 @@ void DeviceContext::addCommandPool(DeviceOperation operation, const CommandPoolP
 
 uint32_t DeviceContext::deviceScore(VkPhysicalDevice device, const std::vector<DeviceFeature>& requiredFeatures)
 {
-    VkPhysicalDeviceProperties deviceProperties;
-    VkPhysicalDeviceFeatures   deviceFeatures;
-    vkGetPhysicalDeviceProperties(device, &deviceProperties);
+    VkPhysicalDeviceFeatures deviceFeatures;
+    vkGetPhysicalDeviceProperties(device, &m_deviceProperties);
     vkGetPhysicalDeviceFeatures(device, &deviceFeatures);
 
     uint32_t             score        = 0;
@@ -154,12 +153,12 @@ uint32_t DeviceContext::deviceScore(VkPhysicalDevice device, const std::vector<D
     uint32_t             scoreTypes[] = {1000, 10};
 
     auto found = std::find_if(std::begin(validTypes), std::end(validTypes),
-                              [deviceProperties](auto type) { return deviceProperties.deviceType == type; });
+                              [this](auto type) { return m_deviceProperties.deviceType == type; });
     if (found == std::end(validTypes))
         return 0;
 
     score = scoreTypes[util::index_of(validTypes, found)];
-    score += deviceProperties.limits.maxImageDimension2D;
+    score += m_deviceProperties.limits.maxImageDimension2D;
 
     std::vector<VkExtensionProperties> availableExtensions;
     {

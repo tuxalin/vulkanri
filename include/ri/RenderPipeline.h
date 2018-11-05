@@ -52,17 +52,28 @@ public:
         bool           blend               = false;
 
         // Depth
-        bool  depthClamp              = false;
-        bool  depthBias               = false;
-        float depthBiasConstantFactor = 0.0f;
-        float depthBiasClamp          = 0.0f;
-        float depthBiasSlopeFactor    = 0.0f;
+        bool             depthTestEnable         = false;
+        bool             depthWriteEnable        = false;
+        bool             depthClamp              = false;
+        bool             depthBias               = false;
+        float            depthBiasConstantFactor = 0.0f;
+        float            depthBiasClamp          = 0.0f;
+        float            depthBiasSlopeFactor    = 0.0f;
+        bool             depthBoundsTestEnable   = false;
+        float            depthMinBounds          = 0.0f;
+        float            depthMaxBounds          = 1.0f;
+        CompareOperation depthCompareOp          = CompareOperation::eLess;
+
+        // Stencil
+        bool           stencilTestEnable = false;
+        StencilOpState stencilFrontState = {};
+        StencilOpState stencilBackState  = {};
 
         VertexDescription* vertexDescription = nullptr;
         // What subpass to use from the render pass.
         uint32_t activeSubpassIndex = 0;
         // The dynamic states of the pipeline.
-        // @note Any dynamic states that are marked must after be explictily be set with their commands, as the
+        // @note Any dynamic states that are marked must after be explicitly be set with their commands, as the
         // initial/constant values will be ignored.
         std::vector<DynamicState> dynamicStates;
         // Specifying one or more descriptor set layout bindings.
@@ -146,7 +157,7 @@ public:
 private:
     struct PipelineCreateData
     {
-        PipelineCreateData(const CreateParams& params, const ViewportParam& viewportParam);
+        PipelineCreateData(const ri::RenderPass& pass, const CreateParams& params, const ViewportParam& viewportParam);
 
         VkPipelineVertexInputStateCreateInfo   vertexInput;
         VkPipelineInputAssemblyStateCreateInfo inputAssembly;
@@ -158,6 +169,7 @@ private:
         VkPipelineColorBlendAttachmentState    colorBlendAttachment;
         VkPipelineColorBlendStateCreateInfo    colorBlending;
         VkPipelineDynamicStateCreateInfo       dynamicState;
+        VkPipelineDepthStencilStateCreateInfo  depthStencil;
     };
 
     RenderPipeline(const ri::DeviceContext& device, VkPipeline handle, VkPipelineLayout layout,
@@ -182,7 +194,9 @@ private:
     static VkPipelineColorBlendAttachmentState    getColorBlendAttachmentInfo(const CreateParams& params);
     static VkPipelineColorBlendStateCreateInfo    getColorBlendingInfo(
            const CreateParams& params, const VkPipelineColorBlendAttachmentState& colorBlendAttachment);
-    static VkPipelineDynamicStateCreateInfo getDynamicStateInfo(const CreateParams& params);
+    static VkPipelineDynamicStateCreateInfo      getDynamicStateInfo(const CreateParams& params);
+    static VkPipelineDepthStencilStateCreateInfo getDepthStencilInfo(const ri::RenderPass& pass,
+                                                                     const CreateParams&   params);
 
     static VkGraphicsPipelineCreateInfo getPipelineCreateInfo(const RenderPass&         pass,            //
                                                               const ShaderPipeline&     shaderPipeline,  //

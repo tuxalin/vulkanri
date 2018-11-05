@@ -157,12 +157,14 @@ SAFE_ENUM_DECLARE(DescriptorType,
                   eStorageBufferDynamic = VK_DESCRIPTOR_TYPE_STORAGE_BUFFER_DYNAMIC);
 
 SAFE_ENUM_DECLARE(ColorFormat,
-                  eRed       = VK_FORMAT_R8G8_UNORM,           //
-                  eRGB565    = VK_FORMAT_R5G6B5_UNORM_PACK16,  //
-                  eBGRA      = VK_FORMAT_B8G8R8A8_UNORM,       //
-                  eRGBA      = VK_FORMAT_R8G8B8A8_UNORM,       //
-                  eDepth32   = VK_FORMAT_D32_SFLOAT,           //
-                  eUndefined = VK_FORMAT_UNDEFINED);
+                  eRed             = VK_FORMAT_R8G8_UNORM,           //
+                  eRGB565          = VK_FORMAT_R5G6B5_UNORM_PACK16,  //
+                  eBGRA            = VK_FORMAT_B8G8R8A8_UNORM,       //
+                  eRGBA            = VK_FORMAT_R8G8B8A8_UNORM,       //
+                  eDepth32         = VK_FORMAT_D32_SFLOAT,           //
+                  eDepth24Stencil8 = VK_FORMAT_D32_SFLOAT_S8_UINT,   //
+                  eDepth32Stencil8 = VK_FORMAT_D24_UNORM_S8_UINT,    //
+                  eUndefined       = VK_FORMAT_UNDEFINED);
 
 SAFE_ENUM_DECLARE(ComponentSwizzle,                           //
                   eIdentity = VK_COMPONENT_SWIZZLE_IDENTITY,  //
@@ -207,10 +209,13 @@ SAFE_ENUM_DECLARE(
     // newer ones.
     eMailbox = VK_PRESENT_MODE_MAILBOX_KHR);
 
-typedef VkDescriptorSetLayout   DescriptorSetLayout;
-typedef VkImageFormatProperties TextureProperties;
+typedef VkDescriptorSetLayout      DescriptorSetLayout;
+typedef VkImageFormatProperties    TextureProperties;
+typedef VkPhysicalDeviceProperties DeviceProperties;
+typedef VkStencilOpState           StencilOpState;
 
-union ClearColorValue {
+union ClearColorValue  //
+{
     float    float32[4];
     int32_t  int32[4];
     uint32_t uint32[4];
@@ -222,7 +227,8 @@ struct ClearDepthStencilValue
     uint32_t stencil;
 };
 
-union ClearValue {
+union ClearValue  //
+{
     ClearColorValue        color;
     ClearDepthStencilValue depthStencil;
 };
@@ -242,5 +248,15 @@ struct SurfaceCreateParams
 
     GLFWwindow* window = nullptr;
 #endif
+
+    enum DepthBufferType
+    {
+        eNone            = ColorFormat::eUndefined,
+        eDepth32         = ColorFormat::eDepth32,
+        eDepth24Stencil8 = ColorFormat::eDepth24Stencil8,
+        eDepth32Stencil8 = ColorFormat::eDepth32Stencil8,
+    };
+
+    DepthBufferType depthBufferType = eNone;
 };
 }  // namespace ri

@@ -60,5 +60,23 @@ namespace detail
     template <typename HandleClass>
     HandleClass getVkHandle(const RenderObject<HandleClass>& obj);
 
+    inline VkImageAspectFlags getImageAspectFlags(VkFormat format)
+    {
+        VkImageAspectFlags flags;
+        if (format == VK_FORMAT_D32_SFLOAT_S8_UINT || format == VK_FORMAT_D24_UNORM_S8_UINT)
+        {
+            flags = VK_IMAGE_ASPECT_STENCIL_BIT;
+            flags |= VK_IMAGE_ASPECT_DEPTH_BIT;
+        }
+        else if (format == VK_FORMAT_D32_SFLOAT)
+        {
+            flags = VK_IMAGE_ASPECT_DEPTH_BIT;
+        }
+        else
+            flags = VK_IMAGE_ASPECT_COLOR_BIT;
+
+        return flags;
+    }
+
 }  // namespace detail
 }  // namespace ri

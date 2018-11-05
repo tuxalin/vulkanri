@@ -130,7 +130,7 @@ private:
             ri::RenderPass* pass = new ri::RenderPass(*m_context, passParams);
 
             ri::RenderPipeline::CreateParams params;
-            // neded to change viewport for multiple windows
+            // needed to change viewport for multiple windows
             params.dynamicStates = {ri::DynamicState::eViewport, ri::DynamicState::eScissor};
 
             m_renderPipeline.reset(
@@ -140,13 +140,12 @@ private:
 
     void dispatchCommands(const ri::RenderTarget& target, ri::CommandBuffer& commandBuffer)
     {
-        /* is equivalant to:
-        auto& pass = m_renderPipeline->defaultPass();
-        pass.begin(commandBuffer, target);
-        m_renderPipeline->bind(commandBuffer);
-        commandBuffer.draw(3, 1);
-        pass.end(commandBuffer);
-        */
+        // is equivalent to:
+        // auto& pass = m_renderPipeline->defaultPass();
+        // pass.begin(commandBuffer, target);
+        // m_renderPipeline->bind(commandBuffer);
+        // commandBuffer.draw(3, 1);
+        // pass.end(commandBuffer);
 
         m_renderPipeline->dynamicState().setViewport(commandBuffer, target.size());
         m_renderPipeline->dynamicState().setScissor(commandBuffer, target.size());

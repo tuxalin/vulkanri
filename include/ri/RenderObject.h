@@ -13,16 +13,12 @@ public:
 
 protected:
     TagableObject()
-#ifndef NDEBUG
         : m_tag("unknown")
-#endif  // NDEBUG
     {
     }
 
     TagableObject(const char* tagName)
-#ifndef NDEBUG
         : m_tag(tagName)
-#endif  // NDEBUG
     {
     }
 

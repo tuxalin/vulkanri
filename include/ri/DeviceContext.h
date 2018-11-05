@@ -42,8 +42,11 @@ public:
 
     void waitIdle();
 
-    TextureProperties                   textureProperties(ColorFormat format, TextureType type, TextureTiling tiling,
-                                                          uint32_t flags) const;
+    const DeviceProperties& deviceProperties() const;
+
+    TextureProperties textureProperties(ColorFormat format, TextureType type, TextureTiling tiling,
+                                        uint32_t flags) const;
+
     const std::vector<DeviceOperation>& requiredOperations() const;
 
 private:
@@ -67,6 +70,7 @@ private:
     CommandPool*                     m_defaultCommandPool = nullptr;
     std::array<CommandPool*, 2 * 2>  m_commandPools;
     VkPhysicalDeviceMemoryProperties m_memoryProperties;
+    DeviceProperties                 m_deviceProperties;
 
     friend VkPhysicalDevice detail::getDevicePhysicalHandle(const ri::DeviceContext& device);
     friend VkQueue          detail::getDeviceQueue(const ri::DeviceContext& device, int deviceOperation);
@@ -81,6 +85,11 @@ inline void DeviceContext::initialize(Surface&                            surfac
 {
     const std::vector<Surface*> data(1, &surface);
     initialize(data, requiredFeatures, requiredOperations, commandParam);
+}
+
+inline const DeviceProperties& DeviceContext::deviceProperties() const
+{
+    return m_deviceProperties;
 }
 
 inline TextureProperties DeviceContext::textureProperties(ColorFormat format, TextureType type, TextureTiling tiling,

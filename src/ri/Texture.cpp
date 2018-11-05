@@ -53,7 +53,7 @@ Texture::Texture(const DeviceContext& device, const TextureParams& params)
     if (params.flags & TextureUsageFlags::eSampled)
     {
         createSampler(params.samplerParams);
-        createImageView(params);
+        createImageView(params, VK_IMAGE_ASPECT_COLOR_BIT);
     }
 }
 
@@ -90,7 +90,7 @@ void Texture::copy(const Buffer& src, const CopyParams& params, CommandBuffer& c
     region.bufferOffset                    = 0;
     region.bufferRowLength                 = 0;
     region.bufferImageHeight               = 0;
-    region.imageSubresource.aspectMask     = VK_IMAGE_ASPECT_COLOR_BIT;
+    region.imageSubresource.aspectMask     = detail::getImageAspectFlags((VkFormat)m_format);
     region.imageSubresource.mipLevel       = 0;
     region.imageSubresource.baseArrayLayer = 0;
     region.imageSubresource.layerCount     = 1;
@@ -108,10 +108,13 @@ void Texture::copy(const Buffer& src, const CopyParams& params, CommandBuffer& c
 
 void Texture::generateMipMaps(CommandBuffer& commandBuffer)
 {
+    assert(m_format != ColorFormat::eDepth32 && m_format != ColorFormat::eDepth24Stencil8 &&
+           m_format != ColorFormat::eDepth32Stencil8);
+
     // Copy down mips from n-1 to n
     for (uint32_t i = 1; i < m_mipLevels; i++)
     {
-        VkImageBlit imageBlit{};
+        VkImageBlit imageBlit {};
 
         // Source
         imageBlit.srcSubresource.aspectMask = VK_IMAGE_ASPECT_COLOR_BIT;
@@ -188,7 +191,7 @@ inline void Texture::createImage(const TextureParams& params)
     RI_CHECK_RESULT_MSG("failed to create image") = vkCreateImage(m_device, &imageInfo, nullptr, &m_handle);
 }
 
-void Texture::createImageView(const TextureParams& params)
+void Texture::createImageView(const TextureParams& params, VkImageAspectFlags aspectFlags)
 {
     VkImageViewCreateInfo viewInfo = {};
     viewInfo.sType                 = VK_STRUCTURE_TYPE_IMAGE_VIEW_CREATE_INFO;
@@ -197,8 +200,8 @@ void Texture::createImageView(const TextureParams& params)
     viewInfo.format                = (VkFormat)params.format;
     viewInfo.components            = {VK_COMPONENT_SWIZZLE_R, VK_COMPONENT_SWIZZLE_G,  //
                            VK_COMPONENT_SWIZZLE_B, VK_COMPONENT_SWIZZLE_A};
-    // TODO: expose this
-    viewInfo.subresourceRange.aspectMask     = VK_IMAGE_ASPECT_COLOR_BIT;
+
+    viewInfo.subresourceRange.aspectMask     = aspectFlags;
     viewInfo.subresourceRange.baseMipLevel   = 0;
     viewInfo.subresourceRange.levelCount     = m_mipLevels;
     viewInfo.subresourceRange.baseArrayLayer = 0;
@@ -332,7 +335,8 @@ Texture::PipelineBarrierSettings Texture::getPipelineBarrierSettings(TextureLayo
             // Image layout will be used as a depth/stencil attachment
             // Make sure any writes to depth/stencil buffer have been finished
             imageMemoryBarrier.dstAccessMask =
-                imageMemoryBarrier.dstAccessMask | VK_ACCESS_DEPTH_STENCIL_ATTACHMENT_WRITE_BIT;
+                VK_ACCESS_DEPTH_STENCIL_ATTACHMENT_READ_BIT | VK_ACCESS_DEPTH_STENCIL_ATTACHMENT_WRITE_BIT;
+            dstStageFlags = VK_PIPELINE_STAGE_EARLY_FRAGMENT_TESTS_BIT;
             break;
         case VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL:
             // Shader read (sampler, input attachment)
@@ -364,14 +368,14 @@ void Texture::transitionImageLayout(TextureLayoutType oldLayout, TextureLayoutTy
                                     CommandBuffer& commandBuffer)
 {
     VkImageSubresourceRange subresourceRange = {};
-    subresourceRange.aspectMask              = VK_IMAGE_ASPECT_COLOR_BIT;
+    subresourceRange.aspectMask              = detail::getImageAspectFlags((VkFormat)m_format);
     subresourceRange.baseMipLevel            = 0;
     subresourceRange.levelCount              = 1;
     subresourceRange.baseArrayLayer          = 0;
     subresourceRange.layerCount              = 1;
 
     const PipelineBarrierSettings settings = getPipelineBarrierSettings(oldLayout, newLayout, subresourceRange);
-    const VkImageMemoryBarrier    imageMemoryBarrier = std::get<0>(settings);
+    VkImageMemoryBarrier          imageMemoryBarrier = std::get<0>(settings);
 
     vkCmdPipelineBarrier(detail::getVkHandle(commandBuffer), std::get<1>(settings), std::get<2>(settings), 0, 0,
                          nullptr, 0, nullptr, 1, &imageMemoryBarrier);

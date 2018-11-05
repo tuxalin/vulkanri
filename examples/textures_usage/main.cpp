@@ -6,7 +6,9 @@
  * -creating multiple textures
  * -loading multiple textures using a staging buffer
  * -mip-map generation for the textures
- * -using a shader with multi-texturing
+ * -loading a model
+ * -setting up the depth buffer
+ * -using MSAA
  */
 #define GLFW_INCLUDE_VULKAN
 #include <GLFW/glfw3.h>
@@ -115,8 +117,11 @@ private:
         m_validation.reset(new ri::ValidationReport(*m_instance, ri::ReportLevel::eWarning));
 
         {
+            ri::SurfaceCreateParams params;
+            params.window          = m_window;
+            params.depthBufferType = ri::SurfaceCreateParams::eDepth32;
             m_surface.reset(  //
-                new ri::Surface(*m_instance, ri::Sizei(kWidth, kHeight), m_window, ri::PresentMode::eMailbox));
+                new ri::Surface(*m_instance, ri::Sizei(kWidth, kHeight), params, ri::PresentMode::eMailbox));
             m_surface->setTagName("MainWindowSurface");
         }
 
@@ -167,7 +172,7 @@ private:
             ri::DeviceContext::CommandPoolParam param = {ri::DeviceCommandHint::eTransient, false};
             m_context->addCommandPool(ri::DeviceOperation::eTransfer, param);
 
-            /* update is equivalant to:
+            /* update is equivalent to:
             auto dst = buffer->lock();
             memcpy(dst, someData.data(), buffer->bytes());
             buffer->unlock();
@@ -269,15 +274,22 @@ private:
             m_descriptor = m_descriptorPool->create(res.index, descriptorParams);
         }
 
+        // TODO: add MSAA
+        const uint32_t MSAAsamples = 1;
         // create the render/graphics pipeline
         {
-            ri::RenderPass::AttachmentParams passParams;
-            passParams.format    = m_surface->format();
-            passParams.samples   = 1;
+            auto                                          surfaceAttachments = m_surface->attachments();
+            std::vector<ri::RenderPass::AttachmentParams> passParams(surfaceAttachments.size());
+            for (size_t i = 0; i < passParams.size(); ++i)
+            {
+                passParams[i].format      = surfaceAttachments[i].format;
+                passParams[i].samples     = surfaceAttachments[i].samples;
+                passParams[i].finalLayout = surfaceAttachments[i].finalLayout;
+            }
             ri::RenderPass* pass = new ri::RenderPass(*m_context, passParams);
             pass->setTagName("SimplePass");
 
-            // neded to change viewport for multiple windows
+            // needed to change viewport for multiple windows
             params.dynamicStates     = {ri::DynamicState::eViewport, ri::DynamicState::eScissor};
             params.vertexDescription = &m_vertexDescription;
             params.frontFaceCW       = false;  // since we inverted the Y axis
@@ -286,6 +298,22 @@ private:
                 new ri::RenderPipeline(*m_context, pass, *m_shaderPipeline, params, ri::Sizei(kWidth, kHeight)));
             m_renderPipeline->setTagName("SimplePipeline");
         }
+
+        // create a MSAA render target
+        // TODO: add support
+        //         {
+        //             ri::TextureParams texParams;
+        //             texParams.flags      = ri::TextureUsageFlags::eColor | ri::TextureUsageFlags::eTransient;
+        //             texParams.format     = ri::ColorFormat::eBGRA;
+        //             texParams.size       = m_surface->size();
+        //             texParams.samples    = MSAAsamples;
+        //             ri::Texture* texture = new ri::Texture(*m_context, texParams);
+        //             texture->setTagName("MSAA_RenderTargetTexture");
+        //
+        //             ri::RenderTarget::AttachmentParams params(texture, true);
+        //             m_msaaTarget.reset(new ri::RenderTarget(*m_context, m_renderPipeline->defaultPass(), params));
+        //             m_msaaTarget->setTagName("MSAA_RenderTarget");
+        //         }
     }
 
     void render()
@@ -293,7 +321,7 @@ private:
         m_surface->acquire();
         m_surface->present(*m_context);
 
-        //  valdidation layer requires to be synched each frame
+        //  validation layer requires to be synced each frame
         if (ri::ValidationReport::kEnabled)
             m_surface->waitIdle();
     }
@@ -401,6 +429,7 @@ private:
     ri::IndexedVertexDescription               m_vertexDescription;
     ri::DescriptorSet                          m_descriptor;
     std::vector<std::shared_ptr<ri::Texture> > m_textures;
+    std::unique_ptr<ri::RenderTarget>          m_msaaTarget;
 };
 
 int main()

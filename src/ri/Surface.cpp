@@ -52,6 +52,42 @@ namespace detail
         return availableFormats[0];
     }
 
+    VkFormat findSupportedFormat(VkPhysicalDevice physicalDevice, const std::vector<VkFormat>& candidates,
+                                 VkImageTiling tiling, VkFormatFeatureFlags features)
+    {
+        for (VkFormat format : candidates)
+        {
+            VkFormatProperties props;
+            vkGetPhysicalDeviceFormatProperties(physicalDevice, format, &props);
+
+            if (tiling == VK_IMAGE_TILING_LINEAR && (props.linearTilingFeatures & features) == features)
+            {
+                return format;
+            }
+            else if (tiling == VK_IMAGE_TILING_OPTIMAL && (props.optimalTilingFeatures & features) == features)
+            {
+                return format;
+            }
+        }
+
+        assert(false);
+        return VK_FORMAT_UNDEFINED;
+    }
+
+    VkFormat chooseDepthFormat(VkPhysicalDevice physicalDevice, VkFormat preferredFormat)
+    {
+        std::vector<VkFormat> formats = {VK_FORMAT_D32_SFLOAT, VK_FORMAT_D32_SFLOAT_S8_UINT,
+                                         VK_FORMAT_D24_UNORM_S8_UINT};
+
+        auto found = std::find(formats.begin(), formats.end(), preferredFormat);
+        assert(found != formats.end());
+        if (found != formats.begin())
+            std ::swap(*found, *formats.begin());
+
+        return findSupportedFormat(physicalDevice, formats, VK_IMAGE_TILING_OPTIMAL,
+                                   VK_FORMAT_FEATURE_DEPTH_STENCIL_ATTACHMENT_BIT);
+    }
+
     VkExtent2D chooseSurfaceExtent(const VkSurfaceCapabilitiesKHR& capabilities, const ri::Sizei& size)
     {
         if (capabilities.currentExtent.width != std::numeric_limits<uint32_t>::max())
@@ -88,6 +124,7 @@ Surface::Surface(const ApplicationInstance& instance, const Sizei& size, const S
     : m_instance(instance)
     , m_size(size)
     , m_presentMode(mode)
+    , m_depthFormat((ColorFormat)params.depthBufferType)
 {
 #if RI_PLATFORM == RI_PLATFORM_GLFW
     assert(params.window);
@@ -125,6 +162,7 @@ void Surface::cleanup(bool cleanSwapchain)
     for (auto& target : m_swapchainTargets)
         delete target, target = nullptr;
 
+    delete m_depthTexture, m_depthTexture = nullptr;
     vkDestroySemaphore(m_device, m_imageAvailableSemaphore, nullptr);
     vkDestroySemaphore(m_device, m_renderFinishedSemaphore, nullptr);
 }
@@ -167,8 +205,9 @@ void Surface::create(ri::DeviceContext& device)
     // TODO: review this
     const uint32_t graphicsQueueIndex = detail::getDeviceQueueIndex(device, DeviceOperation::eGraphics);
     createSwapchain(support, surfaceFormat, graphicsQueueIndex);
-    createRenderTargets(device);
     createCommandBuffers(device);
+    createDepthBuffer(device);
+    createRenderTargets(device);
 
     // create semaphores
     VkSemaphoreCreateInfo semaphoreInfo = {};
@@ -177,6 +216,29 @@ void Surface::create(ri::DeviceContext& device)
         vkCreateSemaphore(m_device, &semaphoreInfo, nullptr, &m_imageAvailableSemaphore);
     RI_CHECK_RESULT_MSG("couldn't create surface's finished semaphore") =
         vkCreateSemaphore(m_device, &semaphoreInfo, nullptr, &m_renderFinishedSemaphore);
+}
+
+void Surface::createDepthBuffer(const ri::DeviceContext& device)
+{
+    if (m_depthFormat == ColorFormat::eUndefined)
+        return;
+
+    // create depth buffer
+    m_depthFormat =
+        (ColorFormat)detail::chooseDepthFormat(detail::getDevicePhysicalHandle(device), (VkFormat)m_depthFormat);
+
+    TextureParams params;
+    params.format  = m_depthFormat;
+    params.size    = size();
+    params.flags   = TextureUsageFlags::eDepthStencil;
+    m_depthTexture = new Texture(device, params);
+    m_depthTexture->setTagName(tagName() + "_depthTexture");
+
+    m_oneTimeCommandBuffer.cast().begin(RecordFlags::eOneTime);
+    m_depthTexture->transitionImageLayout((TextureLayoutType)VK_IMAGE_LAYOUT_UNDEFINED,
+                                          (TextureLayoutType)VK_IMAGE_LAYOUT_DEPTH_STENCIL_ATTACHMENT_OPTIMAL,
+                                          m_oneTimeCommandBuffer.cast());
+    m_oneTimeCommandBuffer.cast().end();
 }
 
 void Surface::createSwapchain(const SwapChainSupport& support, const VkSurfaceFormatKHR& surfaceFormat,
@@ -237,35 +299,59 @@ inline void Surface::createRenderTargets(const ri::DeviceContext& device)
 
     m_swapchainTargets.resize(imageCount);
 
-    std::vector<RenderTarget::AttachmentParams> attachments(1);
-
-    auto& attachment = attachments[0];
+    const size_t                   attachmentCount = m_depthTexture ? 2 : 1;
+    RenderTarget::AttachmentParams attachments[2];
     {
-        // create a general compatible render pass
-        RenderPass::AttachmentParams params;
-        params.format      = m_format;
-        params.finalLayout = TextureLayoutType::ePresentSrc;
-        m_renderPass       = new RenderPass(device, params);
+        // create a compatible render pass
+        RenderPass::AttachmentParams params[2];
+        params[0].format      = m_format;
+        params[0].finalLayout = TextureLayoutType::ePresentSrc;
+
+        params[1].format      = m_depthFormat;
+        params[1].finalLayout = TextureLayoutType::eDepthStencilOptimal;
+        params[1].storeColor  = false;
+
+        m_renderPass = new RenderPass(device, params, attachmentCount);
+
+        for (size_t i = 0; i < attachmentCount; ++i)
+        {
+            m_attachments.emplace_back();
+            auto& attachment       = m_attachments.back();
+            attachment.format      = params[i].format;
+            attachment.samples     = params[i].samples;
+            attachment.finalLayout = params[i].finalLayout;
+        }
+    }
+    {  // setup the depth attachment
+        attachments[1].texture       = m_depthTexture;
+        attachments[1].takeOwnership = false;
     }
 
-    uint32_t i = 0;
+    auto&    colorAttachment = attachments[0];
+    uint32_t i               = 0;
     for (auto& target : m_swapchainTargets)
     {
         // TODO: find a nicer way for reference textures
-        attachment.texture =
+        colorAttachment.texture =
             detail::createReferenceTexture(swapchainImages[i++], TextureType::e2D, m_format.get(), m_size);
 
-        target = new RenderTarget(device, *m_renderPass, attachments);
-        delete attachment.texture;
+        target = new RenderTarget(device, *m_renderPass, attachments, attachmentCount);
+        delete colorAttachment.texture;
     }
 }
 
 inline void Surface::createCommandBuffers(ri::DeviceContext& device)
 {
-    m_swapchainCommandBuffers.resize(m_swapchainTargets.size());
+    uint32_t imageCount = 0;
+    vkGetSwapchainImagesKHR(m_device, m_swapchain, &imageCount, nullptr);
+
+    m_swapchainCommandBuffers.resize(imageCount);
     assert(!m_swapchainCommandBuffers.empty());
 
     device.commandPool().create(reinterpret_cast<std::vector<CommandBuffer>&>(m_swapchainCommandBuffers));
+    m_oneTimeCommandBuffer.cast() =
+        device.commandPool(DeviceOperation::eTransfer, DeviceCommandHint::eRecorded).create(true);
+
 #ifndef NDEBUG
     int i = 0;
     for (auto& buffer : m_swapchainCommandBuffers)
@@ -277,7 +363,7 @@ inline void Surface::createCommandBuffers(ri::DeviceContext& device)
 
 uint32_t Surface::acquire(uint64_t timeout /*= std::numeric_limits<uint64_t>::max()*/)
 {
-    // acquire next avaiable target
+    // acquire next available target
     auto res = vkAcquireNextImageKHR(m_device, m_swapchain, timeout, m_imageAvailableSemaphore, VK_NULL_HANDLE,
                                      &m_currentTargetIndex);
     assert(res == VK_SUCCESS || res == VK_SUBOPTIMAL_KHR);
@@ -332,20 +418,20 @@ void Surface::waitIdle()
 void Surface::setPresentationQueue(const ri::DeviceContext& device)
 {
     assert(m_presentQueueIndex == -1);
-    const auto deviceHandle = detail::getDevicePhysicalHandle(device);
+    const auto physicalDeviceHandle = detail::getDevicePhysicalHandle(device);
 
     uint32_t queueFamilyCount = 0;
-    vkGetPhysicalDeviceQueueFamilyProperties(deviceHandle, &queueFamilyCount, nullptr);
+    vkGetPhysicalDeviceQueueFamilyProperties(physicalDeviceHandle, &queueFamilyCount, nullptr);
 
     std::vector<VkQueueFamilyProperties> queueFamilies(queueFamilyCount);
-    vkGetPhysicalDeviceQueueFamilyProperties(deviceHandle, &queueFamilyCount, queueFamilies.data());
+    vkGetPhysicalDeviceQueueFamilyProperties(physicalDeviceHandle, &queueFamilyCount, queueFamilies.data());
 
     // search a presentation queue family
     int i = 0;
     for (const auto& queueFamily : queueFamilies)
     {
         VkBool32 presentSupport = false;
-        vkGetPhysicalDeviceSurfaceSupportKHR(deviceHandle, i, m_handle, &presentSupport);
+        vkGetPhysicalDeviceSurfaceSupportKHR(physicalDeviceHandle, i, m_handle, &presentSupport);
 
         if (queueFamily.queueCount > 0 && presentSupport)
         {

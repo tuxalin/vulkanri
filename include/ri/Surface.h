@@ -11,28 +11,38 @@ class DeviceContext;
 class CommandBuffer;
 class RenderTarget;
 class RenderPass;
+struct RenderPassAttachment;
 
 class Surface : util::noncopyable, public RenderObject<VkSurfaceKHR>
 {
 public:
+    struct Attachment
+    {
+        ColorFormat       format;
+        uint32_t          samples;
+        TextureLayoutType finalLayout;
+    };
+
     // @note If the present mode is not available it'll fallback to the PresentMode::eNormal mode.
     Surface(const ApplicationInstance& instance, const Sizei& size, const SurfaceCreateParams& params,
             PresentMode mode = PresentMode::eNormal);
     ~Surface();
 
-    Sizei       size() const;
-    ColorFormat format() const;
-    uint32_t    swapCount() const;
+    Sizei                          size() const;
+    ColorFormat                    format() const;
+    ColorFormat                    depthFormat() const;
+    uint32_t                       swapCount() const;
+    const std::vector<Attachment>& attachments() const;
 
     CommandBuffer&      commandBuffer(uint32_t index);
     const RenderTarget& renderTarget(uint32_t index) const;
 
     // Acquires the next image, must be called before any drawing operations.
-    // @param timeout in nanoseconds for a image to become avaialable, by default disabled.
+    // @param timeout in nanoseconds for a image to become available, by default disabled.
     // @return active/available index of the swapchain.
     uint32_t acquire(uint64_t timeout = std::numeric_limits<uint64_t>::max());
     // @warning Must always be called in pair with acquire.
-    // @return true if the presentation was succesful.
+    // @return true if the presentation was successful.
     bool present(const ri::DeviceContext& device);
     // Wait for the presentation to finish synchronously
     void waitIdle();
@@ -55,6 +65,7 @@ private:
     void create(ri::DeviceContext& device);
     void createSwapchain(const SwapChainSupport& support, const VkSurfaceFormatKHR& surfaceFormat,
                          uint32_t graphicsQueueIndex);
+    void createDepthBuffer(const ri::DeviceContext& device);
     void createRenderTargets(const ri::DeviceContext& device);
     void createCommandBuffers(ri::DeviceContext& device);
 
@@ -66,6 +77,7 @@ private:
     VkDevice                                  m_device    = VK_NULL_HANDLE;
     std::vector<RenderTarget*>                m_swapchainTargets;
     std::vector<detail::CommandBufferStorage> m_swapchainCommandBuffers;
+    detail::CommandBufferStorage              m_oneTimeCommandBuffer;
     int                                       m_presentQueueIndex = -1;
     VkQueue                                   m_presentQueue;
     Sizei                                     m_size;
@@ -74,6 +86,9 @@ private:
     VkExtent2D                                m_extent;
     uint32_t                                  m_currentTargetIndex = 0xFFFF;
     RenderPass*                               m_renderPass         = nullptr;
+    ColorFormat                               m_depthFormat;
+    Texture*                                  m_depthTexture = nullptr;
+    std::vector<Attachment>                   m_attachments;
 
     VkSemaphore m_imageAvailableSemaphore = VK_NULL_HANDLE;
     VkSemaphore m_renderFinishedSemaphore = VK_NULL_HANDLE;
@@ -92,9 +107,19 @@ inline ColorFormat Surface::format() const
     return m_format;
 }
 
+inline ColorFormat Surface::depthFormat() const
+{
+    return m_depthFormat;
+}
+
 inline uint32_t Surface::swapCount() const
 {
     return m_swapchainCommandBuffers.size();
+}
+
+inline const std::vector<Surface::Attachment>& Surface::attachments() const
+{
+    return m_attachments;
 }
 
 inline CommandBuffer& Surface::commandBuffer(uint32_t index)

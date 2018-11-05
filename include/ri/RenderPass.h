@@ -27,10 +27,16 @@ public:
         AttachmentLoad stencilLoad = AttachmentLoad::eDontCare;
         //
         TextureLayoutType initialLayout = TextureLayoutType::eUndefined;
-        TextureLayoutType finalLayout;
+        TextureLayoutType finalLayout   = TextureLayoutType::ePresentSrc;
         // Rendered contents will be stored in memory and can be read later, otherwise we dont care if stored.
-        bool colorSore    = true;
+        bool storeColor   = true;
         bool stencilStore = false;
+    };
+    struct Attachment
+    {
+        ColorFormat       format;
+        uint32_t          samples;
+        TextureLayoutType layout;
     };
 
     RenderPass(const ri::DeviceContext& device, const AttachmentParams& attachment);
@@ -39,8 +45,9 @@ public:
     RenderPass(const ri::DeviceContext& device, const std::vector<AttachmentParams>& attachments);
     ~RenderPass();
 
-    uint32_t    subpassCount() const;
-    ClearValue& clearValue(uint32_t attachementIndex);
+    uint32_t                       subpassCount() const;
+    ClearValue&                    clearValue(uint32_t attachementIndex);
+    const std::vector<Attachment>& attachments() const;
 
     void begin(const CommandBuffer& buffer, const RenderTarget& target) const;
     void end(const CommandBuffer& buffer) const;
@@ -52,6 +59,7 @@ private:
     std::vector<ClearValue> m_clearValues;
     Sizei                   m_renderArea;
     int32_t                 m_renderAreaOffset[2];
+    std::vector<Attachment> m_attachments;
 };
 
 inline RenderPass::RenderPass(const ri::DeviceContext& device, const AttachmentParams& attachment)
@@ -74,6 +82,11 @@ inline ClearValue& RenderPass::clearValue(uint32_t attachementIndex)
 {
     assert(m_clearValues.size() > attachementIndex);
     return m_clearValues[attachementIndex];
+}
+
+inline const std::vector<RenderPass::Attachment>& RenderPass::attachments() const
+{
+    return m_attachments;
 }
 
 inline void RenderPass::setRenderArea(const Sizei& area, int32_t offsetX /*= 0*/, int32_t offsetY /*= 0*/)
