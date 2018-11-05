@@ -7,4 +7,9 @@ echo "Vulkan SDK path: "%VULKAN_SDK%
 echo "Compiling shaders in: "%WORK_PATH%
 echo.
 
-for /R %WORK_PATH% %%f in (*.vert,*.frag) do %VULKAN_SDK%/Bin32/glslangValidator.exe -V %%~ff -o %%~ff.spv
+SETLOCAL ENABLEDELAYEDEXPANSION
+for /R %WORK_PATH% %%f in (*.vert,*.frag) do (
+	set shaderFilePath=%%~ff
+	set check=!shaderFilePath:thirdparty=!
+	if  !check!==!shaderFilePath! %VULKAN_SDK%/Bin32/glslangValidator.exe -V %%f -o %%f.spv
+)
