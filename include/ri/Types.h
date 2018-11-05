@@ -12,6 +12,7 @@ SAFE_ENUM_DECLARE(DeviceFeature,
                   eGeometryShader,  //
                   eSwapchain,       //
                   eAnisotropy,
+                  eSampleRateShading,
                   eWireframe);
 
 SAFE_ENUM_DECLARE(ShaderStage,
@@ -219,7 +220,7 @@ typedef VkStencilOpState        StencilOpState;
 
 struct DeviceProperties : VkPhysicalDeviceProperties
 {
-    uint32_t getMaxSampleMSAA() const;
+    uint32_t getMaxSamples() const;
 };
 
 union ClearColorValue  //
@@ -269,7 +270,7 @@ struct SurfaceCreateParams
     uint32_t        msaaSamples     = 1;
 };
 
-inline uint32_t DeviceProperties::getMaxSampleMSAA() const
+inline uint32_t DeviceProperties::getMaxSamples() const
 {
     VkSampleCountFlags counts = std::min(limits.framebufferColorSampleCounts, limits.framebufferDepthSampleCounts);
     if (counts & VK_SAMPLE_COUNT_64_BIT)

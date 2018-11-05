@@ -11,6 +11,7 @@ RenderPass::RenderPass(const ri::DeviceContext& device, const AttachmentParams* 
 {
     std::vector<VkAttachmentDescription> attachments(attachmentsCount);
     std::vector<VkAttachmentReference>   colorAttachmentRefs;
+    std::vector<VkAttachmentReference>   resolveAttachmentRefs;
     VkAttachmentReference                depthAttachmentRef;
     depthAttachmentRef.layout = VK_IMAGE_LAYOUT_UNDEFINED;
 
@@ -60,7 +61,10 @@ RenderPass::RenderPass(const ri::DeviceContext& device, const AttachmentParams* 
 
         if (isColorAttachment)
         {
-            colorAttachmentRefs.push_back(VkAttachmentReference {i, VK_IMAGE_LAYOUT_COLOR_ATTACHMENT_OPTIMAL});
+            if (attachmentParam.resolveAttachment)
+                resolveAttachmentRefs.push_back(VkAttachmentReference {i, VK_IMAGE_LAYOUT_COLOR_ATTACHMENT_OPTIMAL});
+            else
+                colorAttachmentRefs.push_back(VkAttachmentReference {i, VK_IMAGE_LAYOUT_COLOR_ATTACHMENT_OPTIMAL});
         }
         else
         {
@@ -68,6 +72,7 @@ RenderPass::RenderPass(const ri::DeviceContext& device, const AttachmentParams* 
             depthAttachmentRef.attachment = i;
         }
     }
+    assert(resolveAttachmentRefs.size() == colorAttachmentRefs.size());
 
     // TODO: add support for multi subpasses, must also add VkSubpassDependency
 
@@ -75,8 +80,17 @@ RenderPass::RenderPass(const ri::DeviceContext& device, const AttachmentParams* 
     subpass.pipelineBindPoint    = VK_PIPELINE_BIND_POINT_GRAPHICS;
     subpass.colorAttachmentCount = colorAttachmentRefs.size();
     subpass.pColorAttachments    = colorAttachmentRefs.data();
+    subpass.pResolveAttachments  = resolveAttachmentRefs.data();
     subpass.pDepthStencilAttachment =
         depthAttachmentRef.layout == VK_IMAGE_LAYOUT_UNDEFINED ? nullptr : &depthAttachmentRef;
+
+    VkSubpassDependency dependency = {};
+    dependency.srcSubpass          = VK_SUBPASS_EXTERNAL;
+    dependency.dstSubpass          = 0;
+    dependency.srcStageMask        = VK_PIPELINE_STAGE_COLOR_ATTACHMENT_OUTPUT_BIT;
+    dependency.srcAccessMask       = 0;
+    dependency.dstStageMask        = VK_PIPELINE_STAGE_COLOR_ATTACHMENT_OUTPUT_BIT;
+    dependency.dstAccessMask       = VK_ACCESS_COLOR_ATTACHMENT_READ_BIT | VK_ACCESS_COLOR_ATTACHMENT_WRITE_BIT;
 
     VkRenderPassCreateInfo renderPassInfo = {};
     renderPassInfo.sType                  = VK_STRUCTURE_TYPE_RENDER_PASS_CREATE_INFO;
@@ -84,6 +98,8 @@ RenderPass::RenderPass(const ri::DeviceContext& device, const AttachmentParams* 
     renderPassInfo.pAttachments           = attachments.data();
     renderPassInfo.subpassCount           = 1;
     renderPassInfo.pSubpasses             = &subpass;
+    renderPassInfo.dependencyCount        = 1;
+    renderPassInfo.pDependencies          = &dependency;
 
     RI_CHECK_RESULT_MSG("couldn't create render pass") =
         vkCreateRenderPass(m_device, &renderPassInfo, nullptr, &m_handle);

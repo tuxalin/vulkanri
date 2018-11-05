@@ -108,24 +108,30 @@ public:
     /// @note It's done asynchronously.
     void copy(const Buffer& src, const CopyParams& params, CommandBuffer& commandBuffer);
     void generateMipMaps(CommandBuffer& commandBuffer);
-    void transitionImageLayout(TextureLayoutType oldLayout, TextureLayoutType newLayout, CommandBuffer& commandBuffer);
+    void transitionImageLayout(TextureLayoutType oldLayout, TextureLayoutType newLayout,  //
+                               CommandBuffer& commandBuffer);
+    void transitionImageLayout(TextureLayoutType oldLayout, TextureLayoutType newLayout, bool readAccess,
+                               CommandBuffer& commandBuffer);
 
 private:
     typedef std::tuple<VkImageMemoryBarrier, VkPipelineStageFlags, VkPipelineStageFlags> PipelineBarrierSettings;
     // create a reference texture
     Texture(VkImage handle, TextureType type, ColorFormat format, const Sizei& size);
 
-    void                    createImage(const TextureParams& params);
-    void                    createImageView(const TextureParams& params, VkImageAspectFlags aspectFlags);
-    void                    createSampler(const SamplerParams& params);
-    void                    allocateMemory(const DeviceContext& device, const TextureParams& params);
-    PipelineBarrierSettings getPipelineBarrierSettings(TextureLayoutType oldLayout, TextureLayoutType newLayout,
+    void createImage(const TextureParams& params);
+    void createImageView(const TextureParams& params, VkImageAspectFlags aspectFlags);
+    void createSampler(const SamplerParams& params);
+    void allocateMemory(const DeviceContext& device, const TextureParams& params);
+
+    PipelineBarrierSettings getPipelineBarrierSettings(TextureLayoutType              oldLayout,
+                                                       TextureLayoutType              newLayout,
+                                                       bool                           readAccess,
                                                        const VkImageSubresourceRange& subresourceRange);
 
-    void transitionImageLayout(TextureLayoutType oldLayout, TextureLayoutType newLayout,
+    void transitionImageLayout(TextureLayoutType oldLayout, TextureLayoutType newLayout, bool readAccess,
                                VkPipelineStageFlags srcStageFlags, VkPipelineStageFlags dstStageFlags,
                                const VkImageSubresourceRange& subresourceRange, CommandBuffer& commandBuffer);
-    void transitionImageLayout(TextureLayoutType oldLayout, TextureLayoutType newLayout,
+    void transitionImageLayout(TextureLayoutType oldLayout, TextureLayoutType newLayout, bool readAccess,
                                const VkImageSubresourceRange& subresourceRange, CommandBuffer& commandBuffer);
 
 private:
@@ -171,4 +177,11 @@ inline bool Texture::isSampled() const
 {
     return m_sampler != VK_NULL_HANDLE;
 }
+
+inline void Texture::transitionImageLayout(TextureLayoutType oldLayout, TextureLayoutType newLayout,
+                                           CommandBuffer& commandBuffer)
+{
+    transitionImageLayout(oldLayout, newLayout, false, commandBuffer);
+}
+
 }  // namespace ri

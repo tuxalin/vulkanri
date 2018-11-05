@@ -125,6 +125,7 @@ Surface::Surface(const ApplicationInstance& instance, const Sizei& size, const S
     , m_size(size)
     , m_presentMode(mode)
     , m_depthFormat((ColorFormat)params.depthBufferType)
+    , m_msaaSamples(params.msaaSamples)
 {
 #if RI_PLATFORM == RI_PLATFORM_GLFW
     assert(params.window);
@@ -154,15 +155,18 @@ Surface::~Surface()
 
 void Surface::cleanup(bool cleanSwapchain)
 {
-    delete m_renderPass, m_renderPass = nullptr;
-
     if (cleanSwapchain)
+    {
+        delete m_renderPass, m_renderPass = nullptr;
+
         vkDestroySwapchainKHR(m_device, m_swapchain, nullptr), m_swapchain = VK_NULL_HANDLE;
+    }
 
     for (auto& target : m_swapchainTargets)
         delete target, target = nullptr;
 
-    delete m_depthTexture, m_depthTexture = nullptr;
+    delete m_depthTexture, m_depthTexture         = nullptr;
+    delete m_msaaColorTexture, m_msaaColorTexture = nullptr;
     vkDestroySemaphore(m_device, m_imageAvailableSemaphore, nullptr);
     vkDestroySemaphore(m_device, m_renderFinishedSemaphore, nullptr);
 }
@@ -206,7 +210,6 @@ void Surface::create(ri::DeviceContext& device)
     const uint32_t graphicsQueueIndex = detail::getDeviceQueueIndex(device, DeviceOperation::eGraphics);
     createSwapchain(support, surfaceFormat, graphicsQueueIndex);
     createCommandBuffers(device);
-    createDepthBuffer(device);
     createRenderTargets(device);
 
     // create semaphores
@@ -216,29 +219,6 @@ void Surface::create(ri::DeviceContext& device)
         vkCreateSemaphore(m_device, &semaphoreInfo, nullptr, &m_imageAvailableSemaphore);
     RI_CHECK_RESULT_MSG("couldn't create surface's finished semaphore") =
         vkCreateSemaphore(m_device, &semaphoreInfo, nullptr, &m_renderFinishedSemaphore);
-}
-
-void Surface::createDepthBuffer(const ri::DeviceContext& device)
-{
-    if (m_depthFormat == ColorFormat::eUndefined)
-        return;
-
-    // create depth buffer
-    m_depthFormat =
-        (ColorFormat)detail::chooseDepthFormat(detail::getDevicePhysicalHandle(device), (VkFormat)m_depthFormat);
-
-    TextureParams params;
-    params.format  = m_depthFormat;
-    params.size    = size();
-    params.flags   = TextureUsageFlags::eDepthStencil;
-    m_depthTexture = new Texture(device, params);
-    m_depthTexture->setTagName(tagName() + "_depthTexture");
-
-    m_oneTimeCommandBuffer.cast().begin(RecordFlags::eOneTime);
-    m_depthTexture->transitionImageLayout((TextureLayoutType)VK_IMAGE_LAYOUT_UNDEFINED,
-                                          (TextureLayoutType)VK_IMAGE_LAYOUT_DEPTH_STENCIL_ATTACHMENT_OPTIMAL,
-                                          m_oneTimeCommandBuffer.cast());
-    m_oneTimeCommandBuffer.cast().end();
 }
 
 void Surface::createSwapchain(const SwapChainSupport& support, const VkSurfaceFormatKHR& surfaceFormat,
@@ -292,42 +272,78 @@ void Surface::createSwapchain(const SwapChainSupport& support, const VkSurfaceFo
 
 inline void Surface::createRenderTargets(const ri::DeviceContext& device)
 {
-    uint32_t imageCount = 0;
-    vkGetSwapchainImagesKHR(m_device, m_swapchain, &imageCount, nullptr);
-    std::vector<VkImage> swapchainImages(imageCount);
-    vkGetSwapchainImagesKHR(m_device, m_swapchain, &imageCount, swapchainImages.data());
+    m_msaaSamples = std::min(m_msaaSamples, device.deviceProperties().getMaxSamples());
 
-    m_swapchainTargets.resize(imageCount);
+    // create the extra buffers needed for depth or MSAA
+    createExtraBuffers(device);
 
-    const size_t                   attachmentCount = m_depthTexture ? 2 : 1;
-    RenderTarget::AttachmentParams attachments[2];
+    const uint32_t swapchainAttachmentIndex = m_msaaSamples > 1 ? 1 : 0;
+    const uint32_t depthAttachmentIndex     = swapchainAttachmentIndex + 1;
+    size_t         attachmentCount          = m_depthTexture ? 2 : 1;
+    if (m_msaaSamples > 1)
+        attachmentCount++;
+
+    if (m_renderPass == nullptr)
     {
-        // create a compatible render pass
-        RenderPass::AttachmentParams params[2];
-        params[0].format      = m_format;
-        params[0].finalLayout = TextureLayoutType::ePresentSrc;
+        // create the default render pass
+        RenderPass::AttachmentParams params[3];
+        params[swapchainAttachmentIndex].format      = m_format;
+        params[swapchainAttachmentIndex].samples     = 1;
+        params[swapchainAttachmentIndex].finalLayout = TextureLayoutType::ePresentSrc;
+        // if MSAA enabled then this will be the resolve target
+        if (m_msaaSamples > 1)
+        {
+            params[swapchainAttachmentIndex].resolveAttachment = true;
+            params[swapchainAttachmentIndex].colorLoad         = AttachmentLoad::eDontCare;
+        }
 
-        params[1].format      = m_depthFormat;
-        params[1].finalLayout = TextureLayoutType::eDepthStencilOptimal;
-        params[1].storeColor  = false;
+        params[depthAttachmentIndex].format      = m_depthFormat;
+        params[depthAttachmentIndex].samples     = m_msaaSamples;
+        params[depthAttachmentIndex].finalLayout = TextureLayoutType::eDepthStencilOptimal;
+        params[depthAttachmentIndex].storeColor  = false;
+
+        if (m_msaaSamples > 1)
+        {
+            params[0].format      = m_format;
+            params[0].samples     = m_msaaSamples;
+            params[0].finalLayout = TextureLayoutType::eColorOptimal;
+            params[0].storeColor  = true;
+        }
 
         m_renderPass = new RenderPass(device, params, attachmentCount);
+        m_renderPass->setTagName(tagName() + "_defaultPass");
 
         for (size_t i = 0; i < attachmentCount; ++i)
         {
             m_attachments.emplace_back();
             auto& attachment       = m_attachments.back();
             attachment.format      = params[i].format;
-            attachment.samples     = params[i].samples;
             attachment.finalLayout = params[i].finalLayout;
+            attachment.samples     = params[i].samples;
         }
     }
-    {  // setup the depth attachment
-        attachments[1].texture       = m_depthTexture;
-        attachments[1].takeOwnership = false;
+
+    RenderTarget::AttachmentParams attachments[3];
+    {
+        attachments[swapchainAttachmentIndex].takeOwnership = false;
+        // setup the depth attachment
+        attachments[depthAttachmentIndex].texture       = m_depthTexture;
+        attachments[depthAttachmentIndex].takeOwnership = false;
+        // setup the MSAA color attachment
+        if (m_msaaSamples > 1)
+        {
+            attachments[0].texture       = m_msaaColorTexture;
+            attachments[0].takeOwnership = false;
+        }
     }
 
-    auto&    colorAttachment = attachments[0];
+    uint32_t imageCount = 0;
+    vkGetSwapchainImagesKHR(m_device, m_swapchain, &imageCount, nullptr);
+    std::vector<VkImage> swapchainImages(imageCount);
+    vkGetSwapchainImagesKHR(m_device, m_swapchain, &imageCount, swapchainImages.data());
+    m_swapchainTargets.resize(imageCount);
+
+    auto&    colorAttachment = attachments[swapchainAttachmentIndex];
     uint32_t i               = 0;
     for (auto& target : m_swapchainTargets)
     {
@@ -336,8 +352,46 @@ inline void Surface::createRenderTargets(const ri::DeviceContext& device)
             detail::createReferenceTexture(swapchainImages[i++], TextureType::e2D, m_format.get(), m_size);
 
         target = new RenderTarget(device, *m_renderPass, attachments, attachmentCount);
-        delete colorAttachment.texture;
+        delete colorAttachment.texture;  // safe to release now
     }
+}
+
+void Surface::createExtraBuffers(const ri::DeviceContext& device)
+{
+    m_oneTimeCommandBuffer.cast().begin(RecordFlags::eOneTime);
+
+    TextureParams params;
+    params.size    = size();
+    params.samples = m_msaaSamples;
+    if (m_depthFormat != ColorFormat::eUndefined)
+    {
+        // create depth buffer
+        m_depthFormat =
+            (ColorFormat)detail::chooseDepthFormat(detail::getDevicePhysicalHandle(device), (VkFormat)m_depthFormat);
+
+        params.format  = m_depthFormat;
+        params.flags   = TextureUsageFlags::eDepthStencil;
+        m_depthTexture = new Texture(device, params);
+        m_depthTexture->setTagName(tagName() + "_depthTexture");
+
+        m_depthTexture->transitionImageLayout(TextureLayoutType::eUndefined,
+                                              TextureLayoutType::eDepthStencilOptimal,
+                                              true,
+                                              m_oneTimeCommandBuffer.cast());
+    }
+    if (m_msaaSamples > 1)
+    {
+        params.format = m_format;
+        params.flags  = TextureUsageFlags::eColor | TextureUsageFlags::eTransient;
+
+        m_msaaColorTexture = new Texture(device, params);
+        m_msaaColorTexture->setTagName(tagName() + "_MSAATexture");
+
+        m_msaaColorTexture->transitionImageLayout(TextureLayoutType::eUndefined, TextureLayoutType::eColorOptimal,
+                                                  false, m_oneTimeCommandBuffer.cast());
+    }
+
+    m_oneTimeCommandBuffer.cast().end();
 }
 
 inline void Surface::createCommandBuffers(ri::DeviceContext& device)

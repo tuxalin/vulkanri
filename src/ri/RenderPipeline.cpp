@@ -35,15 +35,16 @@ RenderPipeline::RenderPipeline(const ri::DeviceContext&  device,          //
                                const Sizei& viewportSize, int32_t viewportX /*= 0*/, int32_t viewportY /*= 0*/)
     : RenderPipeline(device, *pass, shaderPipeline, params, viewportSize, viewportX, viewportY)
 {
-    m_renderPass = pass;
+    m_hasOwnership = true;
 }
 
 RenderPipeline::RenderPipeline(const ri::DeviceContext&  device,          //
-                               const ri::RenderPass&     pass,            //
+                               ri::RenderPass&           pass,            //
                                const ri::ShaderPipeline& shaderPipeline,  //
                                const CreateParams&       params,          //
                                const Sizei& viewportSize, int32_t viewportX /*= 0*/, int32_t viewportY /*= 0*/)
     : m_device(detail::getVkHandle(device))
+    , m_renderPass(&pass)
 {
     const ViewportParam      viewportParam = {viewportSize, viewportX, viewportY};
     const PipelineCreateData data(pass, params, viewportParam);
@@ -61,7 +62,8 @@ RenderPipeline::RenderPipeline(const ri::DeviceContext&  device,          //
 
 RenderPipeline::~RenderPipeline()
 {
-    delete m_renderPass;
+    if (m_hasOwnership)
+        delete m_renderPass;
     vkDestroyPipeline(m_device, m_handle, nullptr);
     vkDestroyPipelineLayout(m_device, m_pipelineLayout, nullptr);
 }
@@ -132,11 +134,11 @@ inline VkPipelineRasterizationStateCreateInfo RenderPipeline::getRasterizerInfo(
 
 inline VkPipelineMultisampleStateCreateInfo RenderPipeline::getMultisamplingInfo(const CreateParams& params)
 {
-    VkPipelineMultisampleStateCreateInfo multisampling = {};  // TODO: expose, disabled for now
+    VkPipelineMultisampleStateCreateInfo multisampling = {};
     multisampling.sType                                = VK_STRUCTURE_TYPE_PIPELINE_MULTISAMPLE_STATE_CREATE_INFO;
-    multisampling.sampleShadingEnable                  = VK_FALSE;
-    multisampling.rasterizationSamples                 = VK_SAMPLE_COUNT_1_BIT;
-    multisampling.minSampleShading                     = 1.0f;
+    multisampling.sampleShadingEnable                  = params.sampleShadingEnable;
+    multisampling.rasterizationSamples                 = (VkSampleCountFlagBits)params.rasterizationSamples;
+    multisampling.minSampleShading                     = params.minSampleShading;
     multisampling.pSampleMask                          = nullptr;
     multisampling.alphaToCoverageEnable                = VK_FALSE;
     multisampling.alphaToOneEnable                     = VK_FALSE;

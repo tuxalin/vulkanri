@@ -32,6 +32,8 @@
  * using push constants
 
  ## 3. textures_usage
+
+ Covers the following:
  * creating multiple textures
  * loading multiple textures using a stanging buffer
  * mip-map generation for the textures

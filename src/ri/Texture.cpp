@@ -103,7 +103,7 @@ void Texture::copy(const Buffer& src, const CopyParams& params, CommandBuffer& c
                            (VkImageLayout)TextureLayoutType::eTransferDstOptimal, 1, &region);
 
     if (params.transferLayout != params.finalLayout)
-        transitionImageLayout(params.transferLayout, params.finalLayout, commandBuffer);
+        transitionImageLayout(params.transferLayout, params.finalLayout, false, commandBuffer);
 }
 
 void Texture::generateMipMaps(CommandBuffer& commandBuffer)
@@ -140,7 +140,7 @@ void Texture::generateMipMaps(CommandBuffer& commandBuffer)
 
         // Transition current mip level to transfer destination
         transitionImageLayout(TextureLayoutType::eUndefined, TextureLayoutType::eTransferDstOptimal,  //
-                              mipSubRange, commandBuffer);
+                              false, mipSubRange, commandBuffer);
 
         // Blit from previous level
         vkCmdBlitImage(detail::getVkHandle(commandBuffer),
@@ -153,7 +153,7 @@ void Texture::generateMipMaps(CommandBuffer& commandBuffer)
                        VK_FILTER_LINEAR);
 
         // Transition current mip level to transfer source for read in next iteration
-        transitionImageLayout(TextureLayoutType::eTransferDstOptimal, TextureLayoutType::eTransferSrcOptimal,
+        transitionImageLayout(TextureLayoutType::eTransferDstOptimal, TextureLayoutType::eTransferSrcOptimal, false,
                               mipSubRange, commandBuffer);
     }
 
@@ -165,7 +165,7 @@ void Texture::generateMipMaps(CommandBuffer& commandBuffer)
     subresourceRange.baseArrayLayer          = 0;
     subresourceRange.layerCount              = 1;
     transitionImageLayout(TextureLayoutType::eTransferSrcOptimal, TextureLayoutType::eShaderReadOnly,  //
-                          subresourceRange, commandBuffer);
+                          false, subresourceRange, commandBuffer);
 }
 
 inline void Texture::createImage(const TextureParams& params)
@@ -259,6 +259,7 @@ inline void Texture::allocateMemory(const DeviceContext& device, const TexturePa
 
 Texture::PipelineBarrierSettings Texture::getPipelineBarrierSettings(TextureLayoutType              oldLayout,
                                                                      TextureLayoutType              newLayout,
+                                                                     bool                           readAccess,
                                                                      const VkImageSubresourceRange& subresourceRange)
 {
     VkImageMemoryBarrier imageMemoryBarrier = {};
@@ -330,12 +331,16 @@ Texture::PipelineBarrierSettings Texture::getPipelineBarrierSettings(TextureLayo
             // Image will be used as a color attachment
             // Make sure any writes to the color buffer have been finished
             imageMemoryBarrier.dstAccessMask = VK_ACCESS_COLOR_ATTACHMENT_WRITE_BIT;
+            if (readAccess)
+                imageMemoryBarrier.dstAccessMask |= VK_ACCESS_COLOR_ATTACHMENT_READ_BIT;
+            dstStageFlags = VK_PIPELINE_STAGE_COLOR_ATTACHMENT_OUTPUT_BIT;
             break;
         case VK_IMAGE_LAYOUT_DEPTH_STENCIL_ATTACHMENT_OPTIMAL:
             // Image layout will be used as a depth/stencil attachment
             // Make sure any writes to depth/stencil buffer have been finished
-            imageMemoryBarrier.dstAccessMask =
-                VK_ACCESS_DEPTH_STENCIL_ATTACHMENT_READ_BIT | VK_ACCESS_DEPTH_STENCIL_ATTACHMENT_WRITE_BIT;
+            imageMemoryBarrier.dstAccessMask = VK_ACCESS_DEPTH_STENCIL_ATTACHMENT_WRITE_BIT;
+            if (readAccess)
+                imageMemoryBarrier.dstAccessMask |= VK_ACCESS_DEPTH_STENCIL_ATTACHMENT_READ_BIT;
             dstStageFlags = VK_PIPELINE_STAGE_EARLY_FRAGMENT_TESTS_BIT;
             break;
         case VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL:
@@ -353,18 +358,21 @@ Texture::PipelineBarrierSettings Texture::getPipelineBarrierSettings(TextureLayo
 }
 
 void Texture::transitionImageLayout(TextureLayoutType oldLayout, TextureLayoutType newLayout,  //
-                                    VkPipelineStageFlags srcStageFlags, VkPipelineStageFlags dstStageFlags,
-                                    const VkImageSubresourceRange& subresourceRange,  //
+                                    bool                           readAccess,                 //
+                                    VkPipelineStageFlags           srcStageFlags,              //
+                                    VkPipelineStageFlags           dstStageFlags,              //
+                                    const VkImageSubresourceRange& subresourceRange,           //
                                     CommandBuffer&                 commandBuffer)
 {
-    const PipelineBarrierSettings settings = getPipelineBarrierSettings(oldLayout, newLayout, subresourceRange);
-    VkImageMemoryBarrier          imageMemoryBarrier = std::get<0>(settings);
+    const PipelineBarrierSettings settings =
+        getPipelineBarrierSettings(oldLayout, newLayout, readAccess, subresourceRange);
+    VkImageMemoryBarrier imageMemoryBarrier = std::get<0>(settings);
 
     vkCmdPipelineBarrier(detail::getVkHandle(commandBuffer), srcStageFlags, dstStageFlags, 0, 0, nullptr, 0, nullptr, 1,
                          &imageMemoryBarrier);
 }
 
-void Texture::transitionImageLayout(TextureLayoutType oldLayout, TextureLayoutType newLayout,
+void Texture::transitionImageLayout(TextureLayoutType oldLayout, TextureLayoutType newLayout, bool readAccess,
                                     CommandBuffer& commandBuffer)
 {
     VkImageSubresourceRange subresourceRange = {};
@@ -374,18 +382,20 @@ void Texture::transitionImageLayout(TextureLayoutType oldLayout, TextureLayoutTy
     subresourceRange.baseArrayLayer          = 0;
     subresourceRange.layerCount              = 1;
 
-    const PipelineBarrierSettings settings = getPipelineBarrierSettings(oldLayout, newLayout, subresourceRange);
-    VkImageMemoryBarrier          imageMemoryBarrier = std::get<0>(settings);
+    const PipelineBarrierSettings settings =
+        getPipelineBarrierSettings(oldLayout, newLayout, readAccess, subresourceRange);
+    VkImageMemoryBarrier imageMemoryBarrier = std::get<0>(settings);
 
     vkCmdPipelineBarrier(detail::getVkHandle(commandBuffer), std::get<1>(settings), std::get<2>(settings), 0, 0,
                          nullptr, 0, nullptr, 1, &imageMemoryBarrier);
 }
 
-void Texture::transitionImageLayout(TextureLayoutType oldLayout, TextureLayoutType newLayout,
+void Texture::transitionImageLayout(TextureLayoutType oldLayout, TextureLayoutType newLayout, bool readAccess,
                                     const VkImageSubresourceRange& subresourceRange, CommandBuffer& commandBuffer)
 {
-    const PipelineBarrierSettings settings = getPipelineBarrierSettings(oldLayout, newLayout, subresourceRange);
-    const VkImageMemoryBarrier    imageMemoryBarrier = std::get<0>(settings);
+    const PipelineBarrierSettings settings =
+        getPipelineBarrierSettings(oldLayout, newLayout, readAccess, subresourceRange);
+    const VkImageMemoryBarrier imageMemoryBarrier = std::get<0>(settings);
 
     vkCmdPipelineBarrier(detail::getVkHandle(commandBuffer), std::get<1>(settings), std::get<2>(settings), 0, 0,
                          nullptr, 0, nullptr, 1, &imageMemoryBarrier);

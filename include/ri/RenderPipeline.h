@@ -69,6 +69,11 @@ public:
         StencilOpState stencilFrontState = {};
         StencilOpState stencilBackState  = {};
 
+        // MSAA
+        bool     sampleShadingEnable  = false;
+        float    minSampleShading     = 1.f;
+        uint32_t rasterizationSamples = 1;
+
         VertexDescription* vertexDescription = nullptr;
         // What subpass to use from the render pass.
         uint32_t activeSubpassIndex = 0;
@@ -131,7 +136,7 @@ public:
                    const CreateParams&       params,          //
                    const Sizei& viewportSize, int32_t viewportX = 0, int32_t viewportY = 0);
     RenderPipeline(const ri::DeviceContext&  device,          //
-                   const ri::RenderPass&     pass,            //
+                   ri::RenderPass&           pass,            //
                    const ri::ShaderPipeline& shaderPipeline,  //
                    const CreateParams&       params,          //
                    const Sizei& viewportSize, int32_t viewportX = 0, int32_t viewportY = 0);
@@ -217,6 +222,7 @@ private:
     VkPipelineLayout m_pipelineLayout = VK_NULL_HANDLE;
     VkDevice         m_device         = VK_NULL_HANDLE;
     RenderPass*      m_renderPass     = nullptr;
+    bool             m_hasOwnership   = false;
     VkViewport       m_viewport;
     VkRect2D         m_scissor;
     DynamicState     m_dynamicState;

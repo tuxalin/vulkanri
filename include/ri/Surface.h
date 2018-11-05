@@ -19,8 +19,8 @@ public:
     struct Attachment
     {
         ColorFormat       format;
-        uint32_t          samples;
         TextureLayoutType finalLayout;
+        uint32_t          samples;
     };
 
     // @note If the present mode is not available it'll fallback to the PresentMode::eNormal mode.
@@ -32,9 +32,12 @@ public:
     ColorFormat                    format() const;
     ColorFormat                    depthFormat() const;
     uint32_t                       swapCount() const;
+    uint32_t                       msaaSamples() const;
     const std::vector<Attachment>& attachments() const;
 
     CommandBuffer&      commandBuffer(uint32_t index);
+    RenderPass&         renderPass();
+    const RenderPass&   renderPass() const;
     const RenderTarget& renderTarget(uint32_t index) const;
 
     // Acquires the next image, must be called before any drawing operations.
@@ -65,7 +68,7 @@ private:
     void create(ri::DeviceContext& device);
     void createSwapchain(const SwapChainSupport& support, const VkSurfaceFormatKHR& surfaceFormat,
                          uint32_t graphicsQueueIndex);
-    void createDepthBuffer(const ri::DeviceContext& device);
+    void createExtraBuffers(const ri::DeviceContext& device);
     void createRenderTargets(const ri::DeviceContext& device);
     void createCommandBuffers(ri::DeviceContext& device);
 
@@ -87,8 +90,10 @@ private:
     uint32_t                                  m_currentTargetIndex = 0xFFFF;
     RenderPass*                               m_renderPass         = nullptr;
     ColorFormat                               m_depthFormat;
-    Texture*                                  m_depthTexture = nullptr;
+    Texture*                                  m_depthTexture     = nullptr;
+    Texture*                                  m_msaaColorTexture = nullptr;
     std::vector<Attachment>                   m_attachments;
+    uint32_t                                  m_msaaSamples;
 
     VkSemaphore m_imageAvailableSemaphore = VK_NULL_HANDLE;
     VkSemaphore m_renderFinishedSemaphore = VK_NULL_HANDLE;
@@ -117,6 +122,11 @@ inline uint32_t Surface::swapCount() const
     return m_swapchainCommandBuffers.size();
 }
 
+inline uint32_t Surface::msaaSamples() const
+{
+    return m_msaaSamples;
+}
+
 inline const std::vector<Surface::Attachment>& Surface::attachments() const
 {
     return m_attachments;
@@ -126,6 +136,16 @@ inline CommandBuffer& Surface::commandBuffer(uint32_t index)
 {
     auto& res = m_swapchainCommandBuffers[index].cast();
     return res;
+}
+
+inline RenderPass& Surface::renderPass()
+{
+    return *m_renderPass;
+}
+
+inline const RenderPass& Surface::renderPass() const
+{
+    return *m_renderPass;
 }
 
 inline const RenderTarget& Surface::renderTarget(uint32_t index) const

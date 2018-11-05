@@ -25,7 +25,9 @@ public:
         uint32_t       samples     = 1;
         AttachmentLoad colorLoad   = AttachmentLoad::eClear;
         AttachmentLoad stencilLoad = AttachmentLoad::eDontCare;
-        //
+        // Is true if the attachment is a resolve target.
+        bool resolveAttachment = false;
+        // Attachment layout
         TextureLayoutType initialLayout = TextureLayoutType::eUndefined;
         TextureLayoutType finalLayout   = TextureLayoutType::ePresentSrc;
         // Rendered contents will be stored in memory and can be read later, otherwise we dont care if stored.

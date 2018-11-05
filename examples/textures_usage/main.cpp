@@ -6,7 +6,6 @@
  * -creating multiple textures
  * -loading multiple textures using a staging buffer
  * -mip-map generation for the textures
- * -loading a model
  * -setting up the depth buffer
  * -using MSAA
  */
@@ -120,6 +119,7 @@ private:
             ri::SurfaceCreateParams params;
             params.window          = m_window;
             params.depthBufferType = ri::SurfaceCreateParams::eDepth32;
+            params.msaaSamples     = 16;
             m_surface.reset(  //
                 new ri::Surface(*m_instance, ri::Sizei(kWidth, kHeight), params, ri::PresentMode::eMailbox));
             m_surface->setTagName("MainWindowSurface");
@@ -127,8 +127,8 @@ private:
 
         // create the device context
         {
-            const std::vector<ri::DeviceFeature>   requiredFeatures   = {ri::DeviceFeature::eSwapchain,
-                                                                     ri::DeviceFeature::eAnisotropy};
+            const std::vector<ri::DeviceFeature> requiredFeatures = {
+                ri::DeviceFeature::eSwapchain, ri::DeviceFeature::eAnisotropy, ri::DeviceFeature::eSampleRateShading};
             const std::vector<ri::DeviceOperation> requiredOperations = {ri::DeviceOperation::eGraphics,
                                                                          // required for buffer transfer
                                                                          ri::DeviceOperation::eTransfer};
@@ -274,46 +274,23 @@ private:
             m_descriptor = m_descriptorPool->create(res.index, descriptorParams);
         }
 
-        // TODO: add MSAA
-        const uint32_t MSAAsamples = 1;
+        const auto surfaceAttachments = m_surface->attachments();
         // create the render/graphics pipeline
         {
-            auto                                          surfaceAttachments = m_surface->attachments();
-            std::vector<ri::RenderPass::AttachmentParams> passParams(surfaceAttachments.size());
-            for (size_t i = 0; i < passParams.size(); ++i)
-            {
-                passParams[i].format      = surfaceAttachments[i].format;
-                passParams[i].samples     = surfaceAttachments[i].samples;
-                passParams[i].finalLayout = surfaceAttachments[i].finalLayout;
-            }
-            ri::RenderPass* pass = new ri::RenderPass(*m_context, passParams);
-            pass->setTagName("SimplePass");
+            ri::RenderPass& pass = m_surface->renderPass();
 
             // needed to change viewport for multiple windows
-            params.dynamicStates     = {ri::DynamicState::eViewport, ri::DynamicState::eScissor};
-            params.vertexDescription = &m_vertexDescription;
-            params.frontFaceCW       = false;  // since we inverted the Y axis
+            params.dynamicStates        = {ri::DynamicState::eViewport, ri::DynamicState::eScissor};
+            params.vertexDescription    = &m_vertexDescription;
+            params.frontFaceCW          = false;  // since we inverted the Y axis
+            params.rasterizationSamples = m_surface->msaaSamples();
+            params.sampleShadingEnable  = true;
+            params.minSampleShading     = 0.5f;
 
             m_renderPipeline.reset(
                 new ri::RenderPipeline(*m_context, pass, *m_shaderPipeline, params, ri::Sizei(kWidth, kHeight)));
             m_renderPipeline->setTagName("SimplePipeline");
         }
-
-        // create a MSAA render target
-        // TODO: add support
-        //         {
-        //             ri::TextureParams texParams;
-        //             texParams.flags      = ri::TextureUsageFlags::eColor | ri::TextureUsageFlags::eTransient;
-        //             texParams.format     = ri::ColorFormat::eBGRA;
-        //             texParams.size       = m_surface->size();
-        //             texParams.samples    = MSAAsamples;
-        //             ri::Texture* texture = new ri::Texture(*m_context, texParams);
-        //             texture->setTagName("MSAA_RenderTargetTexture");
-        //
-        //             ri::RenderTarget::AttachmentParams params(texture, true);
-        //             m_msaaTarget.reset(new ri::RenderTarget(*m_context, m_renderPipeline->defaultPass(), params));
-        //             m_msaaTarget->setTagName("MSAA_RenderTarget");
-        //         }
     }
 
     void render()
@@ -346,7 +323,7 @@ private:
     {
         // record the commands for all command buffers of the surface
 
-        m_renderPipeline->defaultPass().setRenderArea(m_surface->size());
+        m_surface->renderPass().setRenderArea(m_surface->size());
 
         for (uint32_t index = 0; index < m_surface->swapCount(); ++index)
         {
