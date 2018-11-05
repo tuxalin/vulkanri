@@ -2,6 +2,8 @@
 	
 ## 1. hello_world
 
+![pic-1](hello_world/screenshot.PNG)
+
  Covers the following:
  * how to initialize the render interface
  * setup the validation report layer
@@ -15,6 +17,8 @@
  * two presentation modes, recorded and transient modes
 
 ## 2. buffer_usage
+
+![pic-2](buffer_usage/screenshot.PNG)
 
  Covers the following:
  * creating vertex, uniform and index buffers
