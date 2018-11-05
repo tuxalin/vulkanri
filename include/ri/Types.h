@@ -73,9 +73,13 @@ SAFE_ENUM_DECLARE(CompareOperation,
                   eAlways         = VK_COMPARE_OP_ALWAYS);
 
 SAFE_ENUM_DECLARE(DynamicState,
-                  eLineWidth = VK_DYNAMIC_STATE_LINE_WIDTH,
-                  eViewport  = VK_DYNAMIC_STATE_VIEWPORT,
-                  eScissor   = VK_DYNAMIC_STATE_SCISSOR);
+                  eDepthBias          = VK_DYNAMIC_STATE_DEPTH_BIAS,
+                  eStencilCompareMask = VK_DYNAMIC_STATE_STENCIL_COMPARE_MASK,
+                  eStencilWriteMask   = VK_DYNAMIC_STATE_STENCIL_WRITE_MASK,
+                  eStencilReference   = VK_DYNAMIC_STATE_STENCIL_REFERENCE,
+                  eLineWidth          = VK_DYNAMIC_STATE_LINE_WIDTH,
+                  eViewport           = VK_DYNAMIC_STATE_VIEWPORT,
+                  eScissor            = VK_DYNAMIC_STATE_SCISSOR);
 
 SAFE_ENUM_DECLARE(AttributeFormat,
                   eHalfFloat  = VK_FORMAT_R16_SFLOAT,           //
@@ -209,10 +213,14 @@ SAFE_ENUM_DECLARE(
     // newer ones.
     eMailbox = VK_PRESENT_MODE_MAILBOX_KHR);
 
-typedef VkDescriptorSetLayout      DescriptorSetLayout;
-typedef VkImageFormatProperties    TextureProperties;
-typedef VkPhysicalDeviceProperties DeviceProperties;
-typedef VkStencilOpState           StencilOpState;
+typedef VkDescriptorSetLayout   DescriptorSetLayout;
+typedef VkImageFormatProperties TextureProperties;
+typedef VkStencilOpState        StencilOpState;
+
+struct DeviceProperties : VkPhysicalDeviceProperties
+{
+    uint32_t getMaxSampleMSAA() const;
+};
 
 union ClearColorValue  //
 {
@@ -258,5 +266,38 @@ struct SurfaceCreateParams
     };
 
     DepthBufferType depthBufferType = eNone;
+    uint32_t        msaaSamples     = 1;
 };
+
+inline uint32_t DeviceProperties::getMaxSampleMSAA() const
+{
+    VkSampleCountFlags counts = std::min(limits.framebufferColorSampleCounts, limits.framebufferDepthSampleCounts);
+    if (counts & VK_SAMPLE_COUNT_64_BIT)
+    {
+        return VK_SAMPLE_COUNT_64_BIT;
+    }
+    if (counts & VK_SAMPLE_COUNT_32_BIT)
+    {
+        return VK_SAMPLE_COUNT_32_BIT;
+    }
+    if (counts & VK_SAMPLE_COUNT_16_BIT)
+    {
+        return VK_SAMPLE_COUNT_16_BIT;
+    }
+    if (counts & VK_SAMPLE_COUNT_8_BIT)
+    {
+        return VK_SAMPLE_COUNT_8_BIT;
+    }
+    if (counts & VK_SAMPLE_COUNT_4_BIT)
+    {
+        return VK_SAMPLE_COUNT_4_BIT;
+    }
+    if (counts & VK_SAMPLE_COUNT_2_BIT)
+    {
+        return VK_SAMPLE_COUNT_2_BIT;
+    }
+
+    return VK_SAMPLE_COUNT_1_BIT;
+}
+
 }  // namespace ri

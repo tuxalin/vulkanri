@@ -96,6 +96,15 @@ public:
 
         void setLineWidth(CommandBuffer& buffer, float lineWidth);
 
+        void setDepthBias(CommandBuffer& buffer, float depthBiasConstantFactor, float depthBiasClamp = 0.f,
+                          float depthBiasSlopeFactor = 0.f);
+
+        void setStencilCompareMask(CommandBuffer& buffer, VkStencilFaceFlags faceMask, uint32_t compareMask);
+
+        void setStencilWriteMask(CommandBuffer& buffer, VkStencilFaceFlags faceMask, uint32_t writeMask);
+
+        void setStencilReference(CommandBuffer& buffer, VkStencilFaceFlags faceMask, uint32_t reference);
+
     private:
         VkViewport m_viewport;
         VkRect2D   m_scissor;
@@ -115,7 +124,7 @@ public:
         int32_t viewportY;
     };
 
-    /// @note Takes ownerwship of the render pass.
+    /// @note Takes ownership of the render pass.
     RenderPipeline(const ri::DeviceContext&  device,          //
                    ri::RenderPass*           pass,            //
                    const ri::ShaderPipeline& shaderPipeline,  //
@@ -298,6 +307,31 @@ inline void RenderPipeline::DynamicState::setScissor(CommandBuffer& buffer, cons
 inline void RenderPipeline::DynamicState::setLineWidth(CommandBuffer& buffer, float lineWidth)
 {
     vkCmdSetLineWidth(detail::getVkHandle(buffer), lineWidth);
+}
+
+inline void RenderPipeline::DynamicState::setDepthBias(CommandBuffer& buffer, float depthBiasConstantFactor,
+                                                       float depthBiasClamp /* = 0.f*/,
+                                                       float depthBiasSlopeFactor /* = 0.f*/)
+{
+    vkCmdSetDepthBias(detail::getVkHandle(buffer), depthBiasConstantFactor, depthBiasClamp, depthBiasSlopeFactor);
+}
+
+inline void RenderPipeline::DynamicState::setStencilCompareMask(CommandBuffer& buffer, VkStencilFaceFlags faceMask,
+                                                                uint32_t compareMask)
+{
+    vkCmdSetStencilCompareMask(detail::getVkHandle(buffer), faceMask, compareMask);
+}
+
+inline void RenderPipeline::DynamicState::setStencilWriteMask(CommandBuffer& buffer, VkStencilFaceFlags faceMask,
+                                                              uint32_t writeMask)
+{
+    vkCmdSetStencilWriteMask(detail::getVkHandle(buffer), faceMask, writeMask);
+}
+
+inline void RenderPipeline::DynamicState::setStencilReference(CommandBuffer& buffer, VkStencilFaceFlags faceMask,
+                                                              uint32_t reference)
+{
+    vkCmdSetStencilReference(detail::getVkHandle(buffer), faceMask, reference);
 }
 
 }  // namespace ri
