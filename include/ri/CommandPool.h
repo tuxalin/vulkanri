@@ -26,7 +26,7 @@ public:
 private:
     // @param resetMode Allows any command buffer to be individually reset, via CommandBuffer::reset or implicit reset
     // called on begin.
-    CommandPool(bool resetMode, DeviceCommandHint commandHint);
+    CommandPool(bool resetMode, DeviceCommandHint commandHint, DeviceOperation deviceOp);
     ~CommandPool();
 
     DeviceCommandHint deviceCommandHint() const;
@@ -37,6 +37,7 @@ private:
 private:
     const DeviceContext*                      m_device = nullptr;
     DeviceCommandHint                         m_commandHint;
+    DeviceOperation                           m_deviceOp;
     std::vector<detail::CommandBufferStorage> m_oneTimeBuffers;
     bool                                      m_resetMode;
 

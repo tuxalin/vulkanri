@@ -150,7 +150,10 @@ public:
     /// @note Also binds the pipeline.
     void begin(const CommandBuffer& buffer, const RenderTarget& target) const;
     void end(const CommandBuffer& buffer) const;
+
     void pushConstants(const void* src, ShaderStage stages, size_t offset, size_t size, CommandBuffer& buffer);
+    template <typename T>
+    void pushConstants(const T& data, ShaderStage stages, size_t offset, CommandBuffer& buffer);
 
     /// @note Can use pipeline derivative index for faster creation.
     static void create(const ri::DeviceContext&                          device,            //
@@ -256,6 +259,13 @@ inline void RenderPipeline::pushConstants(const void* src, ShaderStage stages, s
                                           CommandBuffer& buffer)
 {
     vkCmdPushConstants(detail::getVkHandle(buffer), m_pipelineLayout, (VkShaderStageFlags)stages, offset, size, src);
+}
+
+template <typename T>
+void RenderPipeline::pushConstants(const T& data, ShaderStage stages, size_t offset, CommandBuffer& buffer)
+{
+    vkCmdPushConstants(detail::getVkHandle(buffer), m_pipelineLayout, (VkShaderStageFlags)stages, offset, sizeof(T),
+                       &data);
 }
 
 inline ri::RenderPass& RenderPipeline::defaultPass()

@@ -16,7 +16,8 @@ struct SamplerParams
     enum FilterType
     {
         eNearest = VK_FILTER_NEAREST,
-        eLinear  = VK_FILTER_LINEAR
+        eLinear  = VK_FILTER_LINEAR,
+        eCubic   = VK_FILTER_CUBIC_IMG
     };
     enum AddressMode
     {

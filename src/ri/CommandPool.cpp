@@ -6,8 +6,9 @@
 
 namespace ri
 {
-CommandPool::CommandPool(bool resetMode, DeviceCommandHint commandHint)
+CommandPool::CommandPool(bool resetMode, DeviceCommandHint commandHint, DeviceOperation deviceOp)
     : m_commandHint(commandHint)
+    , m_deviceOp(deviceOp)
     , m_resetMode(resetMode)
 {
     m_oneTimeBuffers.reserve(10);
@@ -70,8 +71,7 @@ void CommandPool::end(CommandBuffer& commandBuffer)
     submitInfo.sType              = VK_STRUCTURE_TYPE_SUBMIT_INFO;
     submitInfo.commandBufferCount = 1;
     submitInfo.pCommandBuffers    = &commandBuffer.m_handle;
-
-    const auto queueHandle = detail::getDeviceQueue(*m_device, DeviceOperation::eGraphics);
+    const auto queueHandle        = detail::getDeviceQueue(*m_device, (int)m_deviceOp);
     RI_CHECK_RESULT_MSG("error at command pool end buffer") =
         vkQueueSubmit(queueHandle, 1, &submitInfo, VK_NULL_HANDLE);
     vkQueueWaitIdle(queueHandle);

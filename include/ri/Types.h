@@ -20,6 +20,7 @@ SAFE_ENUM_DECLARE(ShaderStage,
                   eGeometry    = VK_SHADER_STAGE_GEOMETRY_BIT,
                   eFragment    = VK_SHADER_STAGE_FRAGMENT_BIT,
                   eCompute     = VK_SHADER_STAGE_COMPUTE_BIT,
+                  eBoth        = eVertex | eFragment,
                   eAllGraphics = VK_SHADER_STAGE_ALL_GRAPHICS);
 
 SAFE_ENUM_DECLARE(PrimitiveTopology,

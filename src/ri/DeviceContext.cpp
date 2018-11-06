@@ -139,7 +139,7 @@ void DeviceContext::addCommandPool(DeviceOperation operation, const CommandPoolP
     auto& commandPool = m_commandPools[(operation.get() == DeviceOperation::eCompute) * 2 + param.hints.get()];
     if (!commandPool)
     {
-        commandPool = new CommandPool(param.resetMode, param.hints);
+        commandPool = new CommandPool(param.resetMode, param.hints, operation);
         commandPool->initialize(*this, m_queueIndices[static_cast<size_t>(operation)]);
     }
     assert(param.resetMode == commandPool->resetMode());
