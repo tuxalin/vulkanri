@@ -7,7 +7,7 @@
  * -loading multiple textures using a staging buffer
  * -mip-map generation for the textures
  * -setting up the depth buffer
- * -activating MSAA and sample shading
+ * -enabling MSAA and sample shading
  * -a simple PBR shader with multiple lights
  */
 #define GLFW_INCLUDE_VULKAN
@@ -70,7 +70,8 @@ struct Camera
         glm::mat4 proj;
         glm::mat4 mvp;
     };
-    UBO ubo;
+    UBO   ubo;
+    float distance = 0.5f;
 };
 
 struct Material
@@ -169,7 +170,7 @@ private:
     static void onScrollEvent(GLFWwindow* window, double xoffset, double yoffset)
     {
         DemoApplication* app = reinterpret_cast<DemoApplication*>(glfwGetWindowUserPointer(window));
-        app->m_distance += (float)yoffset * 0.01f;
+        app->m_camera.distance += (float)yoffset * 0.01f;
     }
 
     void initialize()
@@ -452,8 +453,8 @@ private:
         else
             m_camera.ubo.model = glm::rotate(glm::mat4(1.f), glm::radians(90.0f), glm::vec3(0.0f, 0.0f, 1.f));
 
-        m_distance        = std::max(0.18f, m_distance);
-        m_camera.ubo.view = glm::lookAt(glm::vec3(m_distance), glm::vec3(0.f), glm::vec3(0.0f, 0.0f, 1.0f));
+        m_camera.distance = std::max(0.18f, m_camera.distance);
+        m_camera.ubo.view = glm::lookAt(glm::vec3(m_camera.distance), glm::vec3(0.f), glm::vec3(0.0f, 0.0f, 1.0f));
         m_camera.ubo.proj = glm::perspective(
             glm::radians(45.0f), m_surface->size().width / (float)m_surface->size().height, 0.1f, 10.0f);
         // flip Y
@@ -539,8 +540,7 @@ private:
 
     Camera   m_camera;
     Material m_material;
-    float    m_distance = 0.5f;
-    bool     m_paused   = false;
+    bool     m_paused = false;
 };
 
 int main()
