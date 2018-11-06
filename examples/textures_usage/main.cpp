@@ -7,7 +7,8 @@
  * -loading multiple textures using a staging buffer
  * -mip-map generation for the textures
  * -setting up the depth buffer
- * -using MSAA
+ * -activating MSAA and sample shading
+ * -a simple PBR shader with multiple lights
  */
 #define GLFW_INCLUDE_VULKAN
 #include <GLFW/glfw3.h>
@@ -50,21 +51,50 @@ struct Vertex
     {
         float x, y;
     };
+    struct Vec
+    {
+        float x, y, z;
+    };
     Pos pos;
     Pos uv;
+    Vec normal;
 };
 
-struct Matrices
+struct Camera
 {
-    glm::mat4 model;
-    glm::mat4 view;
-    glm::mat4 proj;
+    struct UBO
+    {
+        glm::vec4 worldPos;
+        glm::mat4 model;
+        glm::mat4 view;
+        glm::mat4 proj;
+        glm::mat4 mvp;
+    };
+    UBO ubo;
 };
 
-const std::vector<Vertex>   kVertices = {{{-0.5f, -0.5f}, {1.0f, 0.0f}},
-                                       {{0.5f, -0.5f}, {0.0f, 0.0f}},
-                                       {{0.5f, 0.5f}, {0.0f, 1.0f}},
-                                       {{-0.5f, 0.5f}, {1.0f, 1.0f}}};
+struct Material
+{
+    float roughness      = 0.5f;
+    float metallic       = 0.f;
+    float specular       = 1.f;
+    float r              = 1.f;
+    float g              = 1.f;
+    float b              = 1.f;
+    float normalStrength = 3.f;
+    float aoStrength     = 0.8f;
+};
+
+struct LightParams
+{
+    glm::vec4 lights[4];
+    float     ambient;
+};
+
+const std::vector<Vertex>   kVertices = {{{-0.5f, -0.5f}, {1.0f, 0.0f}, {0.f, 0.f, 1.f}},
+                                       {{0.5f, -0.5f}, {0.0f, 0.0f}, {0.f, 0.f, 1.f}},
+                                       {{0.5f, 0.5f}, {0.0f, 1.0f}, {0.f, 0.f, 1.f}},
+                                       {{-0.5f, 0.5f}, {1.0f, 1.0f}, {0.f, 0.f, 1.f}}};
 const std::vector<uint16_t> kIndices  = {0, 1, 2, 2, 3, 0};
 
 class DemoApplication
@@ -95,6 +125,8 @@ private:
 
         glfwSetWindowUserPointer(m_window, this);
         glfwSetWindowSizeCallback(m_window, DemoApplication::onWindowResized);
+        glfwSetKeyCallback(m_window, DemoApplication::onKeyEvent);
+        glfwSetScrollCallback(m_window, DemoApplication::onScrollEvent);
     }
 
     static void onWindowResized(GLFWwindow* window, int width, int height)
@@ -104,6 +136,40 @@ private:
 
         DemoApplication* app = reinterpret_cast<DemoApplication*>(glfwGetWindowUserPointer(window));
         app->resizeWindow();
+    }
+
+    static void onKeyEvent(GLFWwindow* window, int key, int scancode, int action, int mods)
+    {
+        DemoApplication* app = reinterpret_cast<DemoApplication*>(glfwGetWindowUserPointer(window));
+        if (key == GLFW_KEY_P && action == GLFW_PRESS)
+            app->m_paused = !app->m_paused;
+        if (key == GLFW_KEY_R && action == GLFW_PRESS)
+            app->m_material.roughness += 0.05f;
+        if (key == GLFW_KEY_T && action == GLFW_PRESS)
+            app->m_material.roughness -= 0.05f;
+        if (key == GLFW_KEY_S && action == GLFW_PRESS)
+            app->m_material.specular += 0.05f;
+        if (key == GLFW_KEY_D && action == GLFW_PRESS)
+            app->m_material.specular -= 0.05f;
+        if (key == GLFW_KEY_O && action == GLFW_PRESS)
+            app->m_material.aoStrength += 0.1f;
+        if (key == GLFW_KEY_I && action == GLFW_PRESS)
+            app->m_material.aoStrength -= 0.1f;
+        if (key == GLFW_KEY_N && action == GLFW_PRESS)
+            app->m_material.normalStrength += 0.1f;
+        if (key == GLFW_KEY_M && action == GLFW_PRESS)
+            app->m_material.normalStrength -= 0.1f;
+
+        app->m_material.roughness      = glm::clamp(app->m_material.roughness, 0.f, 1.f);
+        app->m_material.specular       = glm::clamp(app->m_material.specular, 0.f, 1.f);
+        app->m_material.aoStrength     = glm::clamp(app->m_material.aoStrength, 0.f, 1.f);
+        app->m_material.normalStrength = glm::clamp(app->m_material.normalStrength, -1.f, 10.f);
+    }
+
+    static void onScrollEvent(GLFWwindow* window, double xoffset, double yoffset)
+    {
+        DemoApplication* app = reinterpret_cast<DemoApplication*>(glfwGetWindowUserPointer(window));
+        app->m_distance += (float)yoffset * 0.01f;
     }
 
     void initialize()
@@ -186,7 +252,8 @@ private:
 
             {
                 ri::VertexBinding binding({{0, ri::AttributeFormat::eFloat2, offsetof(Vertex, pos)},
-                                           {1, ri::AttributeFormat::eFloat2, offsetof(Vertex, uv)}});
+                                           {1, ri::AttributeFormat::eFloat3, offsetof(Vertex, normal)},
+                                           {2, ri::AttributeFormat::eFloat2, offsetof(Vertex, uv)}});
                 binding.bindingIndex = 0;
                 binding.buffer       = m_vertexBuffer.get();
                 binding.offset       = 0;
@@ -199,77 +266,110 @@ private:
 
         // create and load textures
         {
-            // TODO: load multiple textures and use later
+            const std::string textureFilenames[] = {"Floor_Color.png", "Floor_Normal.png", "Floor_Roughness.png",
+                                                    "Floor_AO.png"};
 
-            const std::string path = "../resources/textures/Floor_Color.png";
-            int               texChannels;
-            ri::Sizei         size;
-            stbi_uc*          pixels =
-                stbi_load(path.c_str(), &(int&)size.width, &(int&)size.height, &texChannels, STBI_rgb_alpha);
-
-            // create a staging buffer and load into it
-            const size_t                imageSize = size.pixelCount() * 4;
+            // create a staging buffer
+            const ri::Sizei             maxSize(4096, 4096);
+            const size_t                imageSize = maxSize.pixelCount() * 4;
             std::unique_ptr<ri::Buffer> stagingBuffer(
                 new ri::Buffer(*m_context, ri::BufferUsageFlags::eSrc, imageSize));
             stagingBuffer->setTagName("TextureStagingBuffer");
-            stagingBuffer->update(pixels);
-            stbi_image_free(pixels);
 
-            // create texture
-            ri::TextureParams params;
-            params.type   = ri::TextureType::e2D;
-            params.format = ri::ColorFormat::eRGBA;
-            params.size   = size;
-            params.flags  = ri::TextureUsageFlags::eDst | ri::TextureUsageFlags::eSrc | ri::TextureUsageFlags::eSampled;
-            // sampler params
-            params.samplerParams.magFilter = params.samplerParams.minFilter = ri::SamplerParams::eLinear;
-            params.samplerParams.anisotropyEnable                           = true;
-            params.samplerParams.maxAnisotropy                              = 16.f;
-            // set mip levels to zero to generate all levels
-            params.mipLevels = 0;
-            m_textures.emplace_back(new ri::Texture(*m_context, params));
-
+            // create a one time transfer command buffer and submit commands
             auto& commandPool =
                 m_context->commandPool(ri::DeviceOperation::eTransfer, ri::DeviceCommandHint::eRecorded);
 
-            // issue copy commands
-            ri::Texture::CopyParams copyParams;
-            copyParams.layouts = {ri::TextureLayoutType::eUndefined,           //
-                                  ri::TextureLayoutType::eTransferDstOptimal,  //
-                                  ri::TextureLayoutType::eTransferSrcOptimal};
-            copyParams.size    = size;
+            for (size_t i = 0; i < 4; ++i)
+            {
+                const std::string path = "../resources/textures/" + textureFilenames[i];
 
-            // create a one time transfer command buffer and submit commands
-            ri::CommandBuffer commandBuffer = commandPool.begin();
-            m_textures[0]->copy(*stagingBuffer, copyParams, commandBuffer);
-            m_textures[0]->generateMipMaps(commandBuffer);
-            commandPool.end(commandBuffer);
+                ri::Sizei size;
+                int       texChannels;
+                stbi_uc*  pixels =
+                    stbi_load(path.c_str(), &(int&)size.width, &(int&)size.height, &texChannels, STBI_rgb_alpha);
+                assert(size.pixelCount() < maxSize.pixelCount());
+                if (pixels == nullptr)
+                    continue;
+
+                // load texture into the staging buffer
+                void* buffer = stagingBuffer->lock(0, size.pixelCount() * 4);
+                memcpy(buffer, pixels, size.pixelCount() * 4);
+                stagingBuffer->unlock();
+                stbi_image_free(pixels);
+
+                // create texture
+                ri::TextureParams params;
+                params.type   = ri::TextureType::e2D;
+                params.format = ri::ColorFormat::eRGBA;
+                params.size   = size;
+                params.flags =
+                    ri::TextureUsageFlags::eDst | ri::TextureUsageFlags::eSrc | ri::TextureUsageFlags::eSampled;
+                // sampler params
+                params.samplerParams.magFilter = params.samplerParams.minFilter = ri::SamplerParams::eLinear;
+                params.samplerParams.anisotropyEnable                           = true;
+                params.samplerParams.maxAnisotropy                              = 16.f;
+                // set mip levels to zero to generate all levels
+                params.mipLevels = 0;
+                m_textures.emplace_back(new ri::Texture(*m_context, params));
+                m_textures.back()->setTagName(path);
+
+                // issue copy commands
+                ri::Texture::CopyParams copyParams;
+                copyParams.layouts = {ri::TextureLayoutType::eUndefined,           //
+                                      ri::TextureLayoutType::eTransferDstOptimal,  //
+                                      ri::TextureLayoutType::eTransferSrcOptimal};
+                copyParams.size    = size;
+
+                ri::CommandBuffer commandBuffer = commandPool.begin();
+                m_textures.back()->copy(*stagingBuffer, copyParams, commandBuffer);
+                m_textures.back()->generateMipMaps(commandBuffer);
+                commandPool.end(commandBuffer);
+            }
         }
 
-        // create a uniform buffer
+        // create a uniform buffers
         {
-            m_uniformBuffer.reset(new ri::Buffer(*m_context, ri::BufferUsageFlags::eUniform, sizeof(Matrices)));
-            m_uniformBuffer->setTagName("UniformBuffer");
+            m_uniformBuffers[0].reset(new ri::Buffer(*m_context, ri::BufferUsageFlags::eUniform, sizeof(Camera)));
+            m_uniformBuffers[0]->setTagName("CameraUBO");
+
+            m_uniformBuffers[1].reset(new ri::Buffer(*m_context, ri::BufferUsageFlags::eUniform, sizeof(LightParams)));
+            m_uniformBuffers[1]->setTagName("LightsUBO");
+
+            m_uniformBuffers[2].reset(new ri::Buffer(*m_context, ri::BufferUsageFlags::eUniform, sizeof(Material)));
+            m_uniformBuffers[2]->setTagName("MaterialUBO");
         }
 
         ri::RenderPipeline::CreateParams params;
         // create a descriptor pool and descriptor for the shader
         {
             std::vector<ri::DescriptorPool::TypeSize> avaialbleTypes(
-                {{ri::DescriptorType::eUniformBuffer, 1}, {ri::DescriptorType::eCombinedSampler, 10}});
+                {{ri::DescriptorType::eUniformBuffer, 3}, {ri::DescriptorType::eCombinedSampler, 5}});
             m_descriptorPool.reset(new ri::DescriptorPool(*m_context, avaialbleTypes));
 
             // create descriptor layout
-            ri::DescriptorLayoutParam layoutsParams(
-                {{0, ri::ShaderStage::eVertex, ri::DescriptorType::eUniformBuffer},
-                 {1, ri::ShaderStage::eFragment, ri::DescriptorType::eCombinedSampler}});
+            ri::DescriptorLayoutParam layoutsParams({
+                {0, ri::ShaderStage::eBoth, ri::DescriptorType::eUniformBuffer},
+                {5, ri::ShaderStage::eFragment, ri::DescriptorType::eUniformBuffer},
+                {6, ri::ShaderStage::eFragment, ri::DescriptorType::eUniformBuffer},
+                {1, ri::ShaderStage::eFragment, ri::DescriptorType::eCombinedSampler},
+                {2, ri::ShaderStage::eFragment, ri::DescriptorType::eCombinedSampler},
+                {3, ri::ShaderStage::eFragment, ri::DescriptorType::eCombinedSampler},
+                {4, ri::ShaderStage::eFragment, ri::DescriptorType::eCombinedSampler},
+            });
+
             auto res = m_descriptorPool->createLayout(layoutsParams);
             params.descriptorLayouts.push_back(res.layout);
 
             // create descriptor
             ri::DescriptorSetParams descriptorParams;
-            descriptorParams.infos.emplace_back(0, m_uniformBuffer.get(), 0, sizeof(Matrices));
+            descriptorParams.infos.emplace_back(0, m_uniformBuffers[0].get(), 0, sizeof(Camera));
+            descriptorParams.infos.emplace_back(5, m_uniformBuffers[1].get(), 0, sizeof(LightParams));
+            descriptorParams.infos.emplace_back(6, m_uniformBuffers[2].get(), 0, sizeof(Material));
             descriptorParams.infos.emplace_back(1, m_textures[0].get());
+            descriptorParams.infos.emplace_back(2, m_textures[1].get());
+            descriptorParams.infos.emplace_back(3, m_textures[2].get());
+            descriptorParams.infos.emplace_back(4, m_textures[3].get());
 
             m_descriptor = m_descriptorPool->create(res.index, descriptorParams);
         }
@@ -279,13 +379,14 @@ private:
         {
             ri::RenderPass& pass = m_surface->renderPass();
 
-            // needed to change viewport for multiple windows
+            // needed to change viewport for resizing
             params.dynamicStates        = {ri::DynamicState::eViewport, ri::DynamicState::eScissor};
             params.vertexDescription    = &m_vertexDescription;
             params.frontFaceCW          = false;  // since we inverted the Y axis
             params.rasterizationSamples = m_surface->msaaSamples();
             params.sampleShadingEnable  = true;
             params.minSampleShading     = 0.5f;
+            params.pushConstants.emplace_back(ri::ShaderStage::eFragment, 0, sizeof(Material));
 
             m_renderPipeline.reset(
                 new ri::RenderPipeline(*m_context, pass, *m_shaderPipeline, params, ri::Sizei(kWidth, kHeight)));
@@ -314,6 +415,7 @@ private:
         m_vertexDescription.bind(commandBuffer);
         // bind the uniform buffer to the render pipeline
         m_descriptor.bind(commandBuffer, *m_renderPipeline);
+
         commandBuffer.drawIndexed(kIndices.size());
 
         m_renderPipeline->end(commandBuffer);
@@ -342,18 +444,45 @@ private:
         static auto startTime = std::chrono::high_resolution_clock::now();
 
         auto  currentTime = std::chrono::high_resolution_clock::now();
-        float time        = std::chrono::duration<float, std::chrono::seconds::period>(currentTime - startTime).count();
+        float timer       = std::chrono::duration<float, std::chrono::seconds::period>(currentTime - startTime).count();
 
-        Matrices matrices;
-        matrices.model = glm::rotate(glm::mat4(1.0f), time * glm::radians(90.0f), glm::vec3(0.0f, 0.0f, 1.0f));
-        matrices.view =
-            glm::lookAt(glm::vec3(2.0f, 2.0f, 2.0f), glm::vec3(0.0f, 0.0f, 0.0f), glm::vec3(0.0f, 0.0f, 1.0f));
-        matrices.proj = glm::perspective(
+        if (!m_paused)
+
+            m_camera.ubo.model = glm::rotate(glm::mat4(1.f), timer * glm::radians(90.0f), glm::vec3(0.0f, 0.0f, 1.f));
+        else
+            m_camera.ubo.model = glm::rotate(glm::mat4(1.f), glm::radians(90.0f), glm::vec3(0.0f, 0.0f, 1.f));
+
+        m_distance        = std::max(0.18f, m_distance);
+        m_camera.ubo.view = glm::lookAt(glm::vec3(m_distance), glm::vec3(0.f), glm::vec3(0.0f, 0.0f, 1.0f));
+        m_camera.ubo.proj = glm::perspective(
             glm::radians(45.0f), m_surface->size().width / (float)m_surface->size().height, 0.1f, 10.0f);
         // flip Y
-        matrices.proj[1][1] *= -1;
+        m_camera.ubo.proj[1][1] *= -1;
 
-        m_uniformBuffer->update(&matrices);
+        m_camera.ubo.mvp      = m_camera.ubo.proj * m_camera.ubo.view * m_camera.ubo.model;
+        m_camera.ubo.worldPos = glm::inverse(m_camera.ubo.view) * glm::vec4(0, 0, 0, 1);
+
+        m_uniformBuffers[0]->update(&m_camera.ubo);
+
+        LightParams lightParams;
+        lightParams.ambient = 0.04f;
+
+        const float lightPos  = 5.f;
+        lightParams.lights[0] = glm::vec4(-lightPos, -lightPos * 0.5f, -lightPos, 0.4f);
+        lightParams.lights[1] = glm::vec4(-lightPos, -lightPos * 0.5f, lightPos, 0.2f);
+        lightParams.lights[2] = glm::vec4(lightPos * 0.05f, -lightPos * 0.15f, lightPos, 0.8f);
+        lightParams.lights[3] = glm::vec4(lightPos, -lightPos * 0.5f, -lightPos, 0.33f);
+        if (!m_paused)
+        {
+            const float a           = glm::radians(timer * 72.f);
+            lightParams.lights[0].x = sin(a) * 1.0f;
+            lightParams.lights[0].z = cos(a) * 1.5f;
+            lightParams.lights[1].x = cos(a) * 3.0f;
+            lightParams.lights[1].y = sin(a) * 1.5f;
+        }
+
+        m_uniformBuffers[1]->update(&lightParams);
+        m_uniformBuffers[2]->update(&m_material);
     }
 
     void mainLoop()
@@ -402,11 +531,16 @@ private:
     std::unique_ptr<ri::DescriptorPool>        m_descriptorPool;
     std::unique_ptr<ri::Buffer>                m_vertexBuffer;
     std::unique_ptr<ri::Buffer>                m_indexBuffer;
-    std::unique_ptr<ri::Buffer>                m_uniformBuffer;
+    std::unique_ptr<ri::Buffer>                m_uniformBuffers[3];
     ri::IndexedVertexDescription               m_vertexDescription;
     ri::DescriptorSet                          m_descriptor;
     std::vector<std::shared_ptr<ri::Texture> > m_textures;
     std::unique_ptr<ri::RenderTarget>          m_msaaTarget;
+
+    Camera   m_camera;
+    Material m_material;
+    float    m_distance = 0.5f;
+    bool     m_paused   = false;
 };
 
 int main()

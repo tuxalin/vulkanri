@@ -33,9 +33,13 @@
 
  ## 3. textures_usage
 
+ ![pic-2](textures_usage/screenshot.PNG)
+
  Covers the following:
  * creating multiple textures
- * loading multiple textures using a stanging buffer
+ * loading multiple textures using a staging buffer
  * mip-map generation for the textures
- * using a shader with multi-texturing
+ * setting up the depth buffer
+ * enabling MSAA and sample shading
+ * a simple PBR shader with multiple lights
  

@@ -11,5 +11,8 @@ SETLOCAL ENABLEDELAYEDEXPANSION
 for /R %WORK_PATH% %%f in (*.vert,*.frag) do (
 	set shaderFilePath=%%~ff
 	set check=!shaderFilePath:thirdparty=!
-	if  !check!==!shaderFilePath! %VULKAN_SDK%/Bin32/glslangValidator.exe -V %%f -o %%f.spv
+	if  !check!==!shaderFilePath! (
+		%VULKAN_SDK%/Bin32/glslc.exe -c -mfmt=bin %%f -o %%f.spv
+		echo Compiled: %%f.spv
+	)
 )
