@@ -144,6 +144,8 @@ private:
         DemoApplication* app = reinterpret_cast<DemoApplication*>(glfwGetWindowUserPointer(window));
         if (key == GLFW_KEY_P && action == GLFW_PRESS)
             app->m_paused = !app->m_paused;
+        if (key == GLFW_KEY_L && action == GLFW_PRESS)
+            app->m_lightsPaused = !app->m_lightsPaused;
         if (key == GLFW_KEY_R && action == GLFW_PRESS)
             app->m_material.roughness += 0.05f;
         if (key == GLFW_KEY_T && action == GLFW_PRESS)
@@ -448,7 +450,6 @@ private:
         float timer       = std::chrono::duration<float, std::chrono::seconds::period>(currentTime - startTime).count();
 
         if (!m_paused)
-
             m_camera.ubo.model = glm::rotate(glm::mat4(1.f), timer * glm::radians(90.0f), glm::vec3(0.0f, 0.0f, 1.f));
         else
             m_camera.ubo.model = glm::rotate(glm::mat4(1.f), glm::radians(90.0f), glm::vec3(0.0f, 0.0f, 1.f));
@@ -473,7 +474,7 @@ private:
         lightParams.lights[1] = glm::vec4(-lightPos, -lightPos * 0.5f, lightPos, 0.2f);
         lightParams.lights[2] = glm::vec4(lightPos * 0.05f, -lightPos * 0.15f, lightPos, 0.8f);
         lightParams.lights[3] = glm::vec4(lightPos, -lightPos * 0.5f, -lightPos, 0.33f);
-        if (!m_paused)
+        if (!m_lightsPaused)
         {
             const float a           = glm::radians(timer * 72.f);
             lightParams.lights[0].x = sin(a) * 1.0f;
@@ -540,7 +541,8 @@ private:
 
     Camera   m_camera;
     Material m_material;
-    bool     m_paused = false;
+    bool     m_paused       = false;
+    bool     m_lightsPaused = false;
 };
 
 int main()
