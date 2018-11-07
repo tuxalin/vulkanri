@@ -8,7 +8,7 @@ echo "Compiling shaders in: "%WORK_PATH%
 echo.
 
 SETLOCAL ENABLEDELAYEDEXPANSION
-for /R %WORK_PATH% %%f in (*.vert,*.frag) do (
+for /R %WORK_PATH% %%f in (*.vert,*.frag,*.tesc,*.tese) do (
 	set shaderFilePath=%%~ff
 	set check=!shaderFilePath:thirdparty=!
 	if  !check!==!shaderFilePath! (

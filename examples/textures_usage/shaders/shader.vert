@@ -6,25 +6,20 @@ layout(binding = 0) uniform Camera {
     mat4 model;
     mat4 view;
     mat4 proj;
-    mat4 mvp;
-} uboCamera;
+    mat4 viewProj;
+} camera;
 
-layout(location = 0) in vec2 inPosition;
-layout(location = 1) in vec3 inNormal;
-layout(location = 2) in vec2 inTexCoord;
+layout (location = 0) in vec3 inPos;
+layout (location = 1) in vec3 inNormal;
+layout (location = 2) in vec2 inUV;
 
-layout(location = 0) out vec2 outFragTexCoord;
-layout(location = 1) out vec4 outWorldPos;
-layout(location = 2) out vec3 outNormal;
+layout (location = 0) out vec3 outNormal;
+layout (location = 1) out vec2 outUV;
 
-out gl_PerVertex {
-    vec4 gl_Position;
-};
+void main(void)
+{
+    outUV = inUV;
+	outNormal = mat3(camera.model) * inNormal;
 
-void main() 
-{    
-	outWorldPos = uboCamera.model * vec4(inPosition, 0.0, 1.0);
-	outNormal = mat3(uboCamera.model) * inNormal;
-    outFragTexCoord = inTexCoord;
-    gl_Position = uboCamera.mvp * vec4(inPosition, 0.0, 1.0);
+	gl_Position = camera.model * vec4(inPos.xyz, 1.0);
 }

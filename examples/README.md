@@ -33,7 +33,7 @@
 
  ## 3. textures_usage
 
- ![pic-2](textures_usage/screenshot.PNG)
+ ![pic-3](textures_usage/screenshot.PNG)
 
  Covers the following:
  * creating multiple textures
@@ -42,4 +42,5 @@
  * setting up the depth buffer
  * enabling MSAA and sample shading
  * a simple PBR shader with multiple lights
+ * displacement mapping with a tesselation shader
  
