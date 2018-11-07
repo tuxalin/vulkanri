@@ -33,8 +33,8 @@ namespace detail
 {
     struct ShaderModule : public RenderObject<VkShaderModule>
     {
-        VkDevice    m_device;
-        ShaderStage m_stage;
+        VkDevice m_device;
+        int      m_stageFlags;
 #ifndef NDEBUG
         std::vector<char> m_code;
 #endif  // !NDEBUG

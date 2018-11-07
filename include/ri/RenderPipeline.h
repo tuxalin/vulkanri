@@ -74,6 +74,9 @@ public:
         float    minSampleShading     = 1.f;
         uint32_t rasterizationSamples = 1;
 
+        // Other
+        uint32_t tesselationPatchControlPoints = 0;
+
         VertexDescription* vertexDescription = nullptr;
         // What subpass to use from the render pass.
         uint32_t activeSubpassIndex = 0;
@@ -174,7 +177,21 @@ public:
 private:
     struct PipelineCreateData
     {
-        PipelineCreateData(const ri::RenderPass& pass, const CreateParams& params, const ViewportParam& viewportParam);
+        PipelineCreateData(const ri::RenderPass& pass, const CreateParams& params, const ViewportParam& viewportParam)
+            : vertexInput(getVertexInputInfo(params))
+            , inputAssembly(getInputAssemblyInfo(params))
+            , viewport(getViewportFrom(viewportParam))
+            , scissor(getScissorFrom(viewportParam))
+            , viewportState(getViewportStateInfo(viewport, scissor))
+            , rasterizer(getRasterizerInfo(params))
+            , multisampling(getMultisamplingInfo(params))
+            , colorBlendAttachment(getColorBlendAttachmentInfo(params))
+            , colorBlending(getColorBlendingInfo(params, colorBlendAttachment))
+            , dynamicState(getDynamicStateInfo(params))
+            , depthStencil(getDepthStencilInfo(pass, params))
+            , tesselation(getTesselationStateInfo(params))
+        {
+        }
 
         VkPipelineVertexInputStateCreateInfo   vertexInput;
         VkPipelineInputAssemblyStateCreateInfo inputAssembly;
@@ -187,6 +204,7 @@ private:
         VkPipelineColorBlendStateCreateInfo    colorBlending;
         VkPipelineDynamicStateCreateInfo       dynamicState;
         VkPipelineDepthStencilStateCreateInfo  depthStencil;
+        VkPipelineTessellationStateCreateInfo  tesselation;
     };
 
     RenderPipeline(const ri::DeviceContext& device, VkPipeline handle, VkPipelineLayout layout,
@@ -203,6 +221,8 @@ private:
     static VkPipelineLayout createLayout(const VkDevice device, const CreateParams& params,
                                          const std::vector<VkDescriptorSetLayout>& descriptorLayouts);
 
+    static VkViewport                             getViewportFrom(const RenderPipeline::ViewportParam& viewportParam);
+    static VkRect2D                               getScissorFrom(const RenderPipeline::ViewportParam& viewportParam);
     static VkPipelineVertexInputStateCreateInfo   getVertexInputInfo(const CreateParams& params);
     static VkPipelineInputAssemblyStateCreateInfo getInputAssemblyInfo(const CreateParams& params);
     static VkPipelineViewportStateCreateInfo getViewportStateInfo(const VkViewport& viewport, const VkRect2D& scissor);
@@ -214,6 +234,7 @@ private:
     static VkPipelineDynamicStateCreateInfo      getDynamicStateInfo(const CreateParams& params);
     static VkPipelineDepthStencilStateCreateInfo getDepthStencilInfo(const ri::RenderPass& pass,
                                                                      const CreateParams&   params);
+    static VkPipelineTessellationStateCreateInfo getTesselationStateInfo(const CreateParams& params);
 
     static VkGraphicsPipelineCreateInfo getPipelineCreateInfo(const RenderPass&         pass,            //
                                                               const ShaderPipeline&     shaderPipeline,  //

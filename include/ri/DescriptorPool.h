@@ -11,11 +11,11 @@ struct DescriptorSetParams;
 struct DescriptorBinding
 {
     uint32_t       index = 0;
-    ShaderStage    stageFlags;
+    int            stageFlags;  // see ri::ShaderStage
     DescriptorType type;
 
     DescriptorBinding() {}
-    DescriptorBinding(uint32_t index, ShaderStage stageFlags, DescriptorType type)
+    DescriptorBinding(uint32_t index, int stageFlags, DescriptorType type)
         : index(index)
         , stageFlags(stageFlags)
         , type(type)

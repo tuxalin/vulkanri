@@ -47,6 +47,9 @@ namespace
                 case DeviceFeature::eGeometryShader:
                     deviceFeatures.geometryShader = VK_TRUE;
                     break;
+                case DeviceFeature::eTesselationShader:
+                    deviceFeatures.tessellationShader = VK_TRUE;
+                    break;
                 case DeviceFeature::eFloat64:
                     deviceFeatures.shaderFloat64 = VK_TRUE;
                     break;
@@ -178,6 +181,9 @@ uint32_t DeviceContext::deviceScore(VkPhysicalDevice device, const std::vector<D
         {
             case DeviceFeature::eGeometryShader:
                 hasAllFeatures &= deviceFeatures.geometryShader == VK_TRUE;
+                break;
+            case DeviceFeature::eTesselationShader:
+                hasAllFeatures &= deviceFeatures.tessellationShader == VK_TRUE;
                 break;
             case DeviceFeature::eFloat64:
                 hasAllFeatures &= deviceFeatures.shaderFloat64 == VK_TRUE;

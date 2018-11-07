@@ -7,27 +7,6 @@
 
 namespace ri
 {
-namespace
-{
-    inline VkViewport getViewportFrom(const RenderPipeline::ViewportParam& viewportParam)
-    {
-        VkViewport viewport;
-        viewport.x        = (float)viewportParam.viewportX;
-        viewport.y        = (float)viewportParam.viewportY;
-        viewport.width    = (float)viewportParam.viewportSize.width;
-        viewport.height   = (float)viewportParam.viewportSize.height;
-        viewport.minDepth = 0.0f;
-        viewport.maxDepth = 1.0f;
-        return viewport;
-    }
-    inline VkRect2D getScissorFrom(const RenderPipeline::ViewportParam& viewportParam)
-    {
-        VkRect2D scissor;
-        scissor.offset = {viewportParam.viewportX, viewportParam.viewportY};
-        scissor.extent = {viewportParam.viewportSize.width, viewportParam.viewportSize.height};
-        return scissor;
-    }
-}
 RenderPipeline::RenderPipeline(const ri::DeviceContext&  device,          //
                                ri::RenderPass*           pass,            //
                                const ri::ShaderPipeline& shaderPipeline,  //
@@ -66,6 +45,72 @@ RenderPipeline::~RenderPipeline()
         delete m_renderPass;
     vkDestroyPipeline(m_device, m_handle, nullptr);
     vkDestroyPipelineLayout(m_device, m_pipelineLayout, nullptr);
+}
+
+void RenderPipeline::create(const ri::DeviceContext&                          device,                   //
+                            const std::vector<const ri::RenderPass*>&         pipelinesPass,            //
+                            const std::vector<const ri::ShaderPipeline*>&     pipelinesShaders,         //
+                            const std::vector<RenderPipeline::CreateParams>&  pipelinesParams,          //
+                            const std::vector<RenderPipeline::ViewportParam>& pipelinesViewportParams,  //
+                            const std::vector<DescriptorSetLayout>&           descriptorLayouts,        //
+                            std::vector<RenderPipeline*>&                     pipelines)
+{
+    assert(!pipelinesPass.empty());
+    assert(!pipelinesViewportParams.empty());
+    assert(pipelinesParams.size() == pipelinesShaders.size());
+    assert(pipelinesPass.size() == pipelinesShaders.size());
+
+    std::vector<VkPipeline>         pipelineHandles(pipelinesParams.size());
+    std::vector<VkPipelineLayout>   pipelineLayoutHandles(pipelinesParams.size());
+    std::vector<PipelineCreateData> pipelineCreateData;
+    pipelineCreateData.reserve(pipelinesParams.size());
+    std::vector<VkGraphicsPipelineCreateInfo> pipelineInfos;
+    pipelineInfos.reserve(pipelinesParams.size());
+
+    for (size_t i = 0; i < pipelinesParams.size(); ++i)
+    {
+        const auto& params = pipelinesParams[i];
+        pipelineCreateData.emplace_back(*pipelinesPass[i], params,
+                                        pipelinesViewportParams[std::min(i, pipelinesViewportParams.size() - 1)]);
+        const auto& data   = pipelineCreateData.back();
+        const auto  layout = createLayout(detail::getVkHandle(device), params, descriptorLayouts);
+        pipelineLayoutHandles.push_back(layout);
+        pipelineInfos.push_back(
+            getPipelineCreateInfo(*pipelinesPass[i], *pipelinesShaders[i], pipelinesParams[i], data, layout));
+    }
+
+    RI_CHECK_RESULT_MSG("couldn't create multiple render pipelines") =
+        vkCreateGraphicsPipelines(detail::getVkHandle(device), VK_NULL_HANDLE, pipelineInfos.size(),
+                                  pipelineInfos.data(), nullptr, pipelineHandles.data());
+
+    pipelines.resize(pipelinesParams.size());
+    for (size_t i = 0; i < pipelineHandles.size(); ++i)
+    {
+        auto        handle       = pipelineHandles[i];
+        auto        layoutHandle = pipelineLayoutHandles[i];
+        const auto& data         = pipelineCreateData[i];
+        pipelines[i]             = new RenderPipeline(device, handle, layoutHandle, data.viewport, data.scissor);
+    }
+}
+
+inline VkViewport RenderPipeline::getViewportFrom(const RenderPipeline::ViewportParam& viewportParam)
+{
+    VkViewport viewport;
+    viewport.x        = (float)viewportParam.viewportX;
+    viewport.y        = (float)viewportParam.viewportY;
+    viewport.width    = (float)viewportParam.viewportSize.width;
+    viewport.height   = (float)viewportParam.viewportSize.height;
+    viewport.minDepth = 0.0f;
+    viewport.maxDepth = 1.0f;
+    return viewport;
+}
+
+inline VkRect2D RenderPipeline::getScissorFrom(const RenderPipeline::ViewportParam& viewportParam)
+{
+    VkRect2D scissor;
+    scissor.offset = {viewportParam.viewportX, viewportParam.viewportY};
+    scissor.extent = {viewportParam.viewportSize.width, viewportParam.viewportSize.height};
+    return scissor;
 }
 
 inline VkPipelineVertexInputStateCreateInfo RenderPipeline::getVertexInputInfo(const CreateParams& params)
@@ -217,6 +262,14 @@ inline VkPipelineDepthStencilStateCreateInfo RenderPipeline::getDepthStencilInfo
     return depthStencil;
 }
 
+inline VkPipelineTessellationStateCreateInfo RenderPipeline::getTesselationStateInfo(const CreateParams& params)
+{
+    VkPipelineTessellationStateCreateInfo tesselation = {};
+    tesselation.sType                                 = VK_STRUCTURE_TYPE_PIPELINE_TESSELLATION_STATE_CREATE_INFO;
+    tesselation.patchControlPoints                    = params.tesselationPatchControlPoints;
+    return tesselation;
+}
+
 inline VkPipelineLayout RenderPipeline::createLayout(const VkDevice device, const CreateParams& params,
                                                      const std::vector<VkDescriptorSetLayout>& descriptorLayouts)
 {
@@ -263,8 +316,8 @@ inline VkGraphicsPipelineCreateInfo RenderPipeline::getPipelineCreateInfo(const 
     pipelineInfo.pDynamicState                = &data.dynamicState;
     if (data.depthStencil.sType == VK_STRUCTURE_TYPE_PIPELINE_DEPTH_STENCIL_STATE_CREATE_INFO)
         pipelineInfo.pDepthStencilState = &data.depthStencil;
-    else
-        pipelineInfo.pDepthStencilState = nullptr;
+    if (data.tesselation.patchControlPoints)
+        pipelineInfo.pTessellationState = &data.tesselation;
 
     assert(pipelineLayout);
     pipelineInfo.layout     = pipelineLayout;
@@ -279,68 +332,6 @@ inline VkGraphicsPipelineCreateInfo RenderPipeline::getPipelineCreateInfo(const 
     pipelineInfo.basePipelineIndex = params.pipelineDerivativeIndex;
 
     return pipelineInfo;
-}
-
-void RenderPipeline::create(const ri::DeviceContext&                          device,                   //
-                            const std::vector<const ri::RenderPass*>&         pipelinesPass,            //
-                            const std::vector<const ri::ShaderPipeline*>&     pipelinesShaders,         //
-                            const std::vector<RenderPipeline::CreateParams>&  pipelinesParams,          //
-                            const std::vector<RenderPipeline::ViewportParam>& pipelinesViewportParams,  //
-                            const std::vector<DescriptorSetLayout>&           descriptorLayouts,        //
-                            std::vector<RenderPipeline*>&                     pipelines)
-{
-    assert(!pipelinesPass.empty());
-    assert(!pipelinesViewportParams.empty());
-    assert(pipelinesParams.size() == pipelinesShaders.size());
-    assert(pipelinesPass.size() == pipelinesShaders.size());
-
-    std::vector<VkPipeline>         pipelineHandles(pipelinesParams.size());
-    std::vector<VkPipelineLayout>   pipelineLayoutHandles(pipelinesParams.size());
-    std::vector<PipelineCreateData> pipelineCreateData;
-    pipelineCreateData.reserve(pipelinesParams.size());
-    std::vector<VkGraphicsPipelineCreateInfo> pipelineInfos;
-    pipelineInfos.reserve(pipelinesParams.size());
-
-    for (size_t i = 0; i < pipelinesParams.size(); ++i)
-    {
-        const auto& params = pipelinesParams[i];
-        pipelineCreateData.emplace_back(*pipelinesPass[i], params,
-                                        pipelinesViewportParams[std::min(i, pipelinesViewportParams.size() - 1)]);
-        const auto& data   = pipelineCreateData.back();
-        const auto  layout = createLayout(detail::getVkHandle(device), params, descriptorLayouts);
-        pipelineLayoutHandles.push_back(layout);
-        pipelineInfos.push_back(
-            getPipelineCreateInfo(*pipelinesPass[i], *pipelinesShaders[i], pipelinesParams[i], data, layout));
-    }
-
-    RI_CHECK_RESULT_MSG("couldn't create multiple render pipelines") =
-        vkCreateGraphicsPipelines(detail::getVkHandle(device), VK_NULL_HANDLE, pipelineInfos.size(),
-                                  pipelineInfos.data(), nullptr, pipelineHandles.data());
-
-    pipelines.resize(pipelinesParams.size());
-    for (size_t i = 0; i < pipelineHandles.size(); ++i)
-    {
-        auto        handle       = pipelineHandles[i];
-        auto        layoutHandle = pipelineLayoutHandles[i];
-        const auto& data         = pipelineCreateData[i];
-        pipelines[i]             = new RenderPipeline(device, handle, layoutHandle, data.viewport, data.scissor);
-    }
-}
-
-inline RenderPipeline::PipelineCreateData::PipelineCreateData(const ri::RenderPass& pass, const CreateParams& params,
-                                                              const ViewportParam& viewportParam)
-    : vertexInput(getVertexInputInfo(params))
-    , inputAssembly(getInputAssemblyInfo(params))
-    , viewport(getViewportFrom(viewportParam))
-    , scissor(getScissorFrom(viewportParam))
-    , viewportState(getViewportStateInfo(viewport, scissor))
-    , rasterizer(getRasterizerInfo(params))
-    , multisampling(getMultisamplingInfo(params))
-    , colorBlendAttachment(getColorBlendAttachmentInfo(params))
-    , colorBlending(getColorBlendingInfo(params, colorBlendAttachment))
-    , dynamicState(getDynamicStateInfo(params))
-    , depthStencil(getDepthStencilInfo(pass, params))
-{
 }
 
 }  // namespace ri

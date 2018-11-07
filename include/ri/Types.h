@@ -8,31 +8,39 @@ namespace ri
 SAFE_ENUM_DECLARE(DeviceOperation, eGraphics = 0, eTransfer, eCompute);
 
 SAFE_ENUM_DECLARE(DeviceFeature,
-                  eFloat64 = 0,     //
-                  eGeometryShader,  //
-                  eSwapchain,       //
+                  eFloat64 = 0,
+                  eGeometryShader,
+                  eTesselationShader,
+                  eSwapchain,
                   eAnisotropy,
                   eSampleRateShading,
                   eWireframe);
 
 SAFE_ENUM_DECLARE(ShaderStage,
-                  eVertex      = VK_SHADER_STAGE_VERTEX_BIT,
-                  eGeometry    = VK_SHADER_STAGE_GEOMETRY_BIT,
-                  eFragment    = VK_SHADER_STAGE_FRAGMENT_BIT,
-                  eCompute     = VK_SHADER_STAGE_COMPUTE_BIT,
-                  eBoth        = eVertex | eFragment,
-                  eAllGraphics = VK_SHADER_STAGE_ALL_GRAPHICS);
+                  eVertex                = VK_SHADER_STAGE_VERTEX_BIT,
+                  eGeometry              = VK_SHADER_STAGE_GEOMETRY_BIT,
+                  eTesselationControl    = VK_SHADER_STAGE_TESSELLATION_CONTROL_BIT,
+                  eTesselationEvaluation = VK_SHADER_STAGE_TESSELLATION_EVALUATION_BIT,
+                  eFragment              = VK_SHADER_STAGE_FRAGMENT_BIT,
+                  eCompute               = VK_SHADER_STAGE_COMPUTE_BIT,
+                  eVertexFragment        = eVertex | eFragment,
+                  eAllGraphics           = VK_SHADER_STAGE_ALL_GRAPHICS);
 
 SAFE_ENUM_DECLARE(PrimitiveTopology,
-                  eTriangles     = VK_PRIMITIVE_TOPOLOGY_TRIANGLE_LIST,
-                  eTriangleStrip = VK_PRIMITIVE_TOPOLOGY_TRIANGLE_STRIP,
-                  eLines         = VK_PRIMITIVE_TOPOLOGY_LINE_LIST,
-                  eLineStrip     = VK_PRIMITIVE_TOPOLOGY_LINE_STRIP,
-                  ePoints        = VK_PRIMITIVE_TOPOLOGY_POINT_LIST);
+                  eTriangles             = VK_PRIMITIVE_TOPOLOGY_TRIANGLE_LIST,
+                  eTriangleStrip         = VK_PRIMITIVE_TOPOLOGY_TRIANGLE_STRIP,
+                  eLines                 = VK_PRIMITIVE_TOPOLOGY_LINE_LIST,
+                  eLineStrip             = VK_PRIMITIVE_TOPOLOGY_LINE_STRIP,
+                  ePoints                = VK_PRIMITIVE_TOPOLOGY_POINT_LIST,
+                  eLineListAdjaceny      = VK_PRIMITIVE_TOPOLOGY_LINE_LIST_WITH_ADJACENCY,
+                  eLineStripAdjaceny     = VK_PRIMITIVE_TOPOLOGY_LINE_STRIP_WITH_ADJACENCY,
+                  eTriangleListAdjaceny  = VK_PRIMITIVE_TOPOLOGY_TRIANGLE_LIST_WITH_ADJACENCY,
+                  eTriangleStripAdjaceny = VK_PRIMITIVE_TOPOLOGY_TRIANGLE_STRIP_WITH_ADJACENCY,
+                  ePatchList             = VK_PRIMITIVE_TOPOLOGY_PATCH_LIST);
 
 SAFE_ENUM_DECLARE(CullMode,
-                  eNone  = VK_CULL_MODE_NONE,      //
-                  eBack  = VK_CULL_MODE_BACK_BIT,  //
+                  eNone  = VK_CULL_MODE_NONE,  //
+                  eBack  = VK_CULL_MODE_BACK_BIT,
                   eFront = VK_CULL_MODE_FRONT_BIT);
 
 SAFE_ENUM_DECLARE(PolygonMode,
