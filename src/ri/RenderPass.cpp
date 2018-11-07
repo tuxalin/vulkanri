@@ -2,6 +2,7 @@
 #include <ri/RenderPass.h>
 
 #include <array>
+#include <util/common.h>
 #include <util/math.h>
 namespace ri
 {
@@ -72,7 +73,7 @@ RenderPass::RenderPass(const ri::DeviceContext& device, const AttachmentParams* 
             depthAttachmentRef.attachment = i;
         }
     }
-    assert(resolveAttachmentRefs.size() == colorAttachmentRefs.size());
+    assert_if(!resolveAttachmentRefs.empty(), resolveAttachmentRefs.size() == colorAttachmentRefs.size());
 
     // TODO: add support for multi subpasses, must also add VkSubpassDependency
 
