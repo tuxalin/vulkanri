@@ -68,7 +68,7 @@ private:
     void create(ri::DeviceContext& device);
     void createSwapchain(const SwapChainSupport& support, const VkSurfaceFormatKHR& surfaceFormat,
                          uint32_t graphicsQueueIndex);
-    void createExtraBuffers(const ri::DeviceContext& device);
+    void createExtraBuffers(ri::DeviceContext& device);
     void createRenderTargets(const ri::DeviceContext& device);
     void createCommandBuffers(ri::DeviceContext& device);
 
@@ -80,7 +80,6 @@ private:
     VkDevice                                  m_device    = VK_NULL_HANDLE;
     std::vector<RenderTarget*>                m_swapchainTargets;
     std::vector<detail::CommandBufferStorage> m_swapchainCommandBuffers;
-    detail::CommandBufferStorage              m_oneTimeCommandBuffer;
     int                                       m_presentQueueIndex = -1;
     VkQueue                                   m_presentQueue;
     Sizei                                     m_size;

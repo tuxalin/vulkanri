@@ -133,19 +133,16 @@ void DeviceContext::initialize(const std::vector<Surface*>&        surfaces,
     }
 }
 
-void DeviceContext::addCommandPool(DeviceOperation operation, const CommandPoolParam& param)
+CommandPool& DeviceContext::addCommandPool(DeviceOperation operation, const CommandPoolParam& param)
 {
-    static_assert(DeviceCommandHint::Count == 2, "");
-    static_assert(DeviceOperation::eGraphics == 0, "");
-
-    // 0 for graphics pool, 1 for compute
-    auto& commandPool = m_commandPools[(operation.get() == DeviceOperation::eCompute) * 2 + param.hints.get()];
+    auto& commandPool = m_commandPools[commandPoolIndex(operation, param.hints)];
     if (!commandPool)
     {
         commandPool = new CommandPool(param.resetMode, param.hints, operation);
         commandPool->initialize(*this, m_queueIndices[static_cast<size_t>(operation)]);
     }
     assert(param.resetMode == commandPool->resetMode());
+    return *commandPool;
 }
 
 uint32_t DeviceContext::deviceScore(VkPhysicalDevice device, const std::vector<DeviceFeature>& requiredFeatures)

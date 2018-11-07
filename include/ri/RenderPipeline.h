@@ -62,7 +62,7 @@ public:
         bool             depthBoundsTestEnable   = false;
         float            depthMinBounds          = 0.0f;
         float            depthMaxBounds          = 1.0f;
-        CompareOperation depthCompareOp          = CompareOperation::eLess;
+        CompareOperation depthCompareOp          = CompareOperation::eLessOrEqual;
 
         // Stencil
         bool           stencilTestEnable = false;

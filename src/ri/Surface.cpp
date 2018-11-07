@@ -206,10 +206,14 @@ void Surface::create(ri::DeviceContext& device)
     m_extent                               = detail::chooseSurfaceExtent(support.capabilities, m_size);
     m_format                               = ColorFormat::from((int)surfaceFormat.format);
 
+    m_msaaSamples = std::min(m_msaaSamples, device.deviceProperties().getMaxSamples());
+
     // TODO: review this
     const uint32_t graphicsQueueIndex = detail::getDeviceQueueIndex(device, DeviceOperation::eGraphics);
     createSwapchain(support, surfaceFormat, graphicsQueueIndex);
     createCommandBuffers(device);
+    // create the extra buffers needed for depth or MSAA
+    createExtraBuffers(device);
     createRenderTargets(device);
 
     // create semaphores
@@ -272,11 +276,6 @@ void Surface::createSwapchain(const SwapChainSupport& support, const VkSurfaceFo
 
 inline void Surface::createRenderTargets(const ri::DeviceContext& device)
 {
-    m_msaaSamples = std::min(m_msaaSamples, device.deviceProperties().getMaxSamples());
-
-    // create the extra buffers needed for depth or MSAA
-    createExtraBuffers(device);
-
     const uint32_t swapchainAttachmentIndex = m_msaaSamples > 1 ? 1 : 0;
     const uint32_t depthAttachmentIndex     = swapchainAttachmentIndex + 1;
     size_t         attachmentCount          = m_depthTexture ? 2 : 1;
@@ -356,9 +355,14 @@ inline void Surface::createRenderTargets(const ri::DeviceContext& device)
     }
 }
 
-void Surface::createExtraBuffers(const ri::DeviceContext& device)
+void Surface::createExtraBuffers(ri::DeviceContext& device)
 {
-    m_oneTimeCommandBuffer.cast().begin(RecordFlags::eOneTime);
+    if (m_depthFormat == ColorFormat::eUndefined && m_msaaSamples <= 1)
+        return;
+
+    // we need a one time buffer to layout the depth and/or msaa texture
+    auto& commandPool   = device.addCommandPool(DeviceOperation::eTransfer, {DeviceCommandHint::eRecorded, false});
+    auto  commandBuffer = commandPool.begin();
 
     TextureParams params;
     params.size    = size();
@@ -374,10 +378,8 @@ void Surface::createExtraBuffers(const ri::DeviceContext& device)
         m_depthTexture = new Texture(device, params);
         m_depthTexture->setTagName(tagName() + "_depthTexture");
 
-        m_depthTexture->transitionImageLayout(TextureLayoutType::eUndefined,
-                                              TextureLayoutType::eDepthStencilOptimal,
-                                              true,
-                                              m_oneTimeCommandBuffer.cast());
+        m_depthTexture->transitionImageLayout(TextureLayoutType::eUndefined, TextureLayoutType::eDepthStencilOptimal,
+                                              true, commandBuffer);
     }
     if (m_msaaSamples > 1)
     {
@@ -388,10 +390,10 @@ void Surface::createExtraBuffers(const ri::DeviceContext& device)
         m_msaaColorTexture->setTagName(tagName() + "_MSAATexture");
 
         m_msaaColorTexture->transitionImageLayout(TextureLayoutType::eUndefined, TextureLayoutType::eColorOptimal,
-                                                  false, m_oneTimeCommandBuffer.cast());
+                                                  false, commandBuffer);
     }
 
-    m_oneTimeCommandBuffer.cast().end();
+    commandPool.end(commandBuffer);
 }
 
 inline void Surface::createCommandBuffers(ri::DeviceContext& device)
@@ -403,8 +405,6 @@ inline void Surface::createCommandBuffers(ri::DeviceContext& device)
     assert(!m_swapchainCommandBuffers.empty());
 
     device.commandPool().create(reinterpret_cast<std::vector<CommandBuffer>&>(m_swapchainCommandBuffers));
-    m_oneTimeCommandBuffer.cast() =
-        device.commandPool(DeviceOperation::eTransfer, DeviceCommandHint::eRecorded).create(true);
 
 #ifndef NDEBUG
     int i = 0;

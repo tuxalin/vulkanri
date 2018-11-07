@@ -17,14 +17,14 @@ SAFE_ENUM_DECLARE(DeviceFeature,
                   eWireframe);
 
 SAFE_ENUM_DECLARE(ShaderStage,
-                  eVertex                = VK_SHADER_STAGE_VERTEX_BIT,
-                  eGeometry              = VK_SHADER_STAGE_GEOMETRY_BIT,
-                  eTesselationControl    = VK_SHADER_STAGE_TESSELLATION_CONTROL_BIT,
-                  eTesselationEvaluation = VK_SHADER_STAGE_TESSELLATION_EVALUATION_BIT,
-                  eFragment              = VK_SHADER_STAGE_FRAGMENT_BIT,
-                  eCompute               = VK_SHADER_STAGE_COMPUTE_BIT,
-                  eVertexFragment        = eVertex | eFragment,
-                  eAllGraphics           = VK_SHADER_STAGE_ALL_GRAPHICS);
+                  eVertex                 = VK_SHADER_STAGE_VERTEX_BIT,
+                  eGeometry               = VK_SHADER_STAGE_GEOMETRY_BIT,
+                  eTessellationControl    = VK_SHADER_STAGE_TESSELLATION_CONTROL_BIT,
+                  eTessellationEvaluation = VK_SHADER_STAGE_TESSELLATION_EVALUATION_BIT,
+                  eFragment               = VK_SHADER_STAGE_FRAGMENT_BIT,
+                  eCompute                = VK_SHADER_STAGE_COMPUTE_BIT,
+                  eVertexFragment         = eVertex | eFragment,
+                  eAllGraphics            = VK_SHADER_STAGE_ALL_GRAPHICS);
 
 SAFE_ENUM_DECLARE(PrimitiveTopology,
                   eTriangles             = VK_PRIMITIVE_TOPOLOGY_TRIANGLE_LIST,

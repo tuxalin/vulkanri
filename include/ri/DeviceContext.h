@@ -38,7 +38,7 @@ public:
     CommandPool&       commandPool(DeviceOperation operation, DeviceCommandHint commandHint);
     const CommandPool& commandPool(DeviceOperation operation, DeviceCommandHint commandHint) const;
     /// @note By default the graphics command buffer with the give param is created.
-    void addCommandPool(DeviceOperation operation, const CommandPoolParam& param);
+    CommandPool& addCommandPool(DeviceOperation operation, const CommandPoolParam& param);
 
     void waitIdle();
 
@@ -61,16 +61,26 @@ private:
                                   const VkPhysicalDeviceFeatures& deviceFeatures, const std::vector<const char*>& deviceExtensions);
     std::vector<VkDeviceQueueCreateInfo> attachSurfaces(const SurfacePtr* surfaces, size_t surfacesCount);
 
+    static size_t commandPoolIndex(DeviceOperation operation, DeviceCommandHint commandHint)
+    {
+        static_assert(DeviceCommandHint::Count == 2, "");
+        static_assert(DeviceCommandHint::eRecorded == 0, "");
+        static_assert(DeviceCommandHint::eTransient == 1, "");
+        return size_t(operation) * DeviceCommandHint::Count + commandHint.get();
+    }
+
 private:
-    const ApplicationInstance&       m_instance;
-    std::vector<DeviceOperation>     m_requiredOperations;
-    VkPhysicalDevice                 m_physicalDevice = VK_NULL_HANDLE;
-    OperationQueues                  m_queues;
-    OperationIndices                 m_queueIndices;
-    CommandPool*                     m_defaultCommandPool = nullptr;
-    std::array<CommandPool*, 2 * 2>  m_commandPools;
-    VkPhysicalDeviceMemoryProperties m_memoryProperties;
-    DeviceProperties                 m_deviceProperties;
+    static const size_t cPoolSize = DeviceOperation::Count + DeviceCommandHint::Count;
+
+    const ApplicationInstance&          m_instance;
+    std::vector<DeviceOperation>        m_requiredOperations;
+    VkPhysicalDevice                    m_physicalDevice = VK_NULL_HANDLE;
+    OperationQueues                     m_queues;
+    OperationIndices                    m_queueIndices;
+    CommandPool*                        m_defaultCommandPool = nullptr;
+    std::array<CommandPool*, cPoolSize> m_commandPools;
+    VkPhysicalDeviceMemoryProperties    m_memoryProperties;
+    DeviceProperties                    m_deviceProperties;
 
     friend VkPhysicalDevice detail::getDevicePhysicalHandle(const ri::DeviceContext& device);
     friend VkQueue          detail::getDeviceQueue(const ri::DeviceContext& device, int deviceOperation);
@@ -115,16 +125,14 @@ inline CommandPool& DeviceContext::commandPool()
 
 inline CommandPool& DeviceContext::commandPool(DeviceOperation operation, DeviceCommandHint commandHint)
 {
-    // 0 for graphics pool, 1 for compute
-    auto& commandPool = m_commandPools[(operation.get() == DeviceOperation::eCompute) * 2 + commandHint.get()];
+    auto& commandPool = m_commandPools[commandPoolIndex(operation, commandHint)];
     assert(commandPool);
     return *commandPool;
 }
 
 inline const CommandPool& DeviceContext::commandPool(DeviceOperation operation, DeviceCommandHint commandHint) const
 {
-    // 0 for graphics pool, 1 for compute
-    const auto& commandPool = m_commandPools[(operation.get() == DeviceOperation::eCompute) * 2 + commandHint.get()];
+    const auto& commandPool = m_commandPools[commandPoolIndex(operation, commandHint)];
     assert(commandPool);
     return *commandPool;
 }
