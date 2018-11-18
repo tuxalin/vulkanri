@@ -132,6 +132,17 @@ public:
         int32_t viewportY;
     };
 
+    class ScopedEnable
+    {
+    public:
+        ScopedEnable(const RenderPipeline& pipeline, const ri::RenderTarget& target, ri::CommandBuffer& commandBuffer);
+        ~ScopedEnable();
+
+    private:
+        const RenderPipeline* m_pipeline;
+        ri::CommandBuffer*    m_commandBuffer;
+    };
+
     /// @note Takes ownership of the render pass.
     RenderPipeline(const ri::DeviceContext&  device,          //
                    ri::RenderPass*           pass,            //
@@ -372,6 +383,19 @@ inline void RenderPipeline::DynamicState::setStencilReference(CommandBuffer& buf
                                                               uint32_t reference)
 {
     vkCmdSetStencilReference(detail::getVkHandle(buffer), faceMask, reference);
+}
+
+inline RenderPipeline::ScopedEnable::ScopedEnable(const RenderPipeline& pipeline, const ri::RenderTarget& target,
+                                                  ri::CommandBuffer& commandBuffer)
+    : m_pipeline(&pipeline)
+    , m_commandBuffer(&commandBuffer)
+{
+    m_pipeline->begin(commandBuffer, target);
+}
+
+inline RenderPipeline::ScopedEnable::~ScopedEnable()
+{
+    m_pipeline->end(*m_commandBuffer);
 }
 
 }  // namespace ri

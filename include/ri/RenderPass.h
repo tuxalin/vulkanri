@@ -41,6 +41,17 @@ public:
         TextureLayoutType layout;
     };
 
+    class ScopedEnable
+    {
+    public:
+        ScopedEnable(const RenderPass& pass, const ri::RenderTarget& target, ri::CommandBuffer& commandBuffer);
+        ~ScopedEnable();
+
+    private:
+        const RenderPass*  m_pass;
+        ri::CommandBuffer* m_commandBuffer;
+    };
+
     RenderPass(const ri::DeviceContext& device, const AttachmentParams& attachment);
     ///@note Attachment order must match the layout index in the shaders.
     RenderPass(const ri::DeviceContext& device, const AttachmentParams* attachments, size_t attachmentsCount);
@@ -118,6 +129,19 @@ inline void RenderPass::begin(const CommandBuffer& buffer, const RenderTarget& t
 inline void RenderPass::end(const CommandBuffer& buffer) const
 {
     vkCmdEndRenderPass(detail::getVkHandle(buffer));
+}
+
+inline RenderPass::ScopedEnable::ScopedEnable(const RenderPass& pass, const ri::RenderTarget& target,
+                                              ri::CommandBuffer& commandBuffer)
+    : m_pass(&pass)
+    , m_commandBuffer(&commandBuffer)
+{
+    m_pass->begin(commandBuffer, target);
+}
+
+inline RenderPass::ScopedEnable::~ScopedEnable()
+{
+    m_pass->end(*m_commandBuffer);
 }
 
 }  // namespace ri

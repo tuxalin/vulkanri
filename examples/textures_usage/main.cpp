@@ -489,7 +489,7 @@ private:
         pipeline->dynamicState().setViewport(commandBuffer, target.size());
         pipeline->dynamicState().setScissor(commandBuffer, target.size());
 
-        pipeline->begin(commandBuffer, target);
+        ri::RenderPipeline::ScopedEnable pipelineScope(*pipeline, target, commandBuffer);
 
         // bind the vertex and index buffers
         m_vertexDescription.bind(commandBuffer);
@@ -497,8 +497,6 @@ private:
         m_descriptor.bind(commandBuffer, *pipeline);
 
         commandBuffer.drawIndexed(planeModel.indices.size());
-
-        pipeline->end(commandBuffer);
     }
 
     void record()
