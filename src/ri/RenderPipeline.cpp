@@ -25,7 +25,7 @@ RenderPipeline::RenderPipeline(const ri::DeviceContext&  device,          //
     : m_device(detail::getVkHandle(device))
     , m_renderPass(&pass)
 {
-    const ViewportParam      viewportParam = {viewportSize, viewportX, viewportY};
+    const ViewportParam      viewportParam(viewportSize, viewportX, viewportY);
     const PipelineCreateData data(pass, params, viewportParam);
 
     m_viewport = getViewportFrom(viewportParam);
@@ -166,10 +166,10 @@ inline VkPipelineRasterizationStateCreateInfo RenderPipeline::getRasterizerInfo(
     rasterizer.lineWidth                              = params.lineWidth;
     rasterizer.cullMode                               = (VkCullModeFlags)params.cullMode;
     rasterizer.frontFace               = params.frontFaceCW ? VK_FRONT_FACE_CLOCKWISE : VK_FRONT_FACE_COUNTER_CLOCKWISE;
-    rasterizer.rasterizerDiscardEnable = !params.rasterize;
+    rasterizer.rasterizerDiscardEnable = !params.rasterizeEnable;
     // depth
-    rasterizer.depthClampEnable        = params.depthClamp;
-    rasterizer.depthBiasEnable         = params.depthBias;
+    rasterizer.depthClampEnable        = params.depthClampEnable;
+    rasterizer.depthBiasEnable         = params.depthBiasEnable;
     rasterizer.depthBiasConstantFactor = params.depthBiasConstantFactor;
     rasterizer.depthBiasClamp          = params.depthBiasClamp;
     rasterizer.depthBiasSlopeFactor    = params.depthBiasSlopeFactor;
@@ -196,7 +196,7 @@ inline VkPipelineColorBlendAttachmentState RenderPipeline::getColorBlendAttachme
     VkPipelineColorBlendAttachmentState colorBlendAttachment = {};
     const VkColorComponentFlags         writeAllMask =
         VK_COLOR_COMPONENT_R_BIT | VK_COLOR_COMPONENT_G_BIT | VK_COLOR_COMPONENT_B_BIT | VK_COLOR_COMPONENT_A_BIT;
-    colorBlendAttachment.colorWriteMask      = params.colorWrite ? writeAllMask : 0;
+    colorBlendAttachment.colorWriteMask      = params.colorWriteEnable ? writeAllMask : 0;
     colorBlendAttachment.blendEnable         = params.blend;
     colorBlendAttachment.srcColorBlendFactor = (VkBlendFactor)params.blendSrcFactor;
     colorBlendAttachment.dstColorBlendFactor = (VkBlendFactor)params.blendDstFactor;
@@ -228,9 +228,12 @@ inline VkPipelineColorBlendStateCreateInfo RenderPipeline::getColorBlendingInfo(
 inline VkPipelineDynamicStateCreateInfo RenderPipeline::getDynamicStateInfo(const CreateParams& params)
 {
     VkPipelineDynamicStateCreateInfo dynamicState = {};
-    dynamicState.sType                            = VK_STRUCTURE_TYPE_PIPELINE_DYNAMIC_STATE_CREATE_INFO;
-    dynamicState.dynamicStateCount                = params.dynamicStates.size();
-    dynamicState.pDynamicStates = reinterpret_cast<const VkDynamicState*>(params.dynamicStates.data());
+    if (!params.dynamicStates.empty())
+    {
+        dynamicState.sType             = VK_STRUCTURE_TYPE_PIPELINE_DYNAMIC_STATE_CREATE_INFO;
+        dynamicState.dynamicStateCount = params.dynamicStates.size();
+        dynamicState.pDynamicStates    = reinterpret_cast<const VkDynamicState*>(params.dynamicStates.data());
+    }
 
     return dynamicState;
 }
@@ -313,7 +316,8 @@ inline VkGraphicsPipelineCreateInfo RenderPipeline::getPipelineCreateInfo(const 
     pipelineInfo.pRasterizationState          = &data.rasterizer;
     pipelineInfo.pMultisampleState            = &data.multisampling;
     pipelineInfo.pColorBlendState             = &data.colorBlending;
-    pipelineInfo.pDynamicState                = &data.dynamicState;
+    if (data.dynamicState.sType == VK_STRUCTURE_TYPE_PIPELINE_DYNAMIC_STATE_CREATE_INFO)
+        pipelineInfo.pDynamicState = &data.dynamicState;
     if (data.depthStencil.sType == VK_STRUCTURE_TYPE_PIPELINE_DEPTH_STENCIL_STATE_CREATE_INFO)
         pipelineInfo.pDepthStencilState = &data.depthStencil;
     if (data.tesselation.patchControlPoints)

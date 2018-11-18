@@ -22,6 +22,8 @@ public:
     void* lock(size_t offset);
     void  unlock();
     void  update(const void* src);
+    template <typename T, typename = std::enable_if_t<!std::is_pointer<T>::value> >
+    void update(const T& src);
 
     /// Copy from a staging buffer, issues an one time command submit, does this synchronously.
     void copy(const Buffer& src, CommandPool& commandPool, size_t srcOffset = 0, size_t dstOffset = 0);
@@ -84,6 +86,13 @@ inline void* Buffer::lock(size_t offset)
 inline void Buffer::unlock()
 {
     vkUnmapMemory(m_device, m_bufferMemory);
+}
+
+template <typename T, typename>
+void Buffer::update(const T& src)
+{
+    assert(sizeof(T) == m_size);
+    update(&src);
 }
 
 inline void Buffer::update(const void* src)

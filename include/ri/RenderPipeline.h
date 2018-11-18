@@ -38,9 +38,9 @@ public:
         PolygonMode       polygonMode       = PolygonMode::eNormal;
 
         // Enable/Disable color writing
-        bool colorWrite = true;
+        bool colorWriteEnable = true;
         // Enable/Disable rasterize stage
-        bool rasterize = true;
+        bool rasterizeEnable = true;
 
         // Blending
         BlendFactor    blendSrcFactor      = BlendFactor::eSrc_Alpha;
@@ -54,8 +54,8 @@ public:
         // Depth
         bool             depthTestEnable         = false;
         bool             depthWriteEnable        = false;
-        bool             depthClamp              = false;
-        bool             depthBias               = false;
+        bool             depthClampEnable        = false;
+        bool             depthBiasEnable         = false;
         float            depthBiasConstantFactor = 0.0f;
         float            depthBiasClamp          = 0.0f;
         float            depthBiasSlopeFactor    = 0.0f;
@@ -97,7 +97,7 @@ public:
     struct DynamicState
     {
         void setViewport(CommandBuffer& buffer, const Sizei& viewportSize,  //
-                         int32_t viewportX = 0, int32_t viewportY = 0);
+                         int32_t viewportX = 0, int32_t viewportY = 0, float minDepth = 0.f, float maxDepth = 1.f);
 
         void setScissor(CommandBuffer& buffer, const Sizei& viewportSize,  //
                         int32_t viewportX = 0, int32_t viewportY = 0);
@@ -121,7 +121,7 @@ public:
     struct ViewportParam
     {
         ViewportParam(const Sizei& size, int32_t viewportX = 0, int32_t viewportY = 0)
-            : viewportSize(viewportSize)
+            : viewportSize(size)
             , viewportX(viewportX)
             , viewportY(viewportY)
         {
@@ -324,12 +324,15 @@ inline void RenderPipeline::create(const ri::DeviceContext&                     
 }
 
 inline void RenderPipeline::DynamicState::setViewport(CommandBuffer& buffer, const Sizei& viewportSize,  //
-                                                      int32_t viewportX /*= 0*/, int32_t viewportY /*= 0*/)
+                                                      int32_t viewportX /*= 0*/, int32_t viewportY /*= 0*/,
+                                                      float minDepth /*= 0.f*/, float maxDepth /*= 1.f*/)
 {
-    m_viewport.x      = (float)viewportX;
-    m_viewport.y      = (float)viewportY;
-    m_viewport.width  = (float)viewportSize.width;
-    m_viewport.height = (float)viewportSize.height;
+    m_viewport.x        = (float)viewportX;
+    m_viewport.y        = (float)viewportY;
+    m_viewport.width    = (float)viewportSize.width;
+    m_viewport.height   = (float)viewportSize.height;
+    m_viewport.minDepth = minDepth;
+    m_viewport.maxDepth = maxDepth;
     vkCmdSetViewport(detail::getVkHandle(buffer), 0, 1, &m_viewport);
 }
 
