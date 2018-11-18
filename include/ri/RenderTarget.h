@@ -43,6 +43,7 @@ private:
 private:
     VkDevice                    m_device = VK_NULL_HANDLE;
     std::vector<VkImageView>    m_imageViews;
+    std::vector<bool>           m_imageViewsOwnership;
     std::vector<const Texture*> m_textures;
     Sizei                       m_size;
 };

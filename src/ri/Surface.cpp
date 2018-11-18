@@ -311,6 +311,7 @@ inline void Surface::createRenderTargets(const ri::DeviceContext& device)
 
         m_renderPass = new RenderPass(device, params, attachmentCount);
         m_renderPass->setTagName(tagName() + "_defaultPass");
+        m_renderPass->setRenderArea(m_size);
 
         for (size_t i = 0; i < attachmentCount; ++i)
         {
@@ -362,7 +363,7 @@ void Surface::createExtraBuffers(ri::DeviceContext& device)
 
     // we need a one time buffer to layout the depth and/or msaa texture
     auto& commandPool   = device.addCommandPool(DeviceOperation::eTransfer, {DeviceCommandHint::eRecorded, false});
-    auto  commandBuffer = commandPool.begin();
+    auto& commandBuffer = commandPool.begin();
 
     TextureParams params;
     params.size    = size();

@@ -12,6 +12,30 @@ namespace detail
     {
         return new ri::Texture(handle, TextureType::from(type), ColorFormat::from(format), size);
     }
+
+    VkImageView getImageViewHandle(const ri::Texture& texture)
+    {
+        return texture.m_view;
+    }
+
+    VkImageAspectFlags getImageAspectFlags(VkFormat format)
+    {
+        VkImageAspectFlags flags;
+        if (format == VK_FORMAT_D32_SFLOAT_S8_UINT || format == VK_FORMAT_D24_UNORM_S8_UINT)
+        {
+            flags = VK_IMAGE_ASPECT_STENCIL_BIT | VK_IMAGE_ASPECT_DEPTH_BIT;
+        }
+        else if (format == VK_FORMAT_D32_SFLOAT)
+        {
+            flags = VK_IMAGE_ASPECT_DEPTH_BIT;
+        }
+        else
+        {
+            flags = VK_IMAGE_ASPECT_COLOR_BIT;
+        }
+
+        return flags;
+    }
 }
 
 namespace
@@ -54,6 +78,10 @@ Texture::Texture(const DeviceContext& device, const TextureParams& params)
     {
         createSampler(params.samplerParams);
         createImageView(params, VK_IMAGE_ASPECT_COLOR_BIT);
+    }
+    else if (m_format == ColorFormat::eDepth32)
+    {
+        createImageView(params, VK_IMAGE_ASPECT_DEPTH_BIT);
     }
 }
 

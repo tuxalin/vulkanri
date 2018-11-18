@@ -44,8 +44,10 @@ namespace detail
 
     const std::vector<VkPipelineShaderStageCreateInfo>& getStageCreateInfos(const ShaderPipeline& pipeline);
 
+    VkImageView           getImageViewHandle(const ri::Texture& texture);
     const Texture*        createReferenceTexture(VkImage handle, int type, int format, const Sizei& size);
     TextureDescriptorInfo getTextureDescriptorInfo(const Texture& texture);
+    VkImageAspectFlags    getImageAspectFlags(VkFormat format);
 
     VkPhysicalDevice                        getDevicePhysicalHandle(const ri::DeviceContext& device);
     VkQueue                                 getDeviceQueue(const ri::DeviceContext& device, int deviceOperation);
@@ -59,24 +61,6 @@ namespace detail
 
     template <typename HandleClass>
     HandleClass getVkHandle(const RenderObject<HandleClass>& obj);
-
-    inline VkImageAspectFlags getImageAspectFlags(VkFormat format)
-    {
-        VkImageAspectFlags flags;
-        if (format == VK_FORMAT_D32_SFLOAT_S8_UINT || format == VK_FORMAT_D24_UNORM_S8_UINT)
-        {
-            flags = VK_IMAGE_ASPECT_STENCIL_BIT;
-            flags |= VK_IMAGE_ASPECT_DEPTH_BIT;
-        }
-        else if (format == VK_FORMAT_D32_SFLOAT)
-        {
-            flags = VK_IMAGE_ASPECT_DEPTH_BIT;
-        }
-        else
-            flags = VK_IMAGE_ASPECT_COLOR_BIT;
-
-        return flags;
-    }
 
 }  // namespace detail
 }  // namespace ri

@@ -147,6 +147,7 @@ private:
 
     friend const Texture* detail::createReferenceTexture(VkImage handle, int type, int format, const Sizei& size);
     friend detail::TextureDescriptorInfo detail::getTextureDescriptorInfo(const Texture& texture);
+    friend VkImageView                   detail::getImageViewHandle(const ri::Texture& texture);
 };
 
 namespace detail

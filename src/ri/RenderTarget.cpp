@@ -28,8 +28,12 @@ RenderTarget::RenderTarget(const DeviceContext& device, const RenderPass& pass, 
 RenderTarget::~RenderTarget()
 {
     vkDestroyFramebuffer(m_device, m_handle, nullptr);
+    size_t i = 0;
     for (auto imageView : m_imageViews)
-        vkDestroyImageView(m_device, imageView, nullptr);
+    {
+        if (m_imageViewsOwnership[i++])
+            vkDestroyImageView(m_device, imageView, nullptr);
+    }
     for (auto texture : m_textures)
         delete texture;
 }
@@ -40,6 +44,14 @@ void RenderTarget::createAttachments(const AttachmentParams* attachments, size_t
     {
         const auto& attachmentParam = attachments[i];
         assert(attachmentParam.texture);
+
+        const VkImageView textureView = detail::getImageViewHandle(*attachmentParam.texture);
+        if (textureView)
+        {
+            m_imageViews.push_back(textureView);
+            m_imageViewsOwnership.push_back(false);
+            continue;
+        }
 
         VkImageViewCreateInfo createInfo = {};
         createInfo.sType                 = VK_STRUCTURE_TYPE_IMAGE_VIEW_CREATE_INFO;
@@ -66,6 +78,7 @@ void RenderTarget::createAttachments(const AttachmentParams* attachments, size_t
 
         if (attachmentParam.takeOwnership)
             m_textures.push_back(attachmentParam.texture);
+        m_imageViewsOwnership.push_back(true);
     }
 }
 }
