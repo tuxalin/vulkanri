@@ -82,9 +82,9 @@ struct Material
     float r                    = 1.f;
     float g                    = 1.f;
     float b                    = 1.f;
-    float normalStrength       = 3.f;
+    float normalStrength       = 2.0f;
     float aoStrength           = 0.8f;
-    float displacementStrength = 0.1f;
+    float displacementStrength = 0.015f;
     float tessLevel            = 16.f;
 };
 
@@ -192,36 +192,36 @@ private:
             app->record();
         }
 
-        if (key == GLFW_KEY_R && action == GLFW_PRESS)
+        if (key == GLFW_KEY_R && action == GLFW_REPEAT)
             app->m_material.roughness += 0.05f;
-        if (key == GLFW_KEY_T && action == GLFW_PRESS)
+        if (key == GLFW_KEY_E && action == GLFW_REPEAT)
             app->m_material.roughness -= 0.05f;
-        if (key == GLFW_KEY_S && action == GLFW_PRESS)
+        if (key == GLFW_KEY_S && action == GLFW_REPEAT)
             app->m_material.specular += 0.05f;
-        if (key == GLFW_KEY_A && action == GLFW_PRESS)
+        if (key == GLFW_KEY_A && action == GLFW_REPEAT)
             app->m_material.specular -= 0.05f;
-        if (key == GLFW_KEY_O && action == GLFW_PRESS)
+        if (key == GLFW_KEY_O && action == GLFW_REPEAT)
             app->m_material.aoStrength += 0.1f;
-        if (key == GLFW_KEY_I && action == GLFW_PRESS)
+        if (key == GLFW_KEY_I && action == GLFW_REPEAT)
             app->m_material.aoStrength -= 0.1f;
-        if (key == GLFW_KEY_N && action == GLFW_PRESS)
+        if (key == GLFW_KEY_N && action == GLFW_REPEAT)
             app->m_material.normalStrength += 0.1f;
-        if (key == GLFW_KEY_M && action == GLFW_PRESS)
+        if (key == GLFW_KEY_M && action == GLFW_REPEAT)
             app->m_material.normalStrength -= 0.1f;
-        if (key == GLFW_KEY_D && action == GLFW_PRESS)
-            app->m_material.displacementStrength += 0.03f;
-        if (key == GLFW_KEY_F && action == GLFW_PRESS)
-            app->m_material.displacementStrength -= 0.03f;
-        if (key == GLFW_KEY_T && action == GLFW_PRESS)
+        if (key == GLFW_KEY_D && action == GLFW_REPEAT)
+            app->m_material.displacementStrength += 0.001f;
+        if (key == GLFW_KEY_F && action == GLFW_REPEAT)
+            app->m_material.displacementStrength -= 0.001f;
+        if (key == GLFW_KEY_T && action == GLFW_REPEAT)
             app->m_material.tessLevel += 0.5f;
-        if (key == GLFW_KEY_Y && action == GLFW_PRESS)
+        if (key == GLFW_KEY_Y && action == GLFW_REPEAT)
             app->m_material.tessLevel -= 0.5f;
 
         app->m_material.roughness            = glm::clamp(app->m_material.roughness, 0.f, 1.f);
         app->m_material.specular             = glm::clamp(app->m_material.specular, 0.f, 1.f);
         app->m_material.aoStrength           = glm::clamp(app->m_material.aoStrength, 0.f, 1.f);
         app->m_material.normalStrength       = glm::clamp(app->m_material.normalStrength, -1.f, 10.f);
-        app->m_material.displacementStrength = glm::clamp(app->m_material.displacementStrength, 0.f, 0.3f);
+        app->m_material.displacementStrength = glm::clamp(app->m_material.displacementStrength, 0.f, 0.04f);
         app->m_material.tessLevel            = glm::clamp(app->m_material.tessLevel, 1.f, 64.f);
     }
 
@@ -493,7 +493,7 @@ private:
 
         // bind the vertex and index buffers
         m_vertexDescription.bind(commandBuffer);
-        // bind the uniform buffer to the render pipeline
+        // bind the uniform buffer/textures to the render pipeline
         m_descriptor.bind(commandBuffer, *pipeline);
 
         commandBuffer.drawIndexed(planeModel.indices.size());
@@ -545,9 +545,9 @@ private:
         lightParams.ambient = 0.04f;
 
         const float lightPos  = 5.f;
-        lightParams.lights[0] = glm::vec4(-lightPos, -lightPos * 0.5f, -lightPos, 0.4f);
-        lightParams.lights[1] = glm::vec4(-lightPos, -lightPos * 0.5f, lightPos, 0.2f);
-        lightParams.lights[2] = glm::vec4(lightPos * 0.05f, -lightPos * 0.15f, lightPos, 0.8f);
+        lightParams.lights[0] = glm::vec4(-lightPos, -lightPos * 0.5f, -lightPos, 0.5f);
+        lightParams.lights[1] = glm::vec4(-lightPos, -lightPos * 0.5f, lightPos, 0.3f);
+        lightParams.lights[2] = glm::vec4(lightPos * 0.05f, -lightPos * 0.15f, lightPos, 1.0f);
         lightParams.lights[3] = glm::vec4(lightPos, -lightPos * 0.5f, -lightPos, 0.33f);
         if (!m_lightsPaused)
         {
