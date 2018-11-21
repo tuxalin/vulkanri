@@ -543,10 +543,10 @@ private:
         lightParams.ambient = 0.04f;
 
         const float lightPos  = 5.f;
-        lightParams.lights[0] = glm::vec4(-lightPos, -lightPos * 0.5f, -lightPos, 0.5f);
+        lightParams.lights[0] = glm::vec4(-lightPos, -lightPos * 0.5f, 2.f * lightPos, 0.5f);
         lightParams.lights[1] = glm::vec4(-lightPos, -lightPos * 0.5f, lightPos, 0.3f);
         lightParams.lights[2] = glm::vec4(lightPos * 0.05f, -lightPos * 0.15f, lightPos, 1.0f);
-        lightParams.lights[3] = glm::vec4(lightPos, -lightPos * 0.5f, -lightPos, 0.33f);
+        lightParams.lights[3] = glm::vec4(lightPos, -lightPos * 0.5f, 5.f * lightPos, 0.33f);
         if (!m_lightsPaused)
         {
             const float a           = glm::radians(timer * 72.f);

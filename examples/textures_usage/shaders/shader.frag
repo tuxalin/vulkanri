@@ -50,10 +50,7 @@ void main()
 	float metallic = material.metallic;
 	float ao = mix(1.0, texture(ambientOcclusionMap, inUV).r, material.aoStrength);
 
-	vec3 normal = computeSurfaceNormal(inNormal, inWorldPos, normalMap, inUV);
-	normal = normalize(normal * vec3(material.normalStrength, material.normalStrength, 1.0));
-
-	vec3 N = normalize(normal);
+	vec3 N = computeSurfaceNormal(inNormal, inWorldPos, material.normalStrength, normalMap, inUV);
 	vec3 V = normalize(camera.worldPos.xyz - inWorldPos);
 
 	// reflectance 

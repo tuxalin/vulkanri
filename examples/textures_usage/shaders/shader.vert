@@ -19,7 +19,7 @@ layout (location = 1) out vec2 outUV;
 void main(void)
 {
     outUV = inUV;
-	outNormal = mat3(camera.model) * inNormal;
+	outNormal = normalize(mat3(camera.model) * inNormal);
 
 	gl_Position = camera.model * vec4(inPos.xyz, 1.0);
 }
