@@ -7,6 +7,7 @@ void VertexDescription::create(const VertexBinding* bindings, size_t count)
 {
     static_assert(static_cast<VkVertexInputRate>(true) == VK_VERTEX_INPUT_RATE_INSTANCE, "");
 
+    m_vertexAttributeDescriptons.clear();
     m_vertexBindingDescriptions.resize(count);
     m_vertexBuffers.resize(count);
     m_vertexBufferOffsets.resize(count);
@@ -30,12 +31,10 @@ void VertexDescription::addAttributes(uint32_t binding, const std::vector<Vertex
 {
     assert(!attributes.empty());
 
-    m_vertexAttributeDescriptons.resize(attributes.size());
-
-    size_t i = 0;
     for (const auto& input : attributes)
     {
-        auto& attributeDescription    = m_vertexAttributeDescriptons[i++];
+        m_vertexAttributeDescriptons.emplace_back();
+        auto& attributeDescription    = m_vertexAttributeDescriptons.back();
         attributeDescription.binding  = binding;
         attributeDescription.location = input.location;
         attributeDescription.format   = (VkFormat)input.format;

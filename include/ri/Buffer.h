@@ -24,6 +24,7 @@ public:
     void  update(const void* src);
     template <typename T, typename = std::enable_if_t<!std::is_pointer<T>::value> >
     void update(const T& src);
+    void write(const void* src, size_t size, size_t offset = 0);
 
     /// Copy from a staging buffer, issues an one time command submit, does this synchronously.
     void copy(const Buffer& src, CommandPool& commandPool, size_t srcOffset = 0, size_t dstOffset = 0);
@@ -99,6 +100,13 @@ inline void Buffer::update(const void* src)
 {
     void* data = lock();
     memcpy(data, src, m_size);
+    unlock();
+}
+
+inline void Buffer::write(const void* src, size_t size, size_t offset /*= 0*/)
+{
+    void* data = lock(offset, size);
+    memcpy(data, src, size);
     unlock();
 }
 

@@ -72,16 +72,20 @@ public:
     IndexedVertexDescription(const std::vector<VertexBinding>& bindings,  //
                              const Buffer& indexBuffer, IndexType indexType = IndexType::eInt16, uint32_t offset = 0);
 
-    void bind(CommandBuffer& buffer);
+    void bind(CommandBuffer& buffer) const;
 
-    void setIndexBuffer(const Buffer& indexBuffer, IndexType indexType = IndexType::eInt16, uint32_t offset = 0);
+    void setIndexBuffer(const Buffer& indexBuffer, IndexType indexType = IndexType::eInt16, uint32_t offset = 0,
+                        uint32_t count = 0);
+
+    uint32_t count() const;
 
 private:
     VkBuffer     m_indexBuffer = VK_NULL_HANDLE;
     IndexType    m_indexType;
     VkDeviceSize m_offset = 0;
+    uint32_t     m_count  = 0;
 #ifndef NDEBUG
-    uint32_t m_size = 0;
+    uint32_t m_bufferSize = 0;
 #endif  // !NDEBUG
 
 };  // class IndexedInputLayout
@@ -136,9 +140,11 @@ inline IndexedVertexDescription::IndexedVertexDescription(const VertexBinding& b
     , m_indexType(indexType)
     , m_offset(offset)
 #ifndef NDEBUG
-    , m_size(indexBuffer.bytes() / (m_indexType == IndexType::eInt16 ? 2 : 4))
+    , m_bufferSize(indexBuffer.bytes())
 #endif
 {
+    const uint32_t elementSize = m_indexType == IndexType::eInt16 ? sizeof(uint16_t) : sizeof(uint32_t);
+    m_count                    = indexBuffer.bytes() / elementSize;
 }
 
 inline IndexedVertexDescription::IndexedVertexDescription(const VertexBinding* bindings, size_t count,  //
@@ -149,9 +155,11 @@ inline IndexedVertexDescription::IndexedVertexDescription(const VertexBinding* b
     , m_indexType(indexType)
     , m_offset(offset)
 #ifndef NDEBUG
-    , m_size(indexBuffer.bytes() / (m_indexType == IndexType::eInt16 ? 2 : 4))
+    , m_bufferSize(indexBuffer.bytes())
 #endif
 {
+    const uint32_t elementSize = m_indexType == IndexType::eInt16 ? sizeof(uint16_t) : sizeof(uint32_t);
+    m_count                    = indexBuffer.bytes() / elementSize;
 }
 
 inline IndexedVertexDescription::IndexedVertexDescription(const std::vector<VertexBinding>& bindings,  //
@@ -162,28 +170,42 @@ inline IndexedVertexDescription::IndexedVertexDescription(const std::vector<Vert
     , m_indexType(indexType)
     , m_offset(offset)
 #ifndef NDEBUG
-    , m_size(indexBuffer.bytes() / (m_indexType == IndexType::eInt16 ? 2 : 4))
+    , m_bufferSize(indexBuffer.bytes())
 #endif
 {
+    const uint32_t elementSize = m_indexType == IndexType::eInt16 ? sizeof(uint16_t) : sizeof(uint32_t);
+    m_count                    = indexBuffer.bytes() / elementSize;
 }
 
-inline void IndexedVertexDescription::bind(CommandBuffer& buffer)
+inline void IndexedVertexDescription::bind(CommandBuffer& buffer) const
 {
     assert(m_indexBuffer);
-    assert(m_offset < m_size);
+    assert((m_offset + m_count * (m_indexType == IndexType::eInt16 ? sizeof(uint16_t) : sizeof(uint32_t))) <=
+           m_bufferSize);
     VertexDescription::bind(buffer);
     vkCmdBindIndexBuffer(detail::getVkHandle(buffer), m_indexBuffer, m_offset, (VkIndexType)m_indexType);
 }
 
-inline void IndexedVertexDescription::setIndexBuffer(const Buffer& buffer, IndexType indexType, uint32_t offset)
+inline void IndexedVertexDescription::setIndexBuffer(const Buffer& buffer, IndexType indexType, uint32_t offset /*= 0*/,
+                                                     uint32_t count /*= 0*/)
 {
     assert(buffer.bufferUsage().get() & BufferUsageFlags::eIndex);
     m_indexBuffer = detail::getVkHandle(buffer);
     m_indexType   = indexType;
     m_offset      = offset;
+
+    const uint32_t elementSize = m_indexType == IndexType::eInt16 ? sizeof(uint16_t) : sizeof(uint32_t);
+    m_count                    = count == 0 ? buffer.bytes() / elementSize : count;
+
 #ifndef NDEBUG
-    m_size = buffer.bytes() / (m_indexType == IndexType::eInt16 ? 2 : 4);
+    m_bufferSize = buffer.bytes();
 #endif
+    assert((m_offset + count * elementSize) <= m_bufferSize);
+}
+
+inline uint32_t IndexedVertexDescription::count() const
+{
+    return m_count;
 }
 
 namespace detail
