@@ -27,6 +27,7 @@ struct DescriptorSetParams
         DescriptorType type;
 
         WriteInfo(uint32_t binding, const Buffer* buffer, uint32_t offset, uint32_t size);
+        WriteInfo(uint32_t binding, const Buffer* buffer, DescriptorType type);
         WriteInfo(uint32_t binding, const Texture* texture);
 
         const Mode mode() const;
@@ -235,6 +236,16 @@ inline DescriptorSetParams::WriteInfo::WriteInfo(uint32_t binding, const Buffer*
     , binding(binding)
     , m_mode(eBuffer)
     , type(DescriptorType::eUniformBuffer)
+{
+}
+
+inline DescriptorSetParams::WriteInfo::WriteInfo(uint32_t binding, const Buffer* buffer, DescriptorType type)
+    : buffer(buffer)
+    , offset(0)
+    , size(buffer->bytes())
+    , binding(binding)
+    , m_mode(eBuffer)
+    , type(type)
 {
 }
 
