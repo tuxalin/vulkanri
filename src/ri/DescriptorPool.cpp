@@ -5,7 +5,7 @@
 
 namespace ri
 {
-DescriptorPool::DescriptorPool(const DeviceContext& device, DescriptorType type, size_t maxCount)
+DescriptorPool::DescriptorPool(const DeviceContext& device, size_t poolSetSize, DescriptorType type, size_t maxCount)
     : m_device(ri::detail::getVkHandle(device))
 {
     VkDescriptorPoolSize poolSize = {};
@@ -16,16 +16,15 @@ DescriptorPool::DescriptorPool(const DeviceContext& device, DescriptorType type,
     poolInfo.sType                      = VK_STRUCTURE_TYPE_DESCRIPTOR_POOL_CREATE_INFO;
     poolInfo.poolSizeCount              = 1;
     poolInfo.pPoolSizes                 = &poolSize;
-    poolInfo.maxSets                    = 1;
+    poolInfo.maxSets                    = poolSetSize;
     poolInfo.flags                      = 0;
 
     RI_CHECK_RESULT_MSG("couldn't create descriptor pool") =
         vkCreateDescriptorPool(m_device, &poolInfo, nullptr, &m_handle);
 }
 
-DescriptorPool::DescriptorPool(const DeviceContext& device,
-                               const TypeSize*      availableDescriptors,
-                               size_t               availableDescriptorsCount)
+DescriptorPool::DescriptorPool(const DeviceContext& device, size_t poolSetSize, const TypeSize* availableDescriptors,
+                               size_t availableDescriptorsCount)
     : m_device(ri::detail::getVkHandle(device))
 {
     assert(availableDescriptors);
@@ -42,7 +41,7 @@ DescriptorPool::DescriptorPool(const DeviceContext& device,
     poolInfo.sType                      = VK_STRUCTURE_TYPE_DESCRIPTOR_POOL_CREATE_INFO;
     poolInfo.poolSizeCount              = availableDescriptorsCount;
     poolInfo.pPoolSizes                 = poolSizes.data();
-    poolInfo.maxSets                    = 1;
+    poolInfo.maxSets                    = poolSetSize;
     poolInfo.flags                      = 0;
 
     RI_CHECK_RESULT_MSG("couldn't create descriptor pool") =

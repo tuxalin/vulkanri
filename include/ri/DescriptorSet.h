@@ -242,7 +242,7 @@ inline DescriptorSetParams::WriteInfo::WriteInfo(uint32_t binding, const Buffer*
 inline DescriptorSetParams::WriteInfo::WriteInfo(uint32_t binding, const Buffer* buffer, DescriptorType type)
     : buffer(buffer)
     , offset(0)
-    , size(buffer->bytes())
+    , size(buffer ? buffer->bytes() : 0)
     , binding(binding)
     , m_mode(eBuffer)
     , type(type)

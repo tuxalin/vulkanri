@@ -48,9 +48,10 @@ public:
         size_t              index;
     };
 
-    DescriptorPool(const DeviceContext& device, DescriptorType type, size_t maxCount);
-    DescriptorPool(const DeviceContext& device, const TypeSize* availableDescriptors, size_t availableDescriptorsCount);
-    DescriptorPool(const DeviceContext& device, const std::vector<TypeSize>& availableDescriptors);
+    DescriptorPool(const DeviceContext& device, size_t poolSize, DescriptorType type, size_t maxCount);
+    DescriptorPool(const DeviceContext& device, size_t poolSize, const TypeSize* availableDescriptors,
+                   size_t availableDescriptorsCount);
+    DescriptorPool(const DeviceContext& device, size_t poolSize, const std::vector<TypeSize>& availableDescriptors);
     ///@warning The RenderPipeline that use the layout descriptors must be destroyed before the pool.
     ~DescriptorPool();
 
@@ -74,8 +75,9 @@ private:
     std::vector<VkDescriptorSetLayout> m_descriptorLayouts;
 };
 
-inline DescriptorPool::DescriptorPool(const DeviceContext& device, const std::vector<TypeSize>& availableDescriptors)
-    : DescriptorPool(device, availableDescriptors.data(), availableDescriptors.size())
+inline DescriptorPool::DescriptorPool(const DeviceContext& device, size_t poolSize,
+                                      const std::vector<TypeSize>& availableDescriptors)
+    : DescriptorPool(device, poolSize, availableDescriptors.data(), availableDescriptors.size())
 {
 }
 

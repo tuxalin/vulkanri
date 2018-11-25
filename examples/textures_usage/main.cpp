@@ -406,7 +406,7 @@ private:
         {
             std::vector<ri::DescriptorPool::TypeSize> avaialbleTypes(
                 {{ri::DescriptorType::eUniformBuffer, 3}, {ri::DescriptorType::eCombinedSampler, 5}});
-            m_descriptorPool.reset(new ri::DescriptorPool(*m_context, avaialbleTypes));
+            m_descriptorPool.reset(new ri::DescriptorPool(*m_context, 1, avaialbleTypes));
 
             // create descriptor layout
             const int materialStages = ri::ShaderStage::eTessellationControl |  //

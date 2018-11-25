@@ -200,7 +200,7 @@ private:
         ri::DescriptorSetLayout descriptorLayout;
         // create a descriptor pool
         {
-            m_descriptorPool.reset(new ri::DescriptorPool(*m_context, ri::DescriptorType::eUniformBuffer, 1));
+            m_descriptorPool.reset(new ri::DescriptorPool(*m_context, 1, ri::DescriptorType::eUniformBuffer, 1));
             auto res = m_descriptorPool->createLayout(
                 ri::DescriptorLayoutParam({0, ri::ShaderStage::eVertex, ri::DescriptorType::eUniformBuffer}));
             descriptorLayout = res.layout;
