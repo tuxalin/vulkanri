@@ -97,7 +97,15 @@ struct LightParams
 {
     glm::vec4 lights[4];
     float     ambient;
-};
+
+    LightParams()
+    {
+        lightParams.lights[0].w = 0.5f;
+        lightParams.lights[1].w = 0.3f;
+        lightParams.lights[2].w = 1.0f;
+        lightParams.lights[3].w = 0.33f;
+    }
+} lightParams;
 
 enum
 {
@@ -226,6 +234,13 @@ private:
         {
             app->m_useWireframe = !app->m_useWireframe;
             app->record();
+        }
+        if (key == GLFW_KEY_O && action == GLFW_PRESS)
+        {
+            lightParams.lights[0].w = 0.5f - lightParams.lights[0].w;
+            lightParams.lights[1].w = 0.3f - lightParams.lights[1].w;
+            lightParams.lights[2].w = 1.0f - lightParams.lights[2].w;
+            lightParams.lights[3].w = 0.33f - lightParams.lights[3].w;
         }
 
         if (glfwGetKey(window, GLFW_KEY_W) == GLFW_PRESS)
@@ -888,14 +903,12 @@ private:
         m_camera.ubo.proj[1][1] *= -1;
         m_camera.update();
 
-        LightParams lightParams;
-        lightParams.ambient = 0.04f;
-
+        lightParams.ambient   = 0.04f;
         const float lightPos  = m_bounds.maxSize * 5.f;
-        lightParams.lights[0] = glm::vec4(-lightPos, -lightPos * 0.5f, -lightPos, 0.5f);
-        lightParams.lights[1] = glm::vec4(-lightPos, -lightPos * 0.5f, lightPos, 0.3f);
-        lightParams.lights[2] = glm::vec4(lightPos * 0.05f, -lightPos * 0.15f, lightPos, 1.0f);
-        lightParams.lights[3] = glm::vec4(lightPos, -lightPos * 0.5f, -lightPos, 0.33f);
+        lightParams.lights[0] = glm::vec4(-lightPos, -lightPos * 0.5f, -lightPos, lightParams.lights[0].w);
+        lightParams.lights[1] = glm::vec4(-lightPos, -lightPos * 0.5f, lightPos, lightParams.lights[1].w);
+        lightParams.lights[2] = glm::vec4(lightPos * 0.05f, -lightPos * 0.15f, lightPos, lightParams.lights[2].w);
+        lightParams.lights[3] = glm::vec4(lightPos, -lightPos * 0.5f, -lightPos, lightParams.lights[3].w);
         if (!m_lightsPaused)
         {
             const float angleDelta  = lightPos * 0.1f;
