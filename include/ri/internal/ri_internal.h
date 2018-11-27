@@ -48,6 +48,7 @@ namespace detail
     const Texture*        createReferenceTexture(VkImage handle, int type, int format, const Sizei& size);
     TextureDescriptorInfo getTextureDescriptorInfo(const Texture& texture);
     VkImageAspectFlags    getImageAspectFlags(VkFormat format);
+    VkImageType           getImageType(int type);
 
     VkPhysicalDevice                        getDevicePhysicalHandle(const ri::DeviceContext& device);
     VkQueue                                 getDeviceQueue(const ri::DeviceContext& device, int deviceOperation);

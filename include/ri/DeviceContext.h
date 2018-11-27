@@ -106,8 +106,9 @@ inline TextureProperties DeviceContext::textureProperties(ColorFormat format, Te
                                                           uint32_t flags) const
 {
     VkImageFormatProperties props;
-    vkGetPhysicalDeviceImageFormatProperties(m_physicalDevice, (VkFormat)format, (VkImageType)type,
-                                             (VkImageTiling)tiling, flags, 0, &props);
+    VkImageType             imageType = detail::getImageType(type.get());
+    vkGetPhysicalDeviceImageFormatProperties(m_physicalDevice, (VkFormat)format, imageType, (VkImageTiling)tiling,
+                                             flags, 0, &props);
     return props;
 }
 

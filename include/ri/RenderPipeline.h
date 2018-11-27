@@ -161,8 +161,10 @@ public:
     /// @note To use it you Must create the pipeline with specific dynamic states.
     DynamicState& dynamicState();
 
-    /// @note Also binds the pipeline.
+    void bind(const CommandBuffer& buffer) const;
+    /// @note Also binds the pipeline and the default render pass.
     void begin(const CommandBuffer& buffer, const RenderTarget& target) const;
+    /// Ends the  default render pass
     void end(const CommandBuffer& buffer) const;
 
     void pushConstants(const void* src, ShaderStage stages, size_t offset, size_t size, CommandBuffer& buffer);
@@ -227,7 +229,6 @@ private:
         , m_scissor(scissor)
     {
     }
-    void bind(const CommandBuffer& buffer) const;
 
     static VkPipelineLayout createLayout(const VkDevice device, const CreateParams& params,
                                          const std::vector<VkDescriptorSetLayout>& descriptorLayouts);

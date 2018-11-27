@@ -1,6 +1,7 @@
 
 #include <ri/Texture.h>
 
+#include <ri/Buffer.h>
 #include <ri/CommandBuffer.h>
 #include <ri/DeviceContext.h>
 
@@ -36,6 +37,25 @@ namespace detail
 
         return flags;
     }
+
+    VkImageType getImageType(int type)
+    {
+        switch (type)
+        {
+            case ri::TextureType::e1D:
+            case ri::TextureType::eArray1D:
+                return VK_IMAGE_TYPE_1D;
+            case ri::TextureType::e2D:
+            case ri::TextureType::eArray2D:
+            case ri::TextureType::eCube:
+                return VK_IMAGE_TYPE_2D;
+            case ri::TextureType::e3D:
+                return VK_IMAGE_TYPE_3D;
+            default:
+                assert(false);
+                return VK_IMAGE_TYPE_2D;
+        }
+    }
 }
 
 namespace
@@ -60,9 +80,10 @@ Texture::Texture(const DeviceContext& device, const TextureParams& params)
     , m_size(params.size)
     , m_mipLevels(params.mipLevels ? params.mipLevels
                                    : (uint32_t)floor(log2(std::max(params.size.width, params.size.height))) + 1)
+    , m_arrayLevels(m_type == TextureType::eCube ? 6 : params.arrayLevels)
 {
 #ifndef NDEBUG
-    TextureProperties props =
+    const TextureProperties props =
         device.textureProperties(params.format, params.type, TextureTiling::eOptimal, params.flags);
     assert(props.sampleCounts >= params.samples);
     assert(props.maxExtent.width >= params.size.width);
@@ -90,6 +111,7 @@ Texture::Texture(VkImage handle, TextureType type, ColorFormat format, const Siz
     , m_type(type)
     , m_format(format)
     , m_size(size)
+    , m_arrayLevels(0)
 {
 }
 
@@ -113,22 +135,27 @@ void Texture::copy(const Buffer& src, const CopyParams& params, CommandBuffer& c
         transitionImageLayout(params.oldLayout, params.transferLayout, commandBuffer);
 
     // copy buffer to image
-    VkBufferImageCopy region = {};
-    // TODO: expose these
-    region.bufferOffset                    = 0;
+
+    assert((m_arrayLevels * m_size.pixelCount() * sizeof(uint32_t)) < src.bytes());
+
+    std::vector<VkBufferImageCopy> bufferCopyRegions;
+    VkBufferImageCopy              region  = {};
+    region.bufferOffset                    = params.bufferOffset;
     region.bufferRowLength                 = 0;
     region.bufferImageHeight               = 0;
     region.imageSubresource.aspectMask     = detail::getImageAspectFlags((VkFormat)m_format);
-    region.imageSubresource.mipLevel       = 0;
-    region.imageSubresource.baseArrayLayer = 0;
-    region.imageSubresource.layerCount     = 1;
+    region.imageSubresource.mipLevel       = params.mipLevel;
+    region.imageSubresource.baseArrayLayer = params.baseArrayLayer;
+    region.imageSubresource.layerCount     = m_arrayLevels;
+    const Sizei size                       = params.size.width == 0 || params.size.height == 0 ? m_size : params.size;
+    region.imageOffset                     = {params.offsetX, params.offsetY, params.offsetZ};
+    region.imageExtent                     = {size.width, size.height, params.depth};
 
-    const Sizei size   = params.size.width == 0 || params.size.height == 0 ? m_size : params.size;
-    region.imageOffset = {params.offsetX, params.offsetY, params.offsetZ};
-    region.imageExtent = {size.width, size.height, params.depth};
+    bufferCopyRegions.push_back(region);
 
     vkCmdCopyBufferToImage(detail::getVkHandle(commandBuffer), detail::getVkHandle(src), m_handle,
-                           (VkImageLayout)TextureLayoutType::eTransferDstOptimal, 1, &region);
+                           (VkImageLayout)TextureLayoutType::eTransferDstOptimal, bufferCopyRegions.size(),
+                           bufferCopyRegions.data());
 
     if (params.transferLayout != params.finalLayout)
         transitionImageLayout(params.transferLayout, params.finalLayout, false, commandBuffer);
@@ -138,6 +165,8 @@ void Texture::generateMipMaps(CommandBuffer& commandBuffer)
 {
     assert(m_format != ColorFormat::eDepth32 && m_format != ColorFormat::eDepth24Stencil8 &&
            m_format != ColorFormat::eDepth32Stencil8);
+
+    // TODO: handle 2D arrays
 
     // Copy down mips from n-1 to n
     for (uint32_t i = 1; i < m_mipLevels; i++)
@@ -200,12 +229,12 @@ inline void Texture::createImage(const TextureParams& params)
 {
     VkImageCreateInfo imageInfo = {};
     imageInfo.sType             = VK_STRUCTURE_TYPE_IMAGE_CREATE_INFO;
-    imageInfo.imageType         = (VkImageType)params.type;
+    imageInfo.imageType         = detail::getImageType(params.type.get());
     imageInfo.extent.width      = static_cast<uint32_t>(params.size.width);
     imageInfo.extent.height     = static_cast<uint32_t>(params.size.height);
     imageInfo.extent.depth      = params.depth;
     imageInfo.mipLevels         = m_mipLevels;
-    imageInfo.arrayLayers       = params.arrayLevels;
+    imageInfo.arrayLayers       = m_type == TextureType::eCube ? 6 : params.arrayLevels;
     imageInfo.format            = (VkFormat)params.format;
     imageInfo.tiling            = VK_IMAGE_TILING_OPTIMAL;
     imageInfo.initialLayout     = VK_IMAGE_LAYOUT_UNDEFINED;
@@ -215,6 +244,8 @@ inline void Texture::createImage(const TextureParams& params)
     assert(math::isPowerOfTwo(params.samples));
     imageInfo.samples = (VkSampleCountFlagBits)params.samples;
     imageInfo.flags   = 0;
+    if (m_type == TextureType::eCube)
+        imageInfo.flags = VK_IMAGE_CREATE_CUBE_COMPATIBLE_BIT;
 
     RI_CHECK_RESULT_MSG("failed to create image") = vkCreateImage(m_device, &imageInfo, nullptr, &m_handle);
 }
@@ -233,7 +264,7 @@ void Texture::createImageView(const TextureParams& params, VkImageAspectFlags as
     viewInfo.subresourceRange.baseMipLevel   = 0;
     viewInfo.subresourceRange.levelCount     = m_mipLevels;
     viewInfo.subresourceRange.baseArrayLayer = 0;
-    viewInfo.subresourceRange.layerCount     = 1;
+    viewInfo.subresourceRange.layerCount     = m_type == TextureType::eCube ? 6 : 1;
 
     RI_CHECK_RESULT_MSG("failed to create image view") = vkCreateImageView(m_device, &viewInfo, nullptr, &m_view);
 }
@@ -406,9 +437,9 @@ void Texture::transitionImageLayout(TextureLayoutType oldLayout, TextureLayoutTy
     VkImageSubresourceRange subresourceRange = {};
     subresourceRange.aspectMask              = detail::getImageAspectFlags((VkFormat)m_format);
     subresourceRange.baseMipLevel            = 0;
-    subresourceRange.levelCount              = 1;
+    subresourceRange.levelCount              = m_mipLevels;
     subresourceRange.baseArrayLayer          = 0;
-    subresourceRange.layerCount              = 1;
+    subresourceRange.layerCount              = m_arrayLevels;
 
     const PipelineBarrierSettings settings =
         getPipelineBarrierSettings(oldLayout, newLayout, readAccess, subresourceRange);

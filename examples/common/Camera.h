@@ -53,10 +53,10 @@ public:
     float sensitivity;
     float zoom;
 
-    // Constructor with vectors
     Camera(glm::vec3 position = glm::vec3(0.0f, 0.0f, 0.0f), glm::vec3 up = glm::vec3(0.0f, 1.0f, 0.0f),
            float yaw = cYaw, float pitch = cPitch)
-        : front(glm::vec3(0.0f, 0.0f, -1.0f))
+        : center(glm::vec3(0.0f))
+        , front(glm::vec3(0.0f, 0.0f, -1.0f))
         , speed(cSpeed)
         , sensitivity(cSensitivity)
         , zoom(cZoom)
@@ -67,9 +67,10 @@ public:
         this->pitch    = pitch;
         updateCameraVectors();
     }
-    // Constructor with scalar values
+
     Camera(float posX, float posY, float posZ, float upX, float upY, float upZ, float yaw, float pitch)
-        : front(glm::vec3(0.0f, 0.0f, -1.0f))
+        : center(glm::vec3(0.0f))
+        , front(glm::vec3(0.0f, 0.0f, -1.0f))
         , speed(cSpeed)
         , sensitivity(cSensitivity)
         , zoom(cZoom)

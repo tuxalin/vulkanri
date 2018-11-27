@@ -87,7 +87,10 @@ public:
         int32_t offsetX = 0, offsetY = 0, offsetZ = 0;
         /// @note If zero then will use texture size.
         Sizei    size;
-        uint32_t depth = 1;
+        uint32_t depth          = 1;
+        uint32_t baseArrayLayer = 0;
+        uint32_t mipLevel       = 0;
+        size_t   bufferOffset   = 0;
 
         CopyParams()
             : oldLayout(TextureLayoutType::eUndefined)
@@ -144,6 +147,7 @@ private:
     ColorFormat    m_format;
     Sizei          m_size;
     uint32_t       m_mipLevels;
+    uint32_t       m_arrayLevels;
 
     friend const Texture* detail::createReferenceTexture(VkImage handle, int type, int format, const Sizei& size);
     friend detail::TextureDescriptorInfo detail::getTextureDescriptorInfo(const Texture& texture);
