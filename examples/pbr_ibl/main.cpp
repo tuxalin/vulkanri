@@ -33,6 +33,8 @@
 #include <memory>
 #include <vector>
 
+#include "../common/Camera.h"
+
 #include <ri/ApplicationInstance.h>
 #include <ri/Buffer.h>
 #include <ri/CommandBuffer.h>
@@ -67,21 +69,6 @@ struct Vertex
     Vec normal;
 };
 
-struct Camera
-{
-    struct UBO
-    {
-        glm::vec4 worldPos;
-        glm::mat4 model = glm::mat4(1.f);
-        glm::mat4 view;
-        glm::mat4 proj;
-        glm::mat4 viewProj;
-    };
-    UBO   ubo;
-    float distance = 0.5f;
-    float step     = 0.1f;
-};
-
 struct Material
 {
     struct UBO
@@ -102,7 +89,8 @@ struct Material
     size_t normalTexture            = 1;
     size_t aoTexture                = 0;
 
-    ri::DescriptorSet descriptor;
+    ri::DescriptorSet           descriptor;
+    std::shared_ptr<ri::Buffer> buffer;
 };
 
 struct LightParams
@@ -111,14 +99,12 @@ struct LightParams
     float     ambient;
 };
 
-struct SkyboxModel
+enum
 {
-    std::vector<Vertex>   vertices = {{{-0.5f, -0.5f, 0.f}, {1.0f, 0.0f}, {0.f, 0.f, 1.f}},
-                                    {{0.5f, -0.5f, 0.f}, {0.0f, 0.0f}, {0.f, 0.f, 1.f}},
-                                    {{0.5f, 0.5f, 0.f}, {0.0f, 1.0f}, {0.f, 0.f, 1.f}},
-                                    {{-0.5f, 0.5f, 0.f}, {1.0f, 1.0f}, {0.f, 0.f, 1.f}}};
-    std::vector<uint16_t> indices  = {0, 1, 2, 2, 3, 0};
-} skyboxModel;
+    eSkyboxMesh     = 0,
+    eSkyboxMaterial = eSkyboxMesh,
+    eMaterialOffset = eSkyboxMaterial + 1
+};
 
 namespace
 {
@@ -131,7 +117,7 @@ bool loadImageData(tinygltf::Image* image, std::string* err, std::string* warn, 
     return true;
 }
 
-bool loadModel(tinygltf::Model& model, const char* filename)
+bool openFile(tinygltf::Model& model, const char* filename)
 {
     tinygltf::TinyGLTF loader;
     loader.SetImageLoader(&loadImageData, nullptr);
@@ -216,6 +202,8 @@ private:
         glfwSetWindowSizeCallback(m_window, DemoApplication::onWindowResized);
         glfwSetKeyCallback(m_window, DemoApplication::onKeyEvent);
         glfwSetScrollCallback(m_window, DemoApplication::onScrollEvent);
+        glfwSetMouseButtonCallback(m_window, DemoApplication::onMouseKeyEvent);
+        glfwSetCursorPosCallback(m_window, DemoApplication::onMouseMoveEvent);
     }
 
     static void onWindowResized(GLFWwindow* window, int width, int height)
@@ -234,23 +222,69 @@ private:
             app->m_paused = !app->m_paused;
         if (key == GLFW_KEY_L && action == GLFW_PRESS)
             app->m_lightsPaused = !app->m_lightsPaused;
-        if (key == GLFW_KEY_W && action == GLFW_PRESS)
+        if (key == GLFW_KEY_E && action == GLFW_PRESS)
         {
             app->m_useWireframe = !app->m_useWireframe;
             app->record();
         }
+
+        if (glfwGetKey(window, GLFW_KEY_W) == GLFW_PRESS)
+            app->m_camera.processKeyboard(MovementType::Forward, app->m_deltaTime);
+        if (glfwGetKey(window, GLFW_KEY_S) == GLFW_PRESS)
+            app->m_camera.processKeyboard(MovementType::Backward, app->m_deltaTime);
+        if (glfwGetKey(window, GLFW_KEY_A) == GLFW_PRESS)
+            app->m_camera.processKeyboard(MovementType::Left, app->m_deltaTime);
+        if (glfwGetKey(window, GLFW_KEY_D) == GLFW_PRESS)
+            app->m_camera.processKeyboard(MovementType::Right, app->m_deltaTime);
     }
 
     static void onScrollEvent(GLFWwindow* window, double xoffset, double yoffset)
     {
         DemoApplication* app = reinterpret_cast<DemoApplication*>(glfwGetWindowUserPointer(window));
-        app->m_camera.distance += (float)yoffset * app->m_camera.step;
+        app->m_camera.processMouseScroll((float)yoffset);
+    }
+
+    static void onMouseKeyEvent(GLFWwindow* window, int key, int action, int)
+    {
+        if (key != GLFW_MOUSE_BUTTON_LEFT)
+            return;
+
+        DemoApplication* app = reinterpret_cast<DemoApplication*>(glfwGetWindowUserPointer(window));
+        if (action == GLFW_PRESS)
+            app->m_firstMouse = app->m_move = true;
+        else if (action == GLFW_RELEASE)
+            app->m_move = false;
+    }
+
+    static void onMouseMoveEvent(GLFWwindow* window, double xpos, double ypos)
+    {
+        static double lastX, lastY;
+
+        DemoApplication* app = reinterpret_cast<DemoApplication*>(glfwGetWindowUserPointer(window));
+        if (!app->m_move)
+            return;
+
+        if (app->m_firstMouse)
+        {
+            lastX             = xpos;
+            lastY             = ypos;
+            app->m_firstMouse = false;
+        }
+
+        double xoffset = xpos - lastX;
+        double yoffset = lastY - ypos;  // reversed since y-coordinates go from bottom to top
+
+        lastX = xpos;
+        lastY = ypos;
+
+        app->m_camera.processMouseMovement((float)xoffset, (float)yoffset);
     }
 
     void initialize()
     {
         const std::string examplePath   = "../pbr_ibl/";
         const std::string resourcesPath = "../resources/";
+        const std::string shadersPath   = examplePath + "shaders/";
 
         initWindow();
 
@@ -285,7 +319,6 @@ private:
 
         // create a shader pipeline and let it own the shader modules
         {
-            const std::string shadersPath = examplePath + "shaders/";
             m_shaderPipeline.reset(new ri::ShaderPipeline());
             m_shaderPipeline->addStage(
                 new ri::ShaderModule(*m_context, shadersPath + "shader.frag", ri::ShaderStage::eFragment));
@@ -297,70 +330,28 @@ private:
 
         // create a staging buffer
         {
-            const size_t maxSize = 40 * 1024 * 1024;
+            const size_t maxSize = 16 * 1024 * 1024 * sizeof(uint32_t);
             m_stagingBuffer.reset(new ri::Buffer(*m_context, ri::BufferUsageFlags::eSrc, maxSize));
             m_stagingBuffer->setTagName("StagingBuffer");
         }
 
         // default textures to load
         std::vector<std::string> textureFilePaths = {"WhiteTexture", "FlatNormalTexture"};
-        {
-            const std::string textureFilenames[] = {"Floor_Color.png", "Floor_Normal.png", "Floor_Roughness.png",
-                                                    "Floor_AO.png"};
-            for (const auto& filename : textureFilenames)
-            {
-                textureFilePaths.push_back(resourcesPath + "/textures/" + filename);
-            }
-        }
 
         using GltfTextureIndex = int;
         using TextureIndex     = size_t;
         std::map<GltfTextureIndex, TextureIndex> textureIndexMap;
 
         tinygltf::Model model;
-        // load gltf model
+        // load gltf models
         {
-            const bool success = loadModel(model, "pbr_spheres/MetalRoughSpheres.gltf");
-            assert(success);
+            tinygltf::Model skyboxModel;
+            loadModel(skyboxModel, "models/Box.gltf");
+            assert(m_buffers.size() == 2);
+            assert(m_meshes.size() == 1);
+            m_meshes[eSkyboxMesh].materialIndex = eSkyboxMaterial;
 
-            // create a transient pool for short lived buffers
-            ri::DeviceContext::CommandPoolParam param = {ri::DeviceCommandHint::eTransient, false};
-            auto& commandPool = m_context->addCommandPool(ri::DeviceOperation::eTransfer, param);
-
-            // create mesh buffers
-            for (size_t i = 0; i < model.bufferViews.size(); ++i)
-            {
-                const tinygltf::BufferView& bufferView = model.bufferViews[i];
-                if (bufferView.target == 0)
-                {
-                    std::cout << "WARN: bufferView.target is zero" << std::endl;
-                    continue;
-                }
-
-                if (bufferView.target == TINYGLTF_TARGET_ARRAY_BUFFER)
-                {
-                    m_buffers[i].reset(new ri::Buffer(
-                        *m_context, ri::BufferUsageFlags::eVertex | ri::BufferUsageFlags::eDst, bufferView.byteLength));
-                }
-                else if (bufferView.target == TINYGLTF_TARGET_ELEMENT_ARRAY_BUFFER)
-                {
-                    m_buffers[i].reset(new ri::Buffer(
-                        *m_context, ri::BufferUsageFlags::eIndex | ri::BufferUsageFlags::eDst, bufferView.byteLength));
-                }
-                else
-                    assert(false);
-                assert(m_stagingBuffer->bytes() > bufferView.byteLength);
-
-                const tinygltf::Buffer buffer = model.buffers[bufferView.buffer];
-                m_stagingBuffer->write(&buffer.data.at(0) + bufferView.byteOffset, bufferView.byteLength);
-                m_buffers[i]->copy(*m_stagingBuffer, commandPool);
-                m_buffers[i]->setTagName(buffer.name);
-            }
-
-            for (size_t i = 0; i < model.meshes.size(); ++i)
-            {
-                createMesh(model, model.meshes[i]);
-            }
+            loadModel(model, "models/MetalRoughSpheres.gltf");
 
             // load textures
 
@@ -368,30 +359,34 @@ private:
             for (const tinygltf::Texture& tex : model.textures)
             {
                 const tinygltf::Image& image = model.images[tex.source];
-                textureFilePaths.push_back(resourcesPath + "/pbr_spheres/" + image.uri);
+                textureFilePaths.push_back(resourcesPath + "/models/" + image.uri);
                 textureIndexMap[i++] = textureFilePaths.size() - 1;
             }
+        }
 
+        // init camera
+        {
             for (size_t i = 0; i < 4; ++i)
             {
                 const double* data    = &model.nodes[0].matrix[i * 4];
                 m_camera.ubo.model[i] = glm::vec4(data[0], data[1], data[2], data[3]);
             }
-            m_camera.ubo.model = glm::rotate(m_camera.ubo.model, glm::radians(180.0f), glm::vec3(0.0f, 1.0f, 0.f));
 
             for (int i = 0; i < 3; ++i)
             {
                 m_bounds.maxSize = std::max(m_bounds.max[i] - m_bounds.min[i], m_bounds.maxSize);
             }
-            m_camera.distance = m_bounds.maxSize * 0.5f;
+            m_camera.zoom = m_bounds.maxSize * 0.6f;
+            m_camera.speed *= m_bounds.maxSize * 0.75f;
+
+            m_camera.lookAt(m_camera.ubo.model * glm::vec4(m_bounds.center(), 1.f), m_camera.zoom);
+            m_camera.update();
         }
 
+        // create a one time transfer command buffer and submit commands
+        auto& commandPool = m_context->commandPool(ri::DeviceOperation::eTransfer, ri::DeviceCommandHint::eRecorded);
         // create and load textures
         {
-            // create a one time transfer command buffer and submit commands
-            auto& commandPool =
-                m_context->commandPool(ri::DeviceOperation::eTransfer, ri::DeviceCommandHint::eRecorded);
-
             std::array<uint32_t, 16> whiteTextureData;
             whiteTextureData.fill(0xFFFFFFFF);
             std::array<uint32_t, 16> flatNormalData;
@@ -422,8 +417,8 @@ private:
                     continue;
 
                 // load texture into the staging buffer
-                void* buffer = m_stagingBuffer->lock(0, size.pixelCount() * 4);
-                memcpy(buffer, pixels, size.pixelCount() * 4);
+                void* buffer = m_stagingBuffer->lock(0, size.pixelCount() * sizeof(uint32_t));
+                memcpy(buffer, pixels, size.pixelCount() * sizeof(uint32_t));
                 m_stagingBuffer->unlock();
                 if (pixels != (const stbi_uc*)whiteTextureData.data() &&
                     pixels != (const stbi_uc*)flatNormalData.data())
@@ -461,13 +456,13 @@ private:
             }
         }
 
-        ri::RenderPipeline::CreateParams       params;
+        ri::DescriptorSetLayout                descriptorLayouts[2];
         ri::DescriptorPool::CreateLayoutResult descriptorLayout;
         // create a descriptor pool and descriptor for the shader
         {
             std::vector<ri::DescriptorPool::TypeSize> avaialbleTypes(
-                {{ri::DescriptorType::eUniformBuffer, 3}, {ri::DescriptorType::eCombinedSampler, 5}});
-            m_descriptorPool.reset(new ri::DescriptorPool(*m_context, avaialbleTypes));
+                {{ri::DescriptorType::eUniformBuffer, 30 + 1}, {ri::DescriptorType::eCombinedSampler, 40 + 1}});
+            m_descriptorPool.reset(new ri::DescriptorPool(*m_context, 10, avaialbleTypes));
 
             // create descriptor layout
 
@@ -482,8 +477,8 @@ private:
                 {4, ri::ShaderStage::eFragment, ri::DescriptorType::eCombinedSampler},
             });
 
-            descriptorLayout = m_descriptorPool->createLayout(layoutsParams);
-            params.descriptorLayouts.push_back(descriptorLayout.layout);
+            descriptorLayout     = m_descriptorPool->createLayout(layoutsParams);
+            descriptorLayouts[0] = descriptorLayout.layout;
         }
 
         // create a uniform buffers
@@ -493,12 +488,72 @@ private:
 
             m_uniformBuffers[1].reset(new ri::Buffer(*m_context, ri::BufferUsageFlags::eUniform, sizeof(LightParams)));
             m_uniformBuffers[1]->setTagName("LightsUBO");
-
-            m_uniformBuffers[2].reset(
-                new ri::Buffer(*m_context, ri::BufferUsageFlags::eUniform, sizeof(Material::UBO)));
-            m_uniformBuffers[2]->setTagName("MaterialUBO");
         }
 
+        // create material for the skybox
+        {
+            std::string filenames[6] = {"right.png", "left.png", "top.png", "bottom.png", "front.png", "back.png"};
+
+            ri::Sizei size;
+            int       texChannels;
+            size_t    offset = 0;
+            for (size_t i = 0; i < 6; ++i)
+            {
+                const std::string path = resourcesPath + "skybox/room/" + filenames[i];
+                stbi_uc*          pixels =
+                    stbi_load(path.c_str(), &(int&)size.width, &(int&)size.height, &texChannels, STBI_rgb_alpha);
+                assert(pixels);
+                assert((offset + size.pixelCount() * sizeof(uint32_t)) < m_stagingBuffer->bytes());
+
+                // load textures into the staging buffer
+                void* buffer = m_stagingBuffer->lock(offset, size.pixelCount() * sizeof(uint32_t));
+                memcpy(buffer, pixels, size.pixelCount() * sizeof(uint32_t));
+                m_stagingBuffer->unlock();
+                stbi_image_free(pixels);
+
+                offset += size.pixelCount() * sizeof(uint32_t);
+            }
+
+            ri::TextureParams params;
+            params.type   = ri::TextureType::eCube;
+            params.format = ri::ColorFormat::eRGBA;
+            params.size   = size;
+            params.flags  = ri::TextureUsageFlags::eDst | ri::TextureUsageFlags::eSrc | ri::TextureUsageFlags::eSampled;
+
+            m_textures.emplace_back(new ri::Texture(*m_context, params));
+
+            // issue copy commands
+            {
+                ri::Texture::CopyParams copyParams;
+                copyParams.layouts = {ri::TextureLayoutType::eUndefined,           //
+                                      ri::TextureLayoutType::eTransferDstOptimal,  //
+                                      ri::TextureLayoutType::eTransferSrcOptimal};
+                copyParams.size    = size;
+
+                ri::CommandBuffer commandBuffer = commandPool.begin();
+                m_textures.back()->copy(*m_stagingBuffer, copyParams, commandBuffer);
+                commandPool.end(commandBuffer);
+            }
+
+            ri::DescriptorLayoutParam layoutsParams({
+                {0, ri::ShaderStage::eVertex, ri::DescriptorType::eUniformBuffer},
+                {1, ri::ShaderStage::eFragment, ri::DescriptorType::eCombinedSampler},
+            });
+
+            // create material
+            assert(m_materials.size() == eSkyboxMaterial);
+            m_materials.emplace_back();
+            Material& material = m_materials.back();
+            material.aoTexture = m_materials.size() - 1;
+
+            auto                    descriptorLayout = m_descriptorPool->createLayout(layoutsParams);
+            ri::DescriptorSetParams descriptorParams;
+            descriptorParams.infos.reserve(2);
+            descriptorParams.infos.emplace_back(0, m_uniformBuffers[0].get(), ri::DescriptorType::eUniformBuffer);
+            descriptorParams.infos.emplace_back(1, m_textures.back().get());
+            material.descriptor  = m_descriptorPool->create(descriptorLayout.index, descriptorParams);
+            descriptorLayouts[1] = descriptorLayout.layout;
+        }
         // create descriptors and materials
         {
             textureIndexMap[-1] = 0;
@@ -508,7 +563,8 @@ private:
             descriptorParams.infos.reserve(7);
             descriptorParams.infos.emplace_back(0, m_uniformBuffers[0].get(), ri::DescriptorType::eUniformBuffer);
             descriptorParams.infos.emplace_back(5, m_uniformBuffers[1].get(), ri::DescriptorType::eUniformBuffer);
-            descriptorParams.infos.emplace_back(6, m_uniformBuffers[2].get(), ri::DescriptorType::eUniformBuffer);
+            descriptorParams.infos.emplace_back(6, nullptr, ri::DescriptorType::eUniformBuffer);
+            auto& materialUboInfo = descriptorParams.infos.back();
             descriptorParams.infos.emplace_back(1, nullptr);
             auto& albedoMapInfo = descriptorParams.infos.back();
             descriptorParams.infos.emplace_back(2, nullptr);
@@ -539,6 +595,12 @@ private:
                 occlusionMapInfo.texture = m_textures[textureIndexMap[index]].get();
                 material.ubo.aoStrength  = getMaterialValue<float>(mat, "occlusionTexture", "strength", 1.f);
 
+                material.buffer.reset(
+                    new ri::Buffer(*m_context, ri::BufferUsageFlags::eUniform, sizeof(Material::UBO)));
+                material.buffer->setTagName(mat.name + "_UBO");
+                materialUboInfo.buffer = material.buffer.get();
+                materialUboInfo.size   = material.buffer->bytes();
+
                 material.descriptor = m_descriptorPool->create(descriptorLayout.index, descriptorParams);
             }
         }
@@ -548,11 +610,14 @@ private:
         {
             ri::RenderPass& pass = m_surface->renderPass();
 
+            ri::RenderPipeline::CreateParams params;
+            params.descriptorLayouts = {descriptorLayouts[0]};
             // needed to change viewport for resizing
             params.dynamicStates        = {ri::DynamicState::eViewport, ri::DynamicState::eScissor};
-            params.vertexDescription    = &m_meshes[0].vertexDescription;
+            params.vertexDescription    = &m_meshes[eSkyboxMesh + 1].vertexDescription;
             params.primitiveTopology    = ri::PrimitiveTopology::eTriangles;
             params.rasterizationSamples = m_surface->msaaSamples();
+            params.depthCompareOp       = ri::CompareOperation::eLessOrEqual;
             params.frontFaceCW          = false;
             params.depthTestEnable      = true;
             params.depthWriteEnable     = true;
@@ -566,10 +631,79 @@ private:
             m_renderWirePipeline.reset(
                 new ri::RenderPipeline(*m_context, pass, *m_shaderPipeline, params, ri::Sizei(kWidth, kHeight)));
             m_renderWirePipeline->setTagName("WirePipeline");
+
+            // create a render pipeline for the skybox
+            {
+                std::unique_ptr<ri::ShaderPipeline> shaderPipeline(new ri::ShaderPipeline());
+                shaderPipeline->addStage(
+                    new ri::ShaderModule(*m_context, shadersPath + "skybox.frag", ri::ShaderStage::eFragment));
+                shaderPipeline->addStage(
+                    new ri::ShaderModule(*m_context, shadersPath + "skybox.vert", ri::ShaderStage::eVertex));
+                shaderPipeline->setTagName("SkyboxShaderPipeline");
+
+                params.descriptorLayouts = {descriptorLayouts[1]};
+                params.vertexDescription = &m_meshes[eSkyboxMesh].vertexDescription;
+                params.polygonMode       = ri::PolygonMode::eNormal;
+                params.frontFaceCW       = true;
+                params.depthTestEnable   = true;
+                params.depthWriteEnable  = false;
+                m_skyboxPipeline.reset(
+                    new ri::RenderPipeline(*m_context, pass, *shaderPipeline, params, ri::Sizei(kWidth, kHeight)));
+                m_skyboxPipeline->setTagName("SkyboxPipeline");
+            }
         }
     }
 
-    void createMesh(const tinygltf::Model& model, const tinygltf::Mesh& mesh)
+    void loadModel(tinygltf::Model& model, const char* filename)
+    {
+        const bool success = openFile(model, filename);
+        assert(success);
+
+        // create a transient pool for short lived buffers
+        ri::DeviceContext::CommandPoolParam param = {ri::DeviceCommandHint::eTransient, false};
+        auto& commandPool                         = m_context->addCommandPool(ri::DeviceOperation::eTransfer, param);
+
+        const size_t bufferStartIndex = m_buffers.size();
+        m_buffers.resize(m_buffers.size() + model.bufferViews.size());
+
+        // create asset buffers
+        for (size_t i = 0; i < model.bufferViews.size(); ++i)
+        {
+            const tinygltf::BufferView& bufferView = model.bufferViews[i];
+            if (bufferView.target == 0)
+            {
+                std::cout << "WARN: bufferView.target is zero" << std::endl;
+                continue;
+            }
+
+            const size_t currentIndex = bufferStartIndex + i;
+            if (bufferView.target == TINYGLTF_TARGET_ARRAY_BUFFER)
+            {
+                m_buffers[currentIndex].reset(new ri::Buffer(
+                    *m_context, ri::BufferUsageFlags::eVertex | ri::BufferUsageFlags::eDst, bufferView.byteLength));
+            }
+            else if (bufferView.target == TINYGLTF_TARGET_ELEMENT_ARRAY_BUFFER)
+            {
+                m_buffers[currentIndex].reset(new ri::Buffer(
+                    *m_context, ri::BufferUsageFlags::eIndex | ri::BufferUsageFlags::eDst, bufferView.byteLength));
+            }
+            else
+                assert(false);
+            assert(m_stagingBuffer->bytes() > bufferView.byteLength);
+
+            const tinygltf::Buffer buffer = model.buffers[bufferView.buffer];
+            m_stagingBuffer->write(&buffer.data.at(0) + bufferView.byteOffset, bufferView.byteLength);
+            m_buffers[currentIndex]->copy(*m_stagingBuffer, commandPool);
+            m_buffers[currentIndex]->setTagName(buffer.name);
+        }
+
+        for (size_t i = 0; i < model.meshes.size(); ++i)
+        {
+            createMesh(model, model.meshes[i], bufferStartIndex);
+        }
+    }
+
+    void createMesh(const tinygltf::Model& model, const tinygltf::Mesh& mesh, size_t bufferStartIndex)
     {
         enum AttributeLocation
         {
@@ -582,17 +716,17 @@ private:
         std::vector<ri::VertexBinding>   bindingList;
         for (size_t i = 0; i < mesh.primitives.size(); ++i)
         {
-            tinygltf::Primitive primitive = mesh.primitives[i];
+            const tinygltf::Primitive& primitive = mesh.primitives[i];
 
             bindings.clear();
             uint32_t bindingIndex = 0;
             for (auto& attrib : primitive.attributes)
             {
-                tinygltf::Accessor accessor = model.accessors[attrib.second];
+                const tinygltf::Accessor& accessor = model.accessors[attrib.second];
 
                 auto& binding        = bindings[attrib.second];
                 binding.bindingIndex = bindingIndex++;
-                binding.buffer       = m_buffers[accessor.bufferView].get();
+                binding.buffer       = m_buffers[bufferStartIndex + accessor.bufferView].get();
                 binding.offset       = accessor.byteOffset;
                 binding.stride       = accessor.ByteStride(model.bufferViews[accessor.bufferView]);
 
@@ -625,19 +759,21 @@ private:
                 else
                     assert(false);
             }
-            assert(bindings.size() == 3);
+            if (m_buffers.size() != 2)  // ignore for skybox
+                assert(bindings.size() == 3);
 
             bindingList.clear();
             for (auto& bindingPair : bindings)
             {
                 bindingList.push_back(bindingPair.second);
             }
+
             m_meshes.emplace_back();
             m_meshes.back().vertexDescription.create(bindingList);
-            m_meshes.back().materialIndex = primitive.material;
+            m_meshes.back().materialIndex = eMaterialOffset + primitive.material;
 
             tinygltf::Accessor indexAccessor = model.accessors[primitive.indices];
-            const ri::Buffer&  indexBuffer   = *m_buffers[indexAccessor.bufferView];
+            const ri::Buffer&  indexBuffer   = *m_buffers[bufferStartIndex + indexAccessor.bufferView];
 
             ri::IndexType indexType;
             assert(indexAccessor.type == TINYGLTF_TYPE_SCALAR);
@@ -674,23 +810,40 @@ private:
 
         pipeline->dynamicState().setViewport(commandBuffer, target.size());
         pipeline->dynamicState().setScissor(commandBuffer, target.size());
+        m_skyboxPipeline->dynamicState().setViewport(commandBuffer, target.size());
+        m_skyboxPipeline->dynamicState().setScissor(commandBuffer, target.size());
 
-        ri::RenderPipeline::ScopedEnable pipelineScope(*pipeline, target, commandBuffer);
+        ri::RenderPass::ScopedEnable passScope(pipeline->defaultPass(), target, commandBuffer);
+
+        pipeline->bind(commandBuffer);
 
         // bind the vertex and index buffers
         size_t lastMaterialIndex = m_materials.size();
-        for (const auto& mesh : m_meshes)
+        for (size_t i = eSkyboxMesh + 1; i < m_meshes.size(); ++i)
         {
+            const auto& mesh = m_meshes[i];
             mesh.vertexDescription.bind(commandBuffer);
 
+            assert(mesh.materialIndex != eSkyboxMaterial);
             if (lastMaterialIndex != mesh.materialIndex)
             {
                 const Material& material = m_materials[mesh.materialIndex];
                 // bind the uniform buffer/textures to the render pipeline
                 material.descriptor.bind(commandBuffer, *pipeline);
-                m_uniformBuffers[2]->update(material.ubo);
+                material.buffer->update(material.ubo);
                 lastMaterialIndex = mesh.materialIndex;
             }
+
+            commandBuffer.drawIndexed(mesh.vertexDescription.count());
+        }
+
+        // render skybox
+        {
+            m_skyboxPipeline->bind(commandBuffer);
+
+            const auto& mesh = m_meshes[eSkyboxMesh];
+            mesh.vertexDescription.bind(commandBuffer);
+            m_materials[mesh.materialIndex].descriptor.bind(commandBuffer, *m_skyboxPipeline);
 
             commandBuffer.drawIndexed(mesh.vertexDescription.count());
         }
@@ -721,23 +874,19 @@ private:
         auto        currentTime = std::chrono::high_resolution_clock::now();
         const float timer = std::chrono::duration<float, std::chrono::seconds::period>(currentTime - startTime).count();
 
-        const float zfar = m_bounds.maxSize * 10.f;
-        m_camera.step    = m_bounds.maxSize * 0.05f;
+        m_deltaTime = std::chrono::duration<float, std::chrono::seconds::period>(currentTime - m_lastTime).count();
+        m_lastTime  = currentTime;
 
         const glm::mat4 model = m_camera.ubo.model;
         if (!m_paused)
             m_camera.ubo.model = glm::rotate(model, timer, glm::vec3(0.0f, 0.0f, 1.f));
 
-        m_camera.distance = std::max(0.18f, m_camera.distance);
-        m_camera.ubo.view =
-            glm::lookAt(glm::vec3(0, 0, m_camera.distance), glm::vec3(0.f), glm::vec3(0.0f, 1.0f, 0.0f));
+        const float zfar  = m_bounds.maxSize * 100.f;
         m_camera.ubo.proj = glm::perspective(glm::radians(45.0f),
                                              m_surface->size().width / (float)m_surface->size().height, 0.1f, zfar);
-        // flip X
-        m_camera.ubo.proj[0][0] *= -1;
-
-        m_camera.ubo.viewProj = m_camera.ubo.proj * m_camera.ubo.view;
-        m_camera.ubo.worldPos = glm::inverse(m_camera.ubo.view) * glm::vec4(0, 0, 0, 1);
+        // flip Y
+        m_camera.ubo.proj[1][1] *= -1;
+        m_camera.update();
 
         LightParams lightParams;
         lightParams.ambient = 0.04f;
@@ -813,25 +962,38 @@ private:
     std::unique_ptr<ri::ShaderPipeline>        m_shaderPipeline;
     std::unique_ptr<ri::RenderPipeline>        m_renderPipeline;
     std::unique_ptr<ri::RenderPipeline>        m_renderWirePipeline;
+    std::unique_ptr<ri::RenderPipeline>        m_skyboxPipeline;
     std::unique_ptr<ri::DescriptorPool>        m_descriptorPool;
     std::unique_ptr<ri::Buffer>                m_stagingBuffer;
-    std::unique_ptr<ri::Buffer>                m_buffers[5];
-    std::unique_ptr<ri::Buffer>                m_uniformBuffers[3];
+    std::vector<std::shared_ptr<ri::Buffer> >  m_buffers;
+    std::unique_ptr<ri::Buffer>                m_uniformBuffers[2];
     std::vector<Mesh>                          m_meshes;
     std::vector<Material>                      m_materials;
     std::vector<std::shared_ptr<ri::Texture> > m_textures;
     std::unique_ptr<ri::RenderTarget>          m_msaaTarget;
 
+    using time_t = std::chrono::time_point<std::chrono::steady_clock>;
     struct Bounds
     {
         glm::vec3 min     = glm::vec3(std::numeric_limits<float>::max());
         glm::vec3 max     = glm::vec3(std::numeric_limits<float>::min());
         float     maxSize = 0.f;
+
+        glm::vec3 center() const
+        {
+            glm::vec3 res = max + min;
+            res *= 0.5f;
+            return res;
+        }
     } m_bounds;
     Camera m_camera;
+    float  m_deltaTime    = 0.0f;
+    time_t m_lastTime     = std::chrono::high_resolution_clock::now();
     bool   m_paused       = true;
     bool   m_lightsPaused = false;
     bool   m_useWireframe = false;
+    bool   m_move         = false;
+    bool   m_firstMouse   = false;
 };
 
 int main()

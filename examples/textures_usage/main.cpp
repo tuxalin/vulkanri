@@ -537,7 +537,7 @@ private:
         m_camera.ubo.proj[1][1] *= -1;
 
         m_camera.ubo.viewProj = m_camera.ubo.proj * m_camera.ubo.view;
-        m_camera.ubo.worldPos = glm::inverse(m_camera.ubo.view) * glm::vec4(0, 0, 0, 1);
+        m_camera.ubo.worldPos = glm::vec4(glm::vec3(m_camera.distance), 1.0);
 
         LightParams lightParams;
         lightParams.ambient = 0.04f;
