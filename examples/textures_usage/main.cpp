@@ -112,7 +112,7 @@ struct PlaneModel
                 vertex.pos.x   = x / float(faceCount);
                 vertex.pos.y   = cy;
                 vertex.pos.z   = 0.f;
-                vertex.normal  = Vertex::Vec {0.f, 0.f, 1.f};
+                vertex.normal  = Vertex::Vec{0.f, 0.f, 1.f};
                 vertex.uv.s    = vertex.pos.x + 0.5f;
                 vertex.uv.t    = ct;
             }
@@ -377,8 +377,7 @@ private:
 
                 // issue copy commands
                 ri::Texture::CopyParams copyParams;
-                copyParams.layouts = {ri::TextureLayoutType::eUndefined,           //
-                                      ri::TextureLayoutType::eTransferDstOptimal,  //
+                copyParams.layouts = {ri::TextureLayoutType::eUndefined,  //
                                       ri::TextureLayoutType::eTransferSrcOptimal};
                 copyParams.size    = size;
 
@@ -432,14 +431,14 @@ private:
 
             // create descriptor
             ri::DescriptorSetParams descriptorParams;
-            descriptorParams.infos.emplace_back(0, m_uniformBuffers[0].get(), 0, sizeof(Camera));
-            descriptorParams.infos.emplace_back(5, m_uniformBuffers[1].get(), 0, sizeof(LightParams));
-            descriptorParams.infos.emplace_back(6, m_uniformBuffers[2].get(), 0, sizeof(Material));
-            descriptorParams.infos.emplace_back(1, m_textures[0].get());
-            descriptorParams.infos.emplace_back(2, m_textures[1].get());
-            descriptorParams.infos.emplace_back(3, m_textures[2].get());
-            descriptorParams.infos.emplace_back(4, m_textures[3].get());
-            descriptorParams.infos.emplace_back(7, m_textures[4].get());
+            descriptorParams.add(0, m_uniformBuffers[0].get(), 0, sizeof(Camera));
+            descriptorParams.add(5, m_uniformBuffers[1].get(), 0, sizeof(LightParams));
+            descriptorParams.add(6, m_uniformBuffers[2].get(), 0, sizeof(Material));
+            descriptorParams.add(1, m_textures[0].get());
+            descriptorParams.add(2, m_textures[1].get());
+            descriptorParams.add(3, m_textures[2].get());
+            descriptorParams.add(4, m_textures[3].get());
+            descriptorParams.add(7, m_textures[4].get());
 
             m_descriptor = m_descriptorPool->create(res.index, descriptorParams);
         }

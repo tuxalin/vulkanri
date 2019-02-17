@@ -16,6 +16,13 @@ struct DescriptorSetParams
         eTexelBuffer,
         eTexture
     };
+    enum TextureType
+    {
+        eCombinedSampler = DescriptorType::eCombinedSampler,
+        eImage           = DescriptorType::eImage,
+        eSampledImage    = DescriptorType::eSampledImage,
+    };
+
     struct WriteInfo
     {
         union {
@@ -28,7 +35,7 @@ struct DescriptorSetParams
 
         WriteInfo(uint32_t binding, const Buffer* buffer, uint32_t offset, uint32_t size);
         WriteInfo(uint32_t binding, const Buffer* buffer, DescriptorType type);
-        WriteInfo(uint32_t binding, const Texture* texture);
+        WriteInfo(uint32_t binding, const Texture* texture, TextureType type = eCombinedSampler);
 
         const Mode mode() const;
 
@@ -37,8 +44,12 @@ struct DescriptorSetParams
     };
 
     DescriptorSetParams();
+    DescriptorSetParams(std::initializer_list<WriteInfo> infos);
     DescriptorSetParams(uint32_t binding, const Buffer* buffer, uint32_t offset, uint32_t size);
     DescriptorSetParams(uint32_t binding, const Texture* texture);
+
+    template <class... Args>
+    void add(Args&&... args);
 
     std::vector<WriteInfo> infos;
 };
@@ -219,6 +230,11 @@ void DescriptorSet::bind(CommandBuffer& buffer, const RenderPipeline& pipeline,
 
 inline DescriptorSetParams::DescriptorSetParams() {}
 
+inline DescriptorSetParams::DescriptorSetParams(std::initializer_list<WriteInfo> infos)
+    : infos(infos)
+{
+}
+
 inline DescriptorSetParams::DescriptorSetParams(uint32_t binding, const Buffer* buffer, uint32_t offset, uint32_t size)
     : infos(1, WriteInfo(binding, buffer, offset, size))
 {
@@ -227,6 +243,12 @@ inline DescriptorSetParams::DescriptorSetParams(uint32_t binding, const Buffer* 
 inline DescriptorSetParams::DescriptorSetParams(uint32_t binding, const Texture* texture)
     : infos(1, WriteInfo(binding, texture))
 {
+}
+
+template <class... Args>
+void DescriptorSetParams::add(Args&&... args)
+{
+    infos.emplace_back(std::forward<Args>(args)...);
 }
 
 inline DescriptorSetParams::WriteInfo::WriteInfo(uint32_t binding, const Buffer* buffer, uint32_t offset, uint32_t size)
@@ -249,11 +271,12 @@ inline DescriptorSetParams::WriteInfo::WriteInfo(uint32_t binding, const Buffer*
 {
 }
 
-inline DescriptorSetParams::WriteInfo::WriteInfo(uint32_t binding, const Texture* texture)
+inline DescriptorSetParams::WriteInfo::WriteInfo(uint32_t binding, const Texture* texture,
+                                                 TextureType type /*= eCombinedSampler*/)
     : texture(texture)
     , binding(binding)
     , m_mode(eTexture)
-    , type(DescriptorType::eCombinedSampler)
+    , type(static_cast<DescriptorType>(type))
 {
 }
 

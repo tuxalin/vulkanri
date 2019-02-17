@@ -561,33 +561,36 @@ private:
             Material& material = m_materials.back();
             material.aoTexture = m_materials.size() - 1;
 
-            auto                    descriptorLayout = m_descriptorPool->createLayout(layoutsParams);
-            ri::DescriptorSetParams descriptorParams;
-            descriptorParams.infos.reserve(2);
-            descriptorParams.infos.emplace_back(0, m_uniformBuffers[0].get(), ri::DescriptorType::eUniformBuffer);
-            descriptorParams.infos.emplace_back(1, m_textures.back().get());
+            const auto                    descriptorLayout = m_descriptorPool->createLayout(layoutsParams);
+            const ri::DescriptorSetParams descriptorParams = {
+                {0, m_uniformBuffers[0].get(), ri::DescriptorType::eUniformBuffer},
+                {1, m_textures[skyboxTexIndex].get()}};
+
             material.descriptor  = m_descriptorPool->create(descriptorLayout.index, descriptorParams);
             descriptorLayouts[1] = descriptorLayout.layout;
         }
+
         // create descriptors and materials
         {
             textureIndexMap[-1] = 0;
             textureIndexMap[-2] = 1;
 
             ri::DescriptorSetParams descriptorParams;
-            descriptorParams.infos.reserve(7);
-            descriptorParams.infos.emplace_back(0, m_uniformBuffers[0].get(), ri::DescriptorType::eUniformBuffer);
-            descriptorParams.infos.emplace_back(5, m_uniformBuffers[1].get(), ri::DescriptorType::eUniformBuffer);
-            descriptorParams.infos.emplace_back(6, nullptr, ri::DescriptorType::eUniformBuffer);
+            descriptorParams.infos.reserve(8);
+            descriptorParams.add(0, m_uniformBuffers[0].get(), ri::DescriptorType::eUniformBuffer);
+            descriptorParams.add(5, m_uniformBuffers[1].get(), ri::DescriptorType::eUniformBuffer);
+            descriptorParams.add(6, nullptr, ri::DescriptorType::eUniformBuffer);
             auto& materialUboInfo = descriptorParams.infos.back();
-            descriptorParams.infos.emplace_back(1, nullptr);
+            descriptorParams.add(1, nullptr);
             auto& albedoMapInfo = descriptorParams.infos.back();
-            descriptorParams.infos.emplace_back(2, nullptr);
+            descriptorParams.add(2, nullptr);
             auto& normalMapInfo = descriptorParams.infos.back();
-            descriptorParams.infos.emplace_back(3, nullptr);
+            descriptorParams.add(3, nullptr);
             auto& metallicRoughnessMapInfo = descriptorParams.infos.back();
-            descriptorParams.infos.emplace_back(4, nullptr);
+            descriptorParams.add(4, nullptr);
             auto& occlusionMapInfo = descriptorParams.infos.back();
+            descriptorParams.add(7, m_textures[skyboxTexIndex].get());
+
             m_materials.reserve(model.materials.size());
             for (const tinygltf::Material& mat : model.materials)
             {

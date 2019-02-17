@@ -217,7 +217,7 @@ uint32_t DeviceContext::deviceScore(VkPhysicalDevice device, const std::vector<D
 DeviceContext::OperationIndices DeviceContext::searchQueueFamilies(
     const std::vector<DeviceOperation>& requiredOperations)
 {
-    assert(requiredOperations.size() < (size_t)DeviceOperation::Count);
+    assert(requiredOperations.size() <= (size_t)DeviceOperation::Count);
 
     uint32_t queueFamilyCount = 0;
     vkGetPhysicalDeviceQueueFamilyProperties(m_physicalDevice, &queueFamilyCount, nullptr);
