@@ -57,15 +57,24 @@ void main()
 	vec3 Lo = vec3(0.0);
 	for (int i = 0; i < lightParams.lights.length(); i++) 
 	{
-		vec3 L = normalize(lightParams.lights[i].xyz - inWorldPos);
-		vec3 radiance = lightColor * lightParams.lights[i].a;
-		vec3 ct = cookTorrance(L, V, N, albedo, metallic, specular, roughness) * radiance;
-		Lo += ct * diffuseLambert(L, N); 
-	};
+		vec3 lightPos = lightParams.lights[i].xyz;
+		vec3 L = lightPos - inWorldPos;
 
-	vec3 ambient = albedo * lightParams.ambient;
+		// light radiance
+        float distance = length(L);
+        float attenuation = clamp(500.0 / (1.0 + distance * distance), 0.0, 1.0);
+        float lightIntensity = lightParams.lights[i].a;
+        vec3 radiance = lightColor * lightIntensity * attenuation;
+
+		// diffuse + specular BRDF
+		L /= distance;
+		vec3 brdf = cook_torrance_ggx(L, V, N, albedo, metallic, specular, roughness);
+		// add to total outgoing radiance
+		Lo += brdf * radiance * diffuse_lambert(L, N); 
+	}
+
+	vec3 ambient = lightParams.ambient * albedo;
 	vec3 color = (ambient + Lo) * ao;
-
 	color = color / (color + vec3(1.0)); // HDR tonemapping
 	color = gammaEncode(color);
 

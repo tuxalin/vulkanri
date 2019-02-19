@@ -28,8 +28,14 @@ vec3 f_schlick(float cosTheta, vec3 albedo, float metallic, float specular)
 	return F;    
 }
 
+vec3 f_schlick_roughness(float cosTheta, vec3 albedo, float metallic, float specular, float roughness)
+{
+	vec3 F0 = mix(vec3(0.04), albedo, metallic) * specular;
+    return F0 + (max(vec3(1.0 - roughness), F0) - F0) * pow(1.0 - cosTheta, 5.0);
+} 
+
 // Lambertian reflectance
-vec3 D_Lambert(vec3 kS, vec3 albedo, float metallic)
+vec3 d_lambert(vec3 kS, vec3 albedo, float metallic)
 {
 	// for energy conservation, inverse of the reflected light
 	vec3 kD = vec3(1.0) - kS;
@@ -39,7 +45,7 @@ vec3 D_Lambert(vec3 kS, vec3 albedo, float metallic)
 }
 
 // Diffuse + Specular BRDF
-vec3 cookTorrance(vec3 L, vec3 V, vec3 N, vec3 albedo, float metallic, float specular, float roughness)
+vec3 cook_torrance_ggx(vec3 L, vec3 V, vec3 N, vec3 albedo, float metallic, float specular, float roughness)
 {
 	// Precalculate half-vector and dot products	
 	vec3 H = normalize (V + L);
@@ -58,15 +64,15 @@ vec3 cookTorrance(vec3 L, vec3 V, vec3 N, vec3 albedo, float metallic, float spe
 		// Fresnel factor 
 		vec3 F = f_schlick(dotNV, albedo, metallic, specular);
 
-		vec3 s = NDF * F * G / (4.0 * dotNL * dotNV + 0.001); // add 0.001 to prevent divide by zero
+		vec3 S = NDF * F * G / (4.0 * dotNL * dotNV + 0.001); // add 0.001 to prevent divide by zero
 
-		color = D_Lambert(F, albedo, metallic) + s;
+		color = d_lambert(F, albedo, metallic) + S;
 	}
 
 	return color;
 }
 
-float diffuseLambert(vec3 L, vec3 N) 
+float diffuse_lambert(vec3 L, vec3 N) 
 {
 	return clamp(dot(N, L), 0.0, 1.0);
 }

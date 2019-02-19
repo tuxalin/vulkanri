@@ -31,6 +31,7 @@ layout(binding = 6) uniform Material {
 	float normalStrength;
 	float aoStrength;
 } material;
+layout(binding = 7) uniform samplerCube irradianceMap;
 
 layout(location = 0) in vec3 inWorldPos;
 layout(location = 1) in vec3 inNormal;
@@ -55,15 +56,29 @@ void main()
 	vec3 Lo = vec3(0.0);
 	for (int i = 0; i < lightParams.lights.length(); i++) 
 	{
-		vec3 L = normalize(lightParams.lights[i].xyz - inWorldPos);
-		vec3 radiance = lightColor * lightParams.lights[i].a;
-		vec3 ct = cookTorrance(L, V, N, albedo, metallic, specular, roughness) * radiance;
-		Lo += ct * diffuseLambert(L, N); 
-	};
+		vec3 lightPos = lightParams.lights[i].xyz;
+		vec3 L = lightPos - inWorldPos;
 
-	vec3 ambient = albedo * lightParams.ambient;
+		// light radiance
+        float distance = length(L);
+        float attenuation = clamp(500.0 / (1.0 + distance * distance), 0.0, 1.0);
+        float lightIntensity = lightParams.lights[i].a;
+        vec3 radiance = lightColor * lightIntensity * attenuation;
+
+		// diffuse + specular BRDF
+		L /= distance;
+		vec3 brdf = cook_torrance_ggx(L, V, N, albedo, metallic, specular, roughness);
+		// add to total outgoing radiance
+		Lo += brdf * radiance * diffuse_lambert(L, N); 
+	}
+
+	// apply roughness term in the Fresnel-Schlick equation as described by Sebastien Lagarde
+	// to reduce the indirect Fresnel reflection for dielectric materials
+	vec3 kS = f_schlick_roughness(max(dot(N, V), 0.0), albedo, metallic, specular, roughness);
+	vec3 kD = (1.0 - kS) * (1.0 - metallic);	
+	vec3 diffuse = kD * albedo * texture(irradianceMap, N).rgb;
+	vec3 ambient = lightParams.ambient + diffuse;
 	vec3 color = (ambient + Lo) * ao;
-
 	color = color / (color + vec3(1.0)); // HDR tonemapping
 	color = gammaEncode(color);
 
