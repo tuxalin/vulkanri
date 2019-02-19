@@ -7,6 +7,14 @@
 
 namespace ri
 {
+namespace detail
+{
+    VkPipelineLayout getPipelineLayout(const RenderPipeline& pipeline)
+    {
+        return pipeline.m_pipelineLayout;
+    }
+}
+
 RenderPipeline::RenderPipeline(const ri::DeviceContext&  device,          //
                                ri::RenderPass*           pass,            //
                                const ri::ShaderPipeline& shaderPipeline,  //

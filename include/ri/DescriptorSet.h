@@ -2,6 +2,7 @@
 
 #include <ri/Buffer.h>
 #include <ri/CommandBuffer.h>
+#include <ri/ComputePipeline.h>
 #include <ri/RenderPipeline.h>
 #include <ri/Texture.h>
 #include <ri/Types.h>
@@ -61,9 +62,9 @@ public:
 
     template <int InfoCount>
     void update(const DescriptorSetParams& params);
-    void setBindPoint(bool isGraphics);
 
     void bind(CommandBuffer& buffer, const RenderPipeline& pipeline) const;
+    void bind(CommandBuffer& buffer, const ComputePipeline& pipeline) const;
 
     /// Batch call for setting multiple descriptors.
     ///@note Preferred over individual calls.
@@ -143,8 +144,7 @@ private:
         descriptorWrite.pNext           = nullptr;
     }
 
-    VkDevice            m_device    = VK_NULL_HANDLE;
-    VkPipelineBindPoint m_bindPoint = VK_PIPELINE_BIND_POINT_GRAPHICS;
+    VkDevice m_device = VK_NULL_HANDLE;
 
     friend class DescriptorPool;  // DescriptorSet can be created only from a pool
 };
@@ -170,17 +170,18 @@ inline void DescriptorSet::update(const DescriptorSetParams& params)
     vkUpdateDescriptorSets(m_device, i, descriptorWriteInfos, 0, nullptr);
 }
 
-inline void DescriptorSet::setBindPoint(bool isGraphics)
-{
-    assert(m_handle);
-    m_bindPoint = isGraphics ? VK_PIPELINE_BIND_POINT_GRAPHICS : VK_PIPELINE_BIND_POINT_COMPUTE;
-}
-
 inline void DescriptorSet::bind(CommandBuffer& buffer, const RenderPipeline& pipeline) const
 {
     assert(m_handle);
-    vkCmdBindDescriptorSets(detail::getVkHandle(buffer), m_bindPoint, detail::getPipelineLayout(pipeline), 0, 1,
-                            &m_handle, 0, nullptr);
+    vkCmdBindDescriptorSets(detail::getVkHandle(buffer), VK_PIPELINE_BIND_POINT_GRAPHICS,
+                            detail::getPipelineLayout(pipeline), 0, 1, &m_handle, 0, nullptr);
+}
+
+inline void DescriptorSet::bind(CommandBuffer& buffer, const ComputePipeline& pipeline) const
+{
+    assert(m_handle);
+    vkCmdBindDescriptorSets(detail::getVkHandle(buffer), VK_PIPELINE_BIND_POINT_COMPUTE,
+                            detail::getPipelineLayout(pipeline), 0, 1, &m_handle, 0, nullptr);
 }
 
 template <int InfoCount, int Count>

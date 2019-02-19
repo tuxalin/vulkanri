@@ -15,15 +15,14 @@ enum class MovementType
     Right
 };
 
-// An abstract camera class that processes input and calculates the corresponding Euler Angles, Vectors and Matrices for
-// use in OpenGL
+// An abstract camera class that processes input and calculates the corresponding Euler Angles, Vectors and Matrices
 class Camera
 {
     // Default camera values
     static constexpr float cYaw         = 0.0f;
     static constexpr float cPitch       = 0.0f;
-    static constexpr float cSpeed       = 2.5f;
-    static constexpr float cSensitivity = 0.01f;
+    static constexpr float cSpeed       = 4.5f;
+    static constexpr float cSensitivity = 0.03f;
     static constexpr float cZoom        = 45.0f;
 
 public:

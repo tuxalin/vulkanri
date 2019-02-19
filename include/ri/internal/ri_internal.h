@@ -18,6 +18,7 @@ class ShaderPipeline;
 class CommandBuffer;
 class DeviceContext;
 class RenderPipeline;
+class ComputePipeline;
 class VertexDescription;
 template <typename HandleClass>
 class RenderObject;
@@ -59,6 +60,7 @@ namespace detail
     const std::vector<VkVertexInputAttributeDescription>& getAttributeDescriptons(const VertexDescription& layout);
 
     VkPipelineLayout getPipelineLayout(const RenderPipeline& pipeline);
+    VkPipelineLayout getPipelineLayout(const ComputePipeline& pipeline);
 
     template <typename HandleClass>
     HandleClass getVkHandle(const RenderObject<HandleClass>& obj);

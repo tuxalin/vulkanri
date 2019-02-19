@@ -266,14 +266,6 @@ private:
     friend VkPipelineLayout detail::getPipelineLayout(const RenderPipeline& pipeline);
 };
 
-namespace detail
-{
-    inline VkPipelineLayout getPipelineLayout(const RenderPipeline& pipeline)
-    {
-        return pipeline.m_pipelineLayout;
-    }
-}
-
 inline void RenderPipeline::begin(const CommandBuffer& buffer, const RenderTarget& target) const
 {
     assert(m_renderPass);
