@@ -175,6 +175,10 @@ SAFE_ENUM_DECLARE(ColorFormat,
                   eRGB565          = VK_FORMAT_R5G6B5_UNORM_PACK16,  //
                   eBGRA            = VK_FORMAT_B8G8R8A8_UNORM,       //
                   eRGBA            = VK_FORMAT_R8G8B8A8_UNORM,       //
+                  eRGB16f          = VK_FORMAT_R16G16B16_SFLOAT,     //
+                  eRGBA16f         = VK_FORMAT_R16G16B16A16_SFLOAT,  //
+                  eRGB32f          = VK_FORMAT_R32G32B32_SFLOAT,     //
+                  eRGBA32f         = VK_FORMAT_R32G32B32A32_SFLOAT,  //
                   eDepth32         = VK_FORMAT_D32_SFLOAT,           //
                   eDepth24Stencil8 = VK_FORMAT_D32_SFLOAT_S8_UINT,   //
                   eDepth32Stencil8 = VK_FORMAT_D24_UNORM_S8_UINT,    //

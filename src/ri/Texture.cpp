@@ -131,8 +131,9 @@ void Texture::copy(const Buffer& src, const CopyParams& params, CommandBuffer& c
 {
     assert(Sizei(params.offsetX + params.size.width, params.offsetY + params.size.height) <= m_size);
 
-    if (params.oldLayout != params.transferLayout)
-        transitionImageLayout(params.oldLayout, params.transferLayout, commandBuffer);
+    const TextureLayoutType dstTransferLayout(VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL);
+    if (params.oldLayout != dstTransferLayout)
+        transitionImageLayout(params.oldLayout, dstTransferLayout, commandBuffer);
 
     // copy buffer to image
 
@@ -154,11 +155,10 @@ void Texture::copy(const Buffer& src, const CopyParams& params, CommandBuffer& c
     bufferCopyRegions.push_back(region);
 
     vkCmdCopyBufferToImage(detail::getVkHandle(commandBuffer), detail::getVkHandle(src), m_handle,
-                           (VkImageLayout)TextureLayoutType::eTransferDstOptimal, bufferCopyRegions.size(),
-                           bufferCopyRegions.data());
+                           (VkImageLayout)dstTransferLayout, bufferCopyRegions.size(), bufferCopyRegions.data());
 
-    if (params.transferLayout != params.finalLayout)
-        transitionImageLayout(params.transferLayout, params.finalLayout, false, commandBuffer);
+    if (dstTransferLayout != params.finalLayout)
+        transitionImageLayout(dstTransferLayout, params.finalLayout, false, commandBuffer);
 }
 
 void Texture::generateMipMaps(CommandBuffer& commandBuffer)
@@ -171,7 +171,7 @@ void Texture::generateMipMaps(CommandBuffer& commandBuffer)
     // Copy down mips from n-1 to n
     for (uint32_t i = 1; i < m_mipLevels; i++)
     {
-        VkImageBlit imageBlit {};
+        VkImageBlit imageBlit{};
 
         // Source
         imageBlit.srcSubresource.aspectMask = VK_IMAGE_ASPECT_COLOR_BIT;
@@ -381,6 +381,7 @@ Texture::PipelineBarrierSettings Texture::getPipelineBarrierSettings(TextureLayo
             dstStageFlags                    = VK_PIPELINE_STAGE_TRANSFER_BIT;
             break;
         case VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL:
+        case VK_IMAGE_LAYOUT_GENERAL:
             // Transfer destination (copy, blit)
             // Make sure any writes to the image have been finished
             imageMemoryBarrier.dstAccessMask = VK_ACCESS_TRANSFER_WRITE_BIT;
@@ -444,9 +445,10 @@ void Texture::transitionImageLayout(TextureLayoutType oldLayout, TextureLayoutTy
     const PipelineBarrierSettings settings =
         getPipelineBarrierSettings(oldLayout, newLayout, readAccess, subresourceRange);
     VkImageMemoryBarrier imageMemoryBarrier = std::get<0>(settings);
-
     vkCmdPipelineBarrier(detail::getVkHandle(commandBuffer), std::get<1>(settings), std::get<2>(settings), 0, 0,
                          nullptr, 0, nullptr, 1, &imageMemoryBarrier);
+
+    m_layout = newLayout;
 }
 
 void Texture::transitionImageLayout(TextureLayoutType oldLayout, TextureLayoutType newLayout, bool readAccess,

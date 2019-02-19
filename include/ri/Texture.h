@@ -78,10 +78,9 @@ public:
             struct
             {
                 TextureLayoutType oldLayout;
-                TextureLayoutType transferLayout;
                 TextureLayoutType finalLayout;
             };
-            std::array<TextureLayoutType, 3> layouts;
+            std::array<TextureLayoutType, 2> layouts;
         };
 
         int32_t offsetX = 0, offsetY = 0, offsetZ = 0;
@@ -94,7 +93,6 @@ public:
 
         CopyParams()
             : oldLayout(TextureLayoutType::eUndefined)
-            , transferLayout(TextureLayoutType::eUndefined)
             , finalLayout(TextureLayoutType::eUndefined)
         {
         }
@@ -114,6 +112,7 @@ public:
     void generateMipMaps(CommandBuffer& commandBuffer);
     void transitionImageLayout(TextureLayoutType oldLayout, TextureLayoutType newLayout,  //
                                CommandBuffer& commandBuffer);
+    void transitionImageLayout(const std::array<TextureLayoutType, 2>& layouts, CommandBuffer& commandBuffer);
     void transitionImageLayout(TextureLayoutType oldLayout, TextureLayoutType newLayout, bool readAccess,
                                CommandBuffer& commandBuffer);
 
@@ -139,15 +138,16 @@ private:
                                const VkImageSubresourceRange& subresourceRange, CommandBuffer& commandBuffer);
 
 private:
-    VkDevice       m_device  = VK_NULL_HANDLE;
-    VkDeviceMemory m_memory  = VK_NULL_HANDLE;
-    VkImageView    m_view    = VK_NULL_HANDLE;
-    VkSampler      m_sampler = VK_NULL_HANDLE;
-    TextureType    m_type;
-    ColorFormat    m_format;
-    Sizei          m_size;
-    uint32_t       m_mipLevels;
-    uint32_t       m_arrayLevels;
+    VkDevice          m_device  = VK_NULL_HANDLE;
+    VkDeviceMemory    m_memory  = VK_NULL_HANDLE;
+    VkImageView       m_view    = VK_NULL_HANDLE;
+    VkSampler         m_sampler = VK_NULL_HANDLE;
+    TextureType       m_type;
+    TextureLayoutType m_layout = TextureLayoutType::eUndefined;
+    ColorFormat       m_format;
+    Sizei             m_size;
+    uint32_t          m_mipLevels;
+    uint32_t          m_arrayLevels;
 
     friend const Texture* detail::createReferenceTexture(VkImage handle, int type, int format, const Sizei& size);
     friend detail::TextureDescriptorInfo detail::getTextureDescriptorInfo(const Texture& texture);
@@ -160,7 +160,7 @@ namespace detail
     {
         assert(texture.m_view);
         assert(texture.m_sampler);
-        return TextureDescriptorInfo({texture.m_view, texture.m_sampler, VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL});
+        return TextureDescriptorInfo({texture.m_view, texture.m_sampler, (VkImageLayout)texture.m_layout});
     }
 }
 
@@ -182,6 +182,12 @@ inline const Sizei& Texture::size() const
 inline bool Texture::isSampled() const
 {
     return m_sampler != VK_NULL_HANDLE;
+}
+
+inline void Texture::transitionImageLayout(const std::array<TextureLayoutType, 2>& layouts,
+                                           CommandBuffer&                          commandBuffer)
+{
+    transitionImageLayout(layouts[0], layouts[1], false, commandBuffer);
 }
 
 inline void Texture::transitionImageLayout(TextureLayoutType oldLayout, TextureLayoutType newLayout,
