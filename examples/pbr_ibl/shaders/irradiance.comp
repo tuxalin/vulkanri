@@ -2,7 +2,7 @@
 
 layout(local_size_x = 16, local_size_y = 16) in;
 layout(binding = 0, rgba8) uniform readonly imageCube environmentMap;
-layout(binding = 1, rgba32f) writeonly uniform imageCube irradianceMap;
+layout(binding = 1, rgba16f) writeonly uniform imageCube irradianceMap;
 
 const float PI = 3.1415926535897932384626433832795;
 const float TWO_PI = PI * 2.0;
@@ -85,7 +85,7 @@ void main()
 	{
 		float sinPhi = sin(phi);
 	    float cosPhi = cos(phi);
-	    //float theta = 0.0;
+	    
 	    for(float theta = 0.0; theta < HALF_PI; theta += sampleDelta)
 	    {
 	    	float sinTheta = sin(theta);
@@ -102,6 +102,6 @@ void main()
 	    }
 	}
 	irradiance *= PI * invTotalSamples;
-	
+
     imageStore(irradianceMap, cubeCoord, vec4(irradiance, 1.0));
 }
