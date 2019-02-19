@@ -7,6 +7,7 @@
  * - using multiple vertex binding for multiple meshes/primitives
  * - creating multiple descriptor set for multiple materials
  * - loading and using a texture cube for a skybox
+ * - using a compute shader to precompute an irradiance map from the skybox
  *
  */
 #define NOMINMAX
@@ -39,6 +40,7 @@
 #include <ri/Buffer.h>
 #include <ri/CommandBuffer.h>
 #include <ri/CommandPool.h>
+#include <ri/ComputePipeline.h>
 #include <ri/DescriptorPool.h>
 #include <ri/DescriptorSet.h>
 #include <ri/DeviceContext.h>
@@ -97,6 +99,7 @@ struct LightParams
 {
     glm::vec4 lights[4];
     float     ambient;
+    float     exposure = 1.5f;
 
     LightParams()
     {
@@ -204,7 +207,7 @@ private:
         glfwWindowHint(GLFW_CLIENT_API, GLFW_NO_API);
         glfwWindowHint(GLFW_RESIZABLE, true);
 
-        m_window = glfwCreateWindow(kWidth, kHeight, "Texture Usage", nullptr, nullptr);
+        m_window = glfwCreateWindow(kWidth, kHeight, "PBR IBL", nullptr, nullptr);
 
         glfwSetWindowUserPointer(m_window, this);
         glfwSetWindowSizeCallback(m_window, DemoApplication::onWindowResized);
@@ -230,17 +233,30 @@ private:
             app->m_paused = !app->m_paused;
         if (key == GLFW_KEY_L && action == GLFW_PRESS)
             app->m_lightsPaused = !app->m_lightsPaused;
+        if (key == GLFW_KEY_LEFT_BRACKET && action == GLFW_PRESS)
+            lightParams.exposure -= 0.1f;
+        if (key == GLFW_KEY_RIGHT_BRACKET && action == GLFW_PRESS)
+            lightParams.exposure += 0.1f;
+
         if (key == GLFW_KEY_E && action == GLFW_PRESS)
         {
             app->m_useWireframe = !app->m_useWireframe;
             app->record();
         }
-        if (key == GLFW_KEY_O && action == GLFW_PRESS)
+
+        if (glfwGetKey(window, GLFW_KEY_I) == GLFW_PRESS)
         {
-            lightParams.lights[0].w = 0.5f - lightParams.lights[0].w;
-            lightParams.lights[1].w = 0.3f - lightParams.lights[1].w;
-            lightParams.lights[2].w = 1.0f - lightParams.lights[2].w;
-            lightParams.lights[3].w = 0.33f - lightParams.lights[3].w;
+            app->m_activeTexIndex++;
+            if (app->m_activeTexIndex > app->m_irradianceTexIndex)
+                app->m_activeTexIndex = app->m_skyboxTexIndex;
+
+            const ri::DescriptorSetParams descriptorParams = {
+                {0, app->m_uniformBuffers[0].get(), ri::DescriptorType::eUniformBuffer},
+                {1, app->m_uniformBuffers[1].get(), ri::DescriptorType::eUniformBuffer},
+                {2, app->m_textures[app->m_activeTexIndex].get()}};
+
+            app->m_materials[eSkyboxMaterial].descriptor.update<3>(descriptorParams);
+            app->record();
         }
 
         if (glfwGetKey(window, GLFW_KEY_W) == GLFW_PRESS)
@@ -322,7 +338,8 @@ private:
                 ri::DeviceFeature::eSwapchain, ri::DeviceFeature::eAnisotropy, ri::DeviceFeature::eWireframe};
             const std::vector<ri::DeviceOperation> requiredOperations = {ri::DeviceOperation::eGraphics,
                                                                          // required for buffer transfer
-                                                                         ri::DeviceOperation::eTransfer};
+                                                                         ri::DeviceOperation::eTransfer,
+                                                                         ri::DeviceOperation::eCompute};
 
             // command buffers will be reset upon calling begin in render loop
             ri::DeviceContext::CommandPoolParam param = {ri::DeviceCommandHint::eTransient, true};
@@ -459,9 +476,7 @@ private:
 
                 // issue copy commands
                 ri::Texture::CopyParams copyParams;
-                copyParams.layouts = {ri::TextureLayoutType::eUndefined,           //
-                                      ri::TextureLayoutType::eTransferDstOptimal,  //
-                                      ri::TextureLayoutType::eTransferSrcOptimal};
+                copyParams.layouts = {ri::TextureLayoutType::eUndefined, ri::TextureLayoutType::eTransferSrcOptimal};
                 copyParams.size    = size;
 
                 ri::CommandBuffer commandBuffer = commandPool.begin();
@@ -475,8 +490,9 @@ private:
         ri::DescriptorPool::CreateLayoutResult descriptorLayout;
         // create a descriptor pool and descriptor for the shader
         {
-            std::vector<ri::DescriptorPool::TypeSize> avaialbleTypes(
-                {{ri::DescriptorType::eUniformBuffer, 30 + 1}, {ri::DescriptorType::eCombinedSampler, 40 + 1}});
+            std::vector<ri::DescriptorPool::TypeSize> avaialbleTypes({{ri::DescriptorType::eUniformBuffer, 30 + 1},
+                                                                      {ri::DescriptorType::eCombinedSampler, 40 + 1},
+                                                                      {ri::DescriptorType::eCombinedSampler, 40 + 1}});
             m_descriptorPool.reset(new ri::DescriptorPool(*m_context, 10, avaialbleTypes));
 
             // create descriptor layout
@@ -490,6 +506,8 @@ private:
                 {2, ri::ShaderStage::eFragment, ri::DescriptorType::eCombinedSampler},
                 {3, ri::ShaderStage::eFragment, ri::DescriptorType::eCombinedSampler},
                 {4, ri::ShaderStage::eFragment, ri::DescriptorType::eCombinedSampler},
+                // env map
+                {7, ri::ShaderStage::eFragment, ri::DescriptorType::eCombinedSampler},
             });
 
             descriptorLayout     = m_descriptorPool->createLayout(layoutsParams);
@@ -507,14 +525,14 @@ private:
 
         // create material for the skybox
         {
-            std::string filenames[6] = {"right.png", "left.png", "top.png", "bottom.png", "front.png", "back.png"};
+            std::string filenames[6] = {"posx.png", "negx.png", "posy.png", "negy.png", "posz.png", "negz.png"};
 
             ri::Sizei size;
             int       texChannels;
             size_t    offset = 0;
             for (size_t i = 0; i < 6; ++i)
             {
-                const std::string path = resourcesPath + "skybox/room/" + filenames[i];
+                const std::string path = resourcesPath + "skybox/Yokohama3/" + filenames[i];
                 stbi_uc*          pixels =
                     stbi_load(path.c_str(), &(int&)size.width, &(int&)size.height, &texChannels, STBI_rgb_alpha);
                 assert(pixels);
@@ -533,26 +551,40 @@ private:
             params.type   = ri::TextureType::eCube;
             params.format = ri::ColorFormat::eRGBA;
             params.size   = size;
-            params.flags  = ri::TextureUsageFlags::eDst | ri::TextureUsageFlags::eSrc | ri::TextureUsageFlags::eSampled;
 
+            params.flags = ri::TextureUsageFlags::eDst | ri::TextureUsageFlags::eSrc |
+                           // textures will be sampled in the fragment shader and used as storage in the compute shader
+                           ri::TextureUsageFlags::eSampled | ri::TextureUsageFlags::eStorage;
+
+            m_skyboxTexIndex = m_textures.size();
             m_textures.emplace_back(new ri::Texture(*m_context, params));
+            m_textures.back()->setTagName("SkyboxCubeTex");
 
-            // issue copy commands
+            m_irradianceTexIndex = m_textures.size();
+            params.format        = ri::ColorFormat::eRGBA16f;
+            m_textures.emplace_back(new ri::Texture(*m_context, params));
+            m_textures.back()->setTagName("IrradianceCubeTex");
+
+            // issue copy and transition layout commands
             {
                 ri::Texture::CopyParams copyParams;
-                copyParams.layouts = {ri::TextureLayoutType::eUndefined,           //
-                                      ri::TextureLayoutType::eTransferDstOptimal,  //
-                                      ri::TextureLayoutType::eTransferSrcOptimal};
+                // using general as we will first run a compute shader to compute the irradiance map
+                copyParams.layouts = {ri::TextureLayoutType::eUndefined, ri::TextureLayoutType::eGeneral};
                 copyParams.size    = size;
 
                 ri::CommandBuffer commandBuffer = commandPool.begin();
-                m_textures.back()->copy(*m_stagingBuffer, copyParams, commandBuffer);
+
+                m_textures[m_skyboxTexIndex]->copy(*m_stagingBuffer, copyParams, commandBuffer);
+                // use same layout
+                m_textures[m_irradianceTexIndex]->transitionImageLayout(copyParams.layouts, commandBuffer);
+
                 commandPool.end(commandBuffer);
             }
 
             ri::DescriptorLayoutParam layoutsParams({
                 {0, ri::ShaderStage::eVertex, ri::DescriptorType::eUniformBuffer},
-                {1, ri::ShaderStage::eFragment, ri::DescriptorType::eCombinedSampler},
+                {1, ri::ShaderStage::eFragment, ri::DescriptorType::eUniformBuffer},
+                {2, ri::ShaderStage::eFragment, ri::DescriptorType::eCombinedSampler},
             });
 
             // create material
@@ -561,10 +593,12 @@ private:
             Material& material = m_materials.back();
             material.aoTexture = m_materials.size() - 1;
 
+            m_activeTexIndex                               = m_skyboxTexIndex;
             const auto                    descriptorLayout = m_descriptorPool->createLayout(layoutsParams);
             const ri::DescriptorSetParams descriptorParams = {
                 {0, m_uniformBuffers[0].get(), ri::DescriptorType::eUniformBuffer},
-                {1, m_textures[skyboxTexIndex].get()}};
+                {1, m_uniformBuffers[1].get(), ri::DescriptorType::eUniformBuffer},
+                {2, m_textures[m_activeTexIndex].get()}};
 
             material.descriptor  = m_descriptorPool->create(descriptorLayout.index, descriptorParams);
             descriptorLayouts[1] = descriptorLayout.layout;
@@ -589,7 +623,7 @@ private:
             auto& metallicRoughnessMapInfo = descriptorParams.infos.back();
             descriptorParams.add(4, nullptr);
             auto& occlusionMapInfo = descriptorParams.infos.back();
-            descriptorParams.add(7, m_textures[skyboxTexIndex].get());
+            descriptorParams.add(7, m_textures[m_irradianceTexIndex].get());
 
             m_materials.reserve(model.materials.size());
             for (const tinygltf::Material& mat : model.materials)
@@ -669,6 +703,48 @@ private:
                     new ri::RenderPipeline(*m_context, pass, *shaderPipeline, params, ri::Sizei(kWidth, kHeight)));
                 m_skyboxPipeline->setTagName("SkyboxPipeline");
             }
+        }
+
+        // create a compute pipeline for precomputing irradiance
+        {
+            std::unique_ptr<ri::DescriptorPool> descriptorPool;
+            descriptorPool.reset(new ri::DescriptorPool(*m_context, 1, {{ri::DescriptorType::eImage, 2}}));
+
+            ri::DescriptorLayoutParam layoutsParams({
+                // skybox cubemap, readonly
+                {0, ri::ShaderStage::eCompute, ri::DescriptorType::eImage},
+                // irradiance cubemap, write only
+                {1, ri::ShaderStage::eCompute, ri::DescriptorType::eImage},
+            });
+
+            // create a compute pipeline
+            ri::DescriptorPool::CreateLayoutResult descriptorLayout;
+            descriptorLayout = descriptorPool->createLayout(layoutsParams);
+
+            auto shader = new ri::ShaderModule(*m_context, shadersPath + "irradiance.comp", ri::ShaderStage::eCompute);
+            m_computePipeline.reset(new ri::ComputePipeline(*m_context, descriptorLayout.layout, *shader));
+            m_computePipeline->setTagName("ComputePipeline");
+            delete shader;  // safe to release after pipeline is created
+
+            ri::CommandBuffer commandBuffer = commandPool.begin();
+            // execute the compute shader
+            const ri::DescriptorSetParams descriptorParams = {
+                {0, m_textures[m_skyboxTexIndex].get(), ri::DescriptorSetParams::eImage},
+                {1, m_textures[m_irradianceTexIndex].get(), ri::DescriptorSetParams::eImage}};
+            ri::DescriptorSet descriptor = descriptorPool->create(descriptorLayout.index, descriptorParams);
+
+            m_computePipeline->bind(commandBuffer);
+            descriptor.bind(commandBuffer, *m_computePipeline);
+            auto size = m_textures[m_skyboxTexIndex]->size();
+            m_computePipeline->dispatch(commandBuffer, size.width / 16, size.height / 16, 6);
+
+            // transition the cubemaps to an optimized format
+            std::array<ri::TextureLayoutType, 2> layouts = {ri::TextureLayoutType::eGeneral,
+                                                            ri::TextureLayoutType::eShaderReadOnly};
+            m_textures[m_skyboxTexIndex]->transitionImageLayout(layouts, commandBuffer);
+            m_textures[m_irradianceTexIndex]->transitionImageLayout(layouts, commandBuffer);
+
+            commandPool.end(commandBuffer);
         }
     }
 
@@ -906,7 +982,7 @@ private:
         m_camera.ubo.proj[1][1] *= -1;
         m_camera.update();
 
-        lightParams.ambient   = 0.04f;
+        lightParams.ambient   = 0.01f;
         const float lightPos  = m_bounds.maxSize * 5.f;
         lightParams.lights[0] = glm::vec4(-lightPos, -lightPos * 0.5f, -lightPos, lightParams.lights[0].w);
         lightParams.lights[1] = glm::vec4(-lightPos, -lightPos * 0.5f, lightPos, lightParams.lights[1].w);
@@ -979,6 +1055,7 @@ private:
     std::unique_ptr<ri::RenderPipeline>        m_renderPipeline;
     std::unique_ptr<ri::RenderPipeline>        m_renderWirePipeline;
     std::unique_ptr<ri::RenderPipeline>        m_skyboxPipeline;
+    std::unique_ptr<ri::ComputePipeline>       m_computePipeline;
     std::unique_ptr<ri::DescriptorPool>        m_descriptorPool;
     std::unique_ptr<ri::Buffer>                m_stagingBuffer;
     std::vector<std::shared_ptr<ri::Buffer> >  m_buffers;
@@ -1002,6 +1079,8 @@ private:
             return res;
         }
     } m_bounds;
+
+    size_t m_skyboxTexIndex, m_irradianceTexIndex, m_activeTexIndex;
     Camera m_camera;
     float  m_deltaTime    = 0.0f;
     time_t m_lastTime     = std::chrono::high_resolution_clock::now();

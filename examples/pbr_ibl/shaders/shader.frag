@@ -16,6 +16,7 @@ layout(binding = 0) uniform Camera {
 layout(binding = 5) uniform Lights {
 	vec4 lights[4];
 	float ambient;
+	float exposure;
 } lightParams;
 
 layout(binding = 1) uniform sampler2D albedoMap;
@@ -77,7 +78,9 @@ void main()
 	// to reduce the indirect Fresnel reflection for dielectric materials
 	vec3 kS = f_schlick_roughness(max(dot(N, V), 0.0), albedo, metallic, specular, roughness);
 	vec3 kD = (1.0 - kS) * (1.0 - metallic);	
-	vec3 diffuse = kD * albedo * texture(irradianceMap, N).rgb;
+	vec3 irradiance = texture(irradianceMap, N).rgb; 
+	irradiance = vec3(1.0) - exp(-irradiance * lightParams.exposure); // apply exposure
+	vec3 diffuse = kD * albedo * irradiance;
 	vec3 ambient = lightParams.ambient + diffuse;
 	vec3 color = (ambient + Lo) * ao;
 	color = gammaCorrection(color);

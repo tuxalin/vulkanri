@@ -1,5 +1,5 @@
 
-const float PI = 3.14159265359;
+const float PI = 3.1415926535897932384626433832795;
 
 // Normal Distribution
 float d_ggx(float dotNH, float roughness)

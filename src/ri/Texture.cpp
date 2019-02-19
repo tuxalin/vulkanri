@@ -171,7 +171,7 @@ void Texture::generateMipMaps(CommandBuffer& commandBuffer)
     // Copy down mips from n-1 to n
     for (uint32_t i = 1; i < m_mipLevels; i++)
     {
-        VkImageBlit imageBlit{};
+        VkImageBlit imageBlit {};
 
         // Source
         imageBlit.srcSubresource.aspectMask = VK_IMAGE_ASPECT_COLOR_BIT;
