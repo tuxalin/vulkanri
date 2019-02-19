@@ -76,13 +76,3 @@ float diffuse_lambert(vec3 L, vec3 N)
 {
 	return clamp(dot(N, L), 0.0, 1.0);
 }
-
-vec3 gammaEncode(vec3 color) 
-{
-    return pow(color, vec3(1.0 / 2.2));
-}
-
-vec3 gammaDecode(vec3 color) 
-{
-    return pow(color, vec3(2.2));
-}

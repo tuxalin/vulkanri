@@ -2,6 +2,7 @@
 #extension GL_ARB_separate_shader_objects : enable
  
 #include "../../resources/shaders/pbr.glsl"
+#include "../../resources/shaders/gamma.glsl"
 #include "../../resources/shaders/normals.glsl"
 
 layout(binding = 0) uniform Camera {
@@ -75,8 +76,7 @@ void main()
 
 	vec3 ambient = lightParams.ambient * albedo;
 	vec3 color = (ambient + Lo) * ao;
-	color = color / (color + vec3(1.0)); // HDR tonemapping
-	color = gammaEncode(color);
+	color = gammaCorrection(color);
 
     outColor = vec4(color.rgb, 1.0);
 }
