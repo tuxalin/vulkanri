@@ -166,7 +166,14 @@ void Texture::generateMipMaps(CommandBuffer& commandBuffer)
     assert(m_format != ColorFormat::eDepth32 && m_format != ColorFormat::eDepth24Stencil8 &&
            m_format != ColorFormat::eDepth32Stencil8);
 
-    // TODO: handle 2D arrays
+    VkImageSubresourceRange mipSubRange = {};
+    mipSubRange.aspectMask              = VK_IMAGE_ASPECT_COLOR_BIT;
+    mipSubRange.baseMipLevel            = 0;
+    mipSubRange.levelCount              = 1;
+    mipSubRange.layerCount              = m_arrayLevels;
+
+    // Transition current mip level to transfer source for read in next iteration
+    transitionImageLayout(m_layout, TextureLayoutType::eTransferSrcOptimal, false, mipSubRange, commandBuffer);
 
     // Copy down mips from n-1 to n
     for (uint32_t i = 1; i < m_mipLevels; i++)
@@ -175,7 +182,7 @@ void Texture::generateMipMaps(CommandBuffer& commandBuffer)
 
         // Source
         imageBlit.srcSubresource.aspectMask = VK_IMAGE_ASPECT_COLOR_BIT;
-        imageBlit.srcSubresource.layerCount = 1;
+        imageBlit.srcSubresource.layerCount = m_arrayLevels;
         imageBlit.srcSubresource.mipLevel   = i - 1;
         imageBlit.srcOffsets[1].x           = int32_t(m_size.width >> (i - 1));
         imageBlit.srcOffsets[1].y           = int32_t(m_size.height >> (i - 1));
@@ -183,17 +190,13 @@ void Texture::generateMipMaps(CommandBuffer& commandBuffer)
 
         // Destination
         imageBlit.dstSubresource.aspectMask = VK_IMAGE_ASPECT_COLOR_BIT;
-        imageBlit.dstSubresource.layerCount = 1;
+        imageBlit.dstSubresource.layerCount = m_arrayLevels;
         imageBlit.dstSubresource.mipLevel   = i;
         imageBlit.dstOffsets[1].x           = int32_t(m_size.width >> i);
         imageBlit.dstOffsets[1].y           = int32_t(m_size.height >> i);
         imageBlit.dstOffsets[1].z           = 1;
 
-        VkImageSubresourceRange mipSubRange = {};
-        mipSubRange.aspectMask              = VK_IMAGE_ASPECT_COLOR_BIT;
-        mipSubRange.baseMipLevel            = i;
-        mipSubRange.levelCount              = 1;
-        mipSubRange.layerCount              = 1;
+        mipSubRange.baseMipLevel = i;
 
         // Transition current mip level to transfer destination
         transitionImageLayout(TextureLayoutType::eUndefined, TextureLayoutType::eTransferDstOptimal,  //
@@ -220,8 +223,8 @@ void Texture::generateMipMaps(CommandBuffer& commandBuffer)
     subresourceRange.baseMipLevel            = 0;
     subresourceRange.levelCount              = m_mipLevels;
     subresourceRange.baseArrayLayer          = 0;
-    subresourceRange.layerCount              = 1;
-    transitionImageLayout(TextureLayoutType::eTransferSrcOptimal, TextureLayoutType::eShaderReadOnly,  //
+    subresourceRange.layerCount              = m_arrayLevels;
+    transitionImageLayout(TextureLayoutType::eTransferSrcOptimal, m_layout,  //
                           false, subresourceRange, commandBuffer);
 }
 
