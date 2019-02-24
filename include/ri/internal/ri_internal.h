@@ -48,6 +48,7 @@ namespace detail
     VkImageView           getImageViewHandle(const ri::Texture& texture);
     const Texture*        createReferenceTexture(VkImage handle, int type, int format, const Sizei& size);
     TextureDescriptorInfo getTextureDescriptorInfo(const Texture& texture);
+    VkImageView           createExtraImageView(const Texture& texture, uint32_t baseMipLevel, uint32_t baseArrayLayer);
     VkImageAspectFlags    getImageAspectFlags(VkFormat format);
     VkImageType           getImageType(int type);
 

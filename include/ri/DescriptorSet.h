@@ -30,7 +30,20 @@ struct DescriptorSetParams
             const Buffer*  buffer;
             const Texture* texture;
         };
-        uint32_t       offset, size;
+        struct BufferInfo
+        {
+            uint32_t offset, size;
+        };
+        struct TextureInfo
+        {
+            // mipmap level
+            uint32_t level;
+        };
+        union {
+            BufferInfo  bufferInfo;
+            TextureInfo textureInfo;
+        };
+
         uint32_t       binding;
         DescriptorType type;
 
@@ -103,8 +116,8 @@ private:
             {
                 auto& bufferInfo                 = info.buffer;
                 bufferInfo.buffer                = detail::getVkHandle(*params.buffer);
-                bufferInfo.offset                = params.offset;
-                bufferInfo.range                 = params.size;
+                bufferInfo.offset                = params.bufferInfo.offset;
+                bufferInfo.range                 = params.bufferInfo.size;
                 descriptorWrite.pBufferInfo      = &bufferInfo;
                 descriptorWrite.pImageInfo       = nullptr;
                 descriptorWrite.pTexelBufferView = nullptr;
@@ -112,11 +125,21 @@ private:
             }
             case DescriptorSetParams::eTexture:
             {
-                auto&       imageInfo            = info.image;
-                const auto& textureInfo          = detail::getTextureDescriptorInfo(*params.texture);
-                imageInfo.imageLayout            = textureInfo.layout;
-                imageInfo.imageView              = textureInfo.imageView;
-                imageInfo.sampler                = textureInfo.sampler;
+                auto&       imageInfo   = info.image;
+                const auto& textureInfo = detail::getTextureDescriptorInfo(*params.texture);
+                imageInfo.imageLayout   = textureInfo.layout;
+
+                auto imageView = textureInfo.imageView;
+                if (params.textureInfo.level != 0)
+                {
+                    imageView = detail::createExtraImageView(*params.texture, params.textureInfo.level, 0);
+                }
+
+                imageInfo.imageView = imageView;
+                if (params.type == DescriptorType::eSampledImage || params.type == DescriptorType::eCombinedSampler)
+                    imageInfo.sampler = textureInfo.sampler;
+                else
+                    imageInfo.sampler = VK_NULL_HANDLE;
                 descriptorWrite.pImageInfo       = &imageInfo;
                 descriptorWrite.pBufferInfo      = nullptr;
                 descriptorWrite.pTexelBufferView = nullptr;
@@ -254,22 +277,22 @@ void DescriptorSetParams::add(Args&&... args)
 
 inline DescriptorSetParams::WriteInfo::WriteInfo(uint32_t binding, const Buffer* buffer, uint32_t offset, uint32_t size)
     : buffer(buffer)
-    , offset(offset)
-    , size(size)
     , binding(binding)
     , m_mode(eBuffer)
     , type(DescriptorType::eUniformBuffer)
 {
+    bufferInfo.offset = offset;
+    bufferInfo.size   = size;
 }
 
 inline DescriptorSetParams::WriteInfo::WriteInfo(uint32_t binding, const Buffer* buffer, DescriptorType type)
     : buffer(buffer)
-    , offset(0)
-    , size(buffer ? buffer->bytes() : 0)
     , binding(binding)
     , m_mode(eBuffer)
     , type(type)
 {
+    bufferInfo.offset = 0;
+    bufferInfo.size   = buffer ? buffer->bytes() : 0;
 }
 
 inline DescriptorSetParams::WriteInfo::WriteInfo(uint32_t binding, const Texture* texture,
@@ -279,6 +302,7 @@ inline DescriptorSetParams::WriteInfo::WriteInfo(uint32_t binding, const Texture
     , m_mode(eTexture)
     , type(static_cast<DescriptorType>(type))
 {
+    textureInfo.level = 0;
 }
 
 inline const DescriptorSetParams::Mode DescriptorSetParams::WriteInfo::mode() const

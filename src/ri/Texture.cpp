@@ -56,6 +56,20 @@ namespace detail
                 return VK_IMAGE_TYPE_2D;
         }
     }
+
+    TextureDescriptorInfo getTextureDescriptorInfo(const Texture& texture)
+    {
+        assert(texture.m_view);
+        assert(texture.m_sampler);
+        return TextureDescriptorInfo({texture.m_view, texture.m_sampler, (VkImageLayout)texture.m_layout});
+    }
+
+    VkImageView createExtraImageView(const Texture& texture, uint32_t baseMipLevel, uint32_t baseArrayLayer)
+    {
+        auto view = texture.createImageView(VK_IMAGE_ASPECT_COLOR_BIT, baseMipLevel, baseArrayLayer);
+        texture.m_extraViews.push_back(view);
+        return view;
+    }
 }
 
 namespace
@@ -98,11 +112,11 @@ Texture::Texture(const DeviceContext& device, const TextureParams& params)
     if (params.flags & TextureUsageFlags::eSampled)
     {
         createSampler(params.samplerParams);
-        createImageView(params, VK_IMAGE_ASPECT_COLOR_BIT);
+        m_view = createImageView(VK_IMAGE_ASPECT_COLOR_BIT, 0, 0);
     }
     else if (m_format == ColorFormat::eDepth32)
     {
-        createImageView(params, VK_IMAGE_ASPECT_DEPTH_BIT);
+        m_view = createImageView(VK_IMAGE_ASPECT_DEPTH_BIT, 0, 0);
     }
 }
 
@@ -124,6 +138,9 @@ Texture::~Texture()
 
         vkDestroyImageView(m_device, m_view, nullptr);
         vkDestroySampler(m_device, m_sampler, nullptr);
+
+        for (auto view : m_extraViews)
+            vkDestroyImageView(m_device, view, nullptr);
     }
 }
 
@@ -237,7 +254,7 @@ inline void Texture::createImage(const TextureParams& params)
     imageInfo.extent.height     = static_cast<uint32_t>(params.size.height);
     imageInfo.extent.depth      = params.depth;
     imageInfo.mipLevels         = m_mipLevels;
-    imageInfo.arrayLayers       = m_type == TextureType::eCube ? 6 : params.arrayLevels;
+    imageInfo.arrayLayers       = m_arrayLevels;
     imageInfo.format            = (VkFormat)params.format;
     imageInfo.tiling            = VK_IMAGE_TILING_OPTIMAL;
     imageInfo.initialLayout     = VK_IMAGE_LAYOUT_UNDEFINED;
@@ -253,23 +270,30 @@ inline void Texture::createImage(const TextureParams& params)
     RI_CHECK_RESULT_MSG("failed to create image") = vkCreateImage(m_device, &imageInfo, nullptr, &m_handle);
 }
 
-void Texture::createImageView(const TextureParams& params, VkImageAspectFlags aspectFlags)
+VkImageView Texture::createImageView(VkImageAspectFlags aspectFlags, uint32_t baseMipLevel,
+                                     uint32_t baseArrayLayer) const
 {
+    assert(m_mipLevels > baseMipLevel);
+    assert(m_arrayLevels > baseArrayLayer);
+
+    VkImageView viewHandle = VK_NULL_HANDLE;
+
     VkImageViewCreateInfo viewInfo = {};
     viewInfo.sType                 = VK_STRUCTURE_TYPE_IMAGE_VIEW_CREATE_INFO;
     viewInfo.image                 = m_handle;
     viewInfo.viewType              = (VkImageViewType)m_type;
-    viewInfo.format                = (VkFormat)params.format;
+    viewInfo.format                = (VkFormat)m_format;
     viewInfo.components            = {VK_COMPONENT_SWIZZLE_R, VK_COMPONENT_SWIZZLE_G,  //
                            VK_COMPONENT_SWIZZLE_B, VK_COMPONENT_SWIZZLE_A};
 
     viewInfo.subresourceRange.aspectMask     = aspectFlags;
-    viewInfo.subresourceRange.baseMipLevel   = 0;
-    viewInfo.subresourceRange.levelCount     = m_mipLevels;
-    viewInfo.subresourceRange.baseArrayLayer = 0;
-    viewInfo.subresourceRange.layerCount     = m_type == TextureType::eCube ? 6 : 1;
+    viewInfo.subresourceRange.baseMipLevel   = baseMipLevel;
+    viewInfo.subresourceRange.levelCount     = m_mipLevels - baseMipLevel;
+    viewInfo.subresourceRange.baseArrayLayer = baseArrayLayer;
+    viewInfo.subresourceRange.layerCount     = m_arrayLevels - baseArrayLayer;
 
-    RI_CHECK_RESULT_MSG("failed to create image view") = vkCreateImageView(m_device, &viewInfo, nullptr, &m_view);
+    RI_CHECK_RESULT_MSG("failed to create image view") = vkCreateImageView(m_device, &viewInfo, nullptr, &viewHandle);
+    return viewHandle;
 }
 
 void Texture::createSampler(const SamplerParams& params)
@@ -291,6 +315,7 @@ void Texture::createSampler(const SamplerParams& params)
     samplerInfo.compareEnable           = params.compareEnable;
     samplerInfo.compareOp               = (VkCompareOp)params.compareOp;
 
+    assert(params.mipmapMode != SamplerParams::eCubic);
     samplerInfo.mipmapMode =
         params.mipmapMode == SamplerParams::eLinear ? VK_SAMPLER_MIPMAP_MODE_LINEAR : VK_SAMPLER_MIPMAP_MODE_NEAREST;
     samplerInfo.mipLodBias = params.mipLodBias;

@@ -121,10 +121,10 @@ private:
     // create a reference texture
     Texture(VkImage handle, TextureType type, ColorFormat format, const Sizei& size);
 
-    void createImage(const TextureParams& params);
-    void createImageView(const TextureParams& params, VkImageAspectFlags aspectFlags);
-    void createSampler(const SamplerParams& params);
-    void allocateMemory(const DeviceContext& device, const TextureParams& params);
+    void        createImage(const TextureParams& params);
+    VkImageView createImageView(VkImageAspectFlags aspectFlags, uint32_t baseMipLevel, uint32_t baseArrayLayer) const;
+    void        createSampler(const SamplerParams& params);
+    void        allocateMemory(const DeviceContext& device, const TextureParams& params);
 
     PipelineBarrierSettings getPipelineBarrierSettings(TextureLayoutType              oldLayout,
                                                        TextureLayoutType              newLayout,
@@ -149,20 +149,15 @@ private:
     uint32_t          m_mipLevels;
     uint32_t          m_arrayLevels;
 
+    mutable std::vector<VkImageView> m_extraViews;
+
     friend const Texture* detail::createReferenceTexture(VkImage handle, int type, int format, const Sizei& size);
     friend detail::TextureDescriptorInfo detail::getTextureDescriptorInfo(const Texture& texture);
-    friend VkImageView                   detail::getImageViewHandle(const ri::Texture& texture);
-};
 
-namespace detail
-{
-    inline TextureDescriptorInfo getTextureDescriptorInfo(const Texture& texture)
-    {
-        assert(texture.m_view);
-        assert(texture.m_sampler);
-        return TextureDescriptorInfo({texture.m_view, texture.m_sampler, (VkImageLayout)texture.m_layout});
-    }
-}
+    friend VkImageView detail::createExtraImageView(const Texture& texture, uint32_t baseMipLevel,
+                                                    uint32_t baseArrayLayer);
+    friend VkImageView detail::getImageViewHandle(const ri::Texture& texture);
+};
 
 inline TextureType Texture::type() const
 {
