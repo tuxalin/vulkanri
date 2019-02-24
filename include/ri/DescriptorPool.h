@@ -47,11 +47,19 @@ public:
         DescriptorSetLayout layout;
         size_t              index;
     };
+    enum FlagType
+    {
+        eNone              = 0,
+        eFreeDescriptorSet = 0x1,
+        eUpdateAfterBind   = 0x2
+    };
 
-    DescriptorPool(const DeviceContext& device, size_t poolSize, DescriptorType type, size_t maxCount);
+    DescriptorPool(const DeviceContext& device, size_t poolSize, DescriptorType type, size_t maxCount,
+                   FlagType flags = eNone);
     DescriptorPool(const DeviceContext& device, size_t poolSize, const TypeSize* availableDescriptors,
-                   size_t availableDescriptorsCount);
-    DescriptorPool(const DeviceContext& device, size_t poolSize, const std::vector<TypeSize>& availableDescriptors);
+                   size_t availableDescriptorsCount, FlagType flags = eNone);
+    DescriptorPool(const DeviceContext& device, size_t poolSize, const std::vector<TypeSize>& availableDescriptors,
+                   FlagType flags = eNone);
     ///@warning The RenderPipeline that use the layout descriptors must be destroyed before the pool.
     ~DescriptorPool();
 
@@ -60,6 +68,8 @@ public:
     DescriptorSet create(uint32_t layoutIndex, const DescriptorSetParams& params);
     void          create(const uint32_t* layoutIndices, size_t layoutIndicesCount, DescriptorSet* descriptors);
     void          create(const std::vector<uint32_t>& layoutIndices, std::vector<DescriptorSet>& descriptors);
+    void          free(const DescriptorSet& descriptor);
+    void          free(const DescriptorSet* descriptors, uint32_t count);
 
     ///@note New layout will be appended.
     CreateLayoutResult createLayout(const DescriptorLayoutParam& param);
@@ -76,8 +86,8 @@ private:
 };
 
 inline DescriptorPool::DescriptorPool(const DeviceContext& device, size_t poolSize,
-                                      const std::vector<TypeSize>& availableDescriptors)
-    : DescriptorPool(device, poolSize, availableDescriptors.data(), availableDescriptors.size())
+                                      const std::vector<TypeSize>& availableDescriptors, FlagType flags /*= eNone*/)
+    : DescriptorPool(device, poolSize, availableDescriptors.data(), availableDescriptors.size(), flags)
 {
 }
 

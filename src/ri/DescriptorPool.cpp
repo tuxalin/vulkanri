@@ -5,7 +5,8 @@
 
 namespace ri
 {
-DescriptorPool::DescriptorPool(const DeviceContext& device, size_t poolSetSize, DescriptorType type, size_t maxCount)
+DescriptorPool::DescriptorPool(const DeviceContext& device, size_t poolSetSize, DescriptorType type, size_t maxCount,
+                               FlagType flags /*= eNone*/)
     : m_device(ri::detail::getVkHandle(device))
 {
     VkDescriptorPoolSize poolSize = {};
@@ -17,14 +18,14 @@ DescriptorPool::DescriptorPool(const DeviceContext& device, size_t poolSetSize, 
     poolInfo.poolSizeCount              = 1;
     poolInfo.pPoolSizes                 = &poolSize;
     poolInfo.maxSets                    = poolSetSize;
-    poolInfo.flags                      = 0;
+    poolInfo.flags                      = (VkDescriptorPoolCreateFlags)flags;
 
     RI_CHECK_RESULT_MSG("couldn't create descriptor pool") =
         vkCreateDescriptorPool(m_device, &poolInfo, nullptr, &m_handle);
 }
 
 DescriptorPool::DescriptorPool(const DeviceContext& device, size_t poolSetSize, const TypeSize* availableDescriptors,
-                               size_t availableDescriptorsCount)
+                               size_t availableDescriptorsCount, FlagType flags /*= eNone*/)
     : m_device(ri::detail::getVkHandle(device))
 {
     assert(availableDescriptors);
@@ -42,7 +43,7 @@ DescriptorPool::DescriptorPool(const DeviceContext& device, size_t poolSetSize, 
     poolInfo.poolSizeCount              = availableDescriptorsCount;
     poolInfo.pPoolSizes                 = poolSizes.data();
     poolInfo.maxSets                    = poolSetSize;
-    poolInfo.flags                      = 0;
+    poolInfo.flags                      = (VkDescriptorPoolCreateFlags)flags;
 
     RI_CHECK_RESULT_MSG("couldn't create descriptor pool") =
         vkCreateDescriptorPool(m_device, &poolInfo, nullptr, &m_handle);
@@ -106,6 +107,23 @@ void DescriptorPool::create(const uint32_t* layoutIndices, size_t layoutIndicesC
     {
         descriptors[i] = DescriptorSet(m_device, handles[i]);
     }
+}
+
+void DescriptorPool::free(const DescriptorSet& descriptorSet)
+{
+    VkDescriptorSet descriptorSetHandle = detail::getVkHandle(descriptorSet);
+    vkFreeDescriptorSets(m_device, m_handle, 1, &descriptorSetHandle);
+}
+
+void DescriptorPool::free(const DescriptorSet* descriptors, uint32_t count)
+{
+    std::vector<VkDescriptorSet> descriptorSetHandles(count);
+    for (uint32_t i = 0; i < count; ++i)
+    {
+        descriptorSetHandles[i] = detail::getVkHandle(descriptors[i]);
+    }
+
+    vkFreeDescriptorSets(m_device, m_handle, count, descriptorSetHandles.data());
 }
 
 DescriptorPool::CreateLayoutResult DescriptorPool::createLayout(const DescriptorLayoutParam& descriptorParams)
