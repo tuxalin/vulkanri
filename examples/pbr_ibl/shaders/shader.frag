@@ -34,6 +34,7 @@ layout(binding = 6) uniform Material {
 	float aoStrength;
 } material;
 layout(binding = 7) uniform samplerCube irradianceMap;
+layout(binding = 8) uniform samplerCube prefilteredMap;
 
 layout(location = 0) in vec3 inWorldPos;
 layout(location = 1) in vec3 inNormal;

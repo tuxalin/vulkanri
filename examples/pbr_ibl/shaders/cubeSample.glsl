@@ -1,7 +1,6 @@
 
-const vec2 cubemapSize = vec2(1024.0, 1024.0);
 
-vec3 cubeCoordToWorld(ivec3 cubeCoord)
+vec3 cubeCoordToWorld(ivec3 cubeCoord, vec2 cubemapSize)
 {
 	vec2 texCoord = vec2(cubeCoord.xy) / cubemapSize;
 	texCoord = texCoord  * 2.0 - 1.0; // -1..1
@@ -23,7 +22,7 @@ float max3(vec3 v)
   return max(max(v.x, v.y), v.z);
 }
 
-ivec3 texCoordToCube(vec3 texCoord)
+ivec3 texCoordToCube(vec3 texCoord, vec2 cubemapSize)
 {
 	vec3 abst = abs(texCoord);
 	texCoord /= max3(abst);

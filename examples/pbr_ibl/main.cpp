@@ -247,7 +247,7 @@ private:
         if (glfwGetKey(window, GLFW_KEY_I) == GLFW_PRESS)
         {
             app->m_activeTexIndex++;
-            if (app->m_activeTexIndex > app->m_irradianceTexIndex)
+            if (app->m_activeTexIndex > app->m_prefilteredTexIndex)
                 app->m_activeTexIndex = app->m_skyboxTexIndex;
 
             const ri::DescriptorSetParams descriptorParams = {
@@ -506,8 +506,9 @@ private:
                 {2, ri::ShaderStage::eFragment, ri::DescriptorType::eCombinedSampler},
                 {3, ri::ShaderStage::eFragment, ri::DescriptorType::eCombinedSampler},
                 {4, ri::ShaderStage::eFragment, ri::DescriptorType::eCombinedSampler},
-                // env map
+                // env maps
                 {7, ri::ShaderStage::eFragment, ri::DescriptorType::eCombinedSampler},
+                {8, ri::ShaderStage::eFragment, ri::DescriptorType::eCombinedSampler},
             });
 
             descriptorLayout     = m_descriptorPool->createLayout(layoutsParams);
@@ -524,6 +525,7 @@ private:
         }
 
         // create material for the skybox
+        const unsigned int maxMipLevels = 5;
         {
             std::string filenames[6] = {"posx.png", "negx.png", "posy.png", "negy.png", "posz.png", "negz.png"};
 
@@ -548,22 +550,34 @@ private:
             }
 
             ri::TextureParams params;
-            params.type   = ri::TextureType::eCube;
-            params.format = ri::ColorFormat::eRGBA;
-            params.size   = size;
+            params.type = ri::TextureType::eCube;
+            params.size = size;
+            // use trilinear filtering
+            params.samplerParams.minFilter  = ri::SamplerParams::eLinear;
+            params.samplerParams.magFilter  = ri::SamplerParams::eLinear;
+            params.samplerParams.mipmapMode = ri::SamplerParams::eLinear;
 
             params.flags = ri::TextureUsageFlags::eDst | ri::TextureUsageFlags::eSrc |
                            // textures will be sampled in the fragment shader and used as storage in the compute shader
                            ri::TextureUsageFlags::eSampled | ri::TextureUsageFlags::eStorage;
 
             m_skyboxTexIndex = m_textures.size();
+            params.format    = ri::ColorFormat::eRGBA;
+            params.mipLevels = maxMipLevels;
             m_textures.emplace_back(new ri::Texture(*m_context, params));
             m_textures.back()->setTagName("SkyboxCubeTex");
 
             m_irradianceTexIndex = m_textures.size();
             params.format        = ri::ColorFormat::eRGBA16f;
+            params.mipLevels     = 1;
             m_textures.emplace_back(new ri::Texture(*m_context, params));
             m_textures.back()->setTagName("IrradianceCubeTex");
+
+            m_prefilteredTexIndex = m_textures.size();
+            params.format         = ri::ColorFormat::eRGBA16f;
+            params.mipLevels      = maxMipLevels;
+            m_textures.emplace_back(new ri::Texture(*m_context, params));
+            m_textures.back()->setTagName("PrefilteredCubeTex");
 
             // issue copy and transition layout commands
             {
@@ -575,8 +589,10 @@ private:
                 ri::CommandBuffer commandBuffer = commandPool.begin();
 
                 m_textures[m_skyboxTexIndex]->copy(*m_stagingBuffer, copyParams, commandBuffer);
+                m_textures[m_skyboxTexIndex]->generateMipMaps(commandBuffer);
                 // use same layout
                 m_textures[m_irradianceTexIndex]->transitionImageLayout(copyParams.layouts, commandBuffer);
+                m_textures[m_prefilteredTexIndex]->transitionImageLayout(copyParams.layouts, commandBuffer);
 
                 commandPool.end(commandBuffer);
             }
@@ -610,7 +626,7 @@ private:
             textureIndexMap[-2] = 1;
 
             ri::DescriptorSetParams descriptorParams;
-            descriptorParams.infos.reserve(8);
+            descriptorParams.infos.reserve(16);
             descriptorParams.add(0, m_uniformBuffers[0].get(), ri::DescriptorType::eUniformBuffer);
             descriptorParams.add(5, m_uniformBuffers[1].get(), ri::DescriptorType::eUniformBuffer);
             descriptorParams.add(6, nullptr, ri::DescriptorType::eUniformBuffer);
@@ -624,6 +640,7 @@ private:
             descriptorParams.add(4, nullptr);
             auto& occlusionMapInfo = descriptorParams.infos.back();
             descriptorParams.add(7, m_textures[m_irradianceTexIndex].get());
+            descriptorParams.add(8, m_textures[m_prefilteredTexIndex].get());
 
             m_materials.reserve(model.materials.size());
             for (const tinygltf::Material& mat : model.materials)
@@ -650,8 +667,8 @@ private:
                 material.buffer.reset(
                     new ri::Buffer(*m_context, ri::BufferUsageFlags::eUniform, sizeof(Material::UBO)));
                 material.buffer->setTagName(mat.name + "_UBO");
-                materialUboInfo.buffer = material.buffer.get();
-                materialUboInfo.size   = material.buffer->bytes();
+                materialUboInfo.buffer          = material.buffer.get();
+                materialUboInfo.bufferInfo.size = material.buffer->bytes();
 
                 material.descriptor = m_descriptorPool->create(descriptorLayout.index, descriptorParams);
             }
@@ -705,44 +722,88 @@ private:
             }
         }
 
-        // create a compute pipeline for precomputing irradiance
+        // create a compute pipelines for precomputing: irradiance map, prefiltered map and brdf LUT
         {
             std::unique_ptr<ri::DescriptorPool> descriptorPool;
-            descriptorPool.reset(new ri::DescriptorPool(*m_context, 1, {{ri::DescriptorType::eImage, 2}}));
+            descriptorPool.reset(new ri::DescriptorPool(*m_context, 1 + 1 + maxMipLevels,
+                                                        {{ri::DescriptorType::eImage, 2 + 1 * maxMipLevels},
+                                                         {ri::DescriptorType::eCombinedSampler, 1 * maxMipLevels}},
+                                                        ri::DescriptorPool::eFreeDescriptorSet));
 
-            ri::DescriptorLayoutParam layoutsParams({
-                // skybox cubemap, readonly
-                {0, ri::ShaderStage::eCompute, ri::DescriptorType::eImage},
-                // irradiance cubemap, write only
-                {1, ri::ShaderStage::eCompute, ri::DescriptorType::eImage},
-            });
+            const auto textureSize = m_textures[m_skyboxTexIndex]->size().width;
 
-            // create a compute pipeline
-            ri::DescriptorPool::CreateLayoutResult descriptorLayout;
-            descriptorLayout = descriptorPool->createLayout(layoutsParams);
+            ri::CommandBuffer                 commandBuffer = commandPool.begin();
+            std::unique_ptr<ri::ShaderModule> shader;
+            // execute the irradiance compute shader
+            {
+                ri::DescriptorLayoutParam              layoutsParams({
+                    // skybox cubemap, readonly
+                    {0, ri::ShaderStage::eCompute, ri::DescriptorType::eImage},
+                    // irradiance cubemap, write only
+                    {1, ri::ShaderStage::eCompute, ri::DescriptorType::eImage},
+                });
+                ri::DescriptorPool::CreateLayoutResult descriptorLayout = descriptorPool->createLayout(layoutsParams);
 
-            auto shader = new ri::ShaderModule(*m_context, shadersPath + "irradiance.comp", ri::ShaderStage::eCompute);
-            m_computePipeline.reset(new ri::ComputePipeline(*m_context, descriptorLayout.layout, *shader));
-            m_computePipeline->setTagName("ComputePipeline");
-            delete shader;  // safe to release after pipeline is created
+                shader.reset(
+                    new ri::ShaderModule(*m_context, shadersPath + "irradiance.comp", ri::ShaderStage::eCompute));
+                m_computePipelines[0].reset(new ri::ComputePipeline(*m_context, descriptorLayout.layout, *shader));
+                m_computePipelines[0]->setTagName("IrradianceComputePipeline");
 
-            ri::CommandBuffer commandBuffer = commandPool.begin();
-            // execute the compute shader
-            const ri::DescriptorSetParams descriptorParams = {
-                {0, m_textures[m_skyboxTexIndex].get(), ri::DescriptorSetParams::eImage},
-                {1, m_textures[m_irradianceTexIndex].get(), ri::DescriptorSetParams::eImage}};
-            ri::DescriptorSet descriptor = descriptorPool->create(descriptorLayout.index, descriptorParams);
+                const ri::DescriptorSetParams descriptorParams = {
+                    {0, m_textures[m_skyboxTexIndex].get(), ri::DescriptorSetParams::eImage},
+                    {1, m_textures[m_irradianceTexIndex].get(), ri::DescriptorSetParams::eImage}};
+                ri::DescriptorSet descriptor = descriptorPool->create(descriptorLayout.index, descriptorParams);
 
-            m_computePipeline->bind(commandBuffer);
-            descriptor.bind(commandBuffer, *m_computePipeline);
-            auto size = m_textures[m_skyboxTexIndex]->size();
-            m_computePipeline->dispatch(commandBuffer, size.width / 16, size.height / 16, 6);
+                m_computePipelines[0]->bind(commandBuffer, descriptor);
+                m_computePipelines[0]->dispatch(commandBuffer, textureSize / 16, textureSize / 16, 6);
+            }
+
+            // execute the prefiltered GGX compute shader
+            {
+                ri::DescriptorLayoutParam              layoutsParams({
+                    // skybox cubemap, readonly
+                    {0, ri::ShaderStage::eCompute, ri::DescriptorType::eCombinedSampler},
+                    // prefiltered cubemap, write only
+                    {1, ri::ShaderStage::eCompute, ri::DescriptorType::eImage},
+                });
+                ri::DescriptorPool::CreateLayoutResult descriptorLayout = descriptorPool->createLayout(layoutsParams);
+
+                shader.reset(
+                    new ri::ShaderModule(*m_context, shadersPath + "prefilterGGX.comp", ri::ShaderStage::eCompute));
+                m_computePipelines[1].reset(
+                    new ri::ComputePipeline(*m_context, descriptorLayout.layout, *shader,
+                                            ri::ComputePipeline::PushParams(0, 3 * sizeof(float))));
+                m_computePipelines[1]->setTagName("PrefilterComputePipeline");
+
+                ri::DescriptorSetParams descriptorParams = {
+                    {0, m_textures[m_skyboxTexIndex].get(), ri::DescriptorSetParams::eCombinedSampler},
+                    {1, m_textures[m_prefilteredTexIndex].get(), ri::DescriptorSetParams::eImage}};
+
+                // create the prefiltered maps based on roughness
+                m_computePipelines[1]->bind(commandBuffer);
+                for (unsigned int mip = 0; mip < maxMipLevels; ++mip)
+                {
+                    float              params[3];
+                    const unsigned int mipmapSize = textureSize >> mip;
+                    const float        roughness  = (float)mip / (float)(maxMipLevels - 1);
+
+                    params[0] = params[1] = (float)mipmapSize;
+                    params[2]             = roughness;
+                    m_computePipelines[1]->pushConstants(params, commandBuffer);
+
+                    descriptorParams.infos[1].textureInfo.level = mip;  // set the mip target
+                    ri::DescriptorSet descriptor = descriptorPool->create(descriptorLayout.index, descriptorParams);
+                    descriptor.bind(commandBuffer, *m_computePipelines[1]);
+                    m_computePipelines[1]->dispatch(commandBuffer, mipmapSize / 16, mipmapSize / 16, 6);
+                }
+            }
 
             // transition the cubemaps to an optimized format
             std::array<ri::TextureLayoutType, 2> layouts = {ri::TextureLayoutType::eGeneral,
                                                             ri::TextureLayoutType::eShaderReadOnly};
             m_textures[m_skyboxTexIndex]->transitionImageLayout(layouts, commandBuffer);
             m_textures[m_irradianceTexIndex]->transitionImageLayout(layouts, commandBuffer);
+            m_textures[m_prefilteredTexIndex]->transitionImageLayout(layouts, commandBuffer);
 
             commandPool.end(commandBuffer);
         }
@@ -1055,7 +1116,7 @@ private:
     std::unique_ptr<ri::RenderPipeline>        m_renderPipeline;
     std::unique_ptr<ri::RenderPipeline>        m_renderWirePipeline;
     std::unique_ptr<ri::RenderPipeline>        m_skyboxPipeline;
-    std::unique_ptr<ri::ComputePipeline>       m_computePipeline;
+    std::unique_ptr<ri::ComputePipeline>       m_computePipelines[5];
     std::unique_ptr<ri::DescriptorPool>        m_descriptorPool;
     std::unique_ptr<ri::Buffer>                m_stagingBuffer;
     std::vector<std::shared_ptr<ri::Buffer> >  m_buffers;
@@ -1080,7 +1141,7 @@ private:
         }
     } m_bounds;
 
-    size_t m_skyboxTexIndex, m_irradianceTexIndex, m_activeTexIndex;
+    size_t m_skyboxTexIndex, m_irradianceTexIndex, m_prefilteredTexIndex, m_brdfTexIndex, m_activeTexIndex;
     Camera m_camera;
     float  m_deltaTime    = 0.0f;
     time_t m_lastTime     = std::chrono::high_resolution_clock::now();
