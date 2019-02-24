@@ -178,6 +178,7 @@ template <int InfoCount>
 inline void DescriptorSet::update(const DescriptorSetParams& params)
 {
     assert(m_handle);
+    assert(InfoCount >= params.infos.size());
 
     DescriptorInfo       descriptorInfos[InfoCount];
     VkWriteDescriptorSet descriptorWriteInfos[InfoCount];

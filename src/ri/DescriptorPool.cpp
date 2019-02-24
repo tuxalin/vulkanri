@@ -78,7 +78,7 @@ DescriptorSet DescriptorPool::create(uint32_t layoutIndex)
 DescriptorSet DescriptorPool::create(uint32_t layoutIndex, const DescriptorSetParams& params)
 {
     DescriptorSet descriptor = create(layoutIndex);
-    descriptor.update<8>(params);
+    descriptor.update<16>(params);
     return descriptor;
 }
 
