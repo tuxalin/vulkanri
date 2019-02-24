@@ -1,6 +1,7 @@
 
 #include <ri/ComputePipeline.h>
 
+#include <ri/DescriptorSet.h>
 #include <ri/ShaderModule.h>
 
 namespace ri
@@ -49,6 +50,12 @@ inline VkPipelineLayout ComputePipeline::createLayout(const VkDevice            
     RI_CHECK_RESULT_MSG("couldn't create pipeline layout") =
         vkCreatePipelineLayout(device, &pipelineLayoutInfo, nullptr, &pipelineLayout);
     return pipelineLayout;
+}
+
+void ComputePipeline::bind(CommandBuffer& buffer, const ri::DescriptorSet& descriptor) const
+{
+    vkCmdBindPipeline(detail::getVkHandle(buffer), VK_PIPELINE_BIND_POINT_COMPUTE, m_handle);
+    descriptor.bind(buffer, *this);
 }
 
 }  // namespace ri
