@@ -1,5 +1,5 @@
 
-const float PI = 3.1415926535897932384626433832795;
+#include "../../resources/shaders/math.glsl"
 
 // Normal Distribution
 float d_ggx(float dotNH, float roughness)
@@ -7,14 +7,14 @@ float d_ggx(float dotNH, float roughness)
 	float alpha = roughness * roughness;
 	float alpha2 = alpha * alpha;
 	float denom = dotNH * dotNH * (alpha2 - 1.0) + 1.0;
-	return (alpha2)/(PI * denom*denom); 
+	return alpha2 / (PI * denom * denom); 
 }
 
 // Geometric Shadowing
 float g_schlicksmithGGX(float dotNL, float dotNV, float roughness)
 {
 	float r = (roughness + 1.0);
-	float k = (r*r) / 8.0;
+	float k = (r * r) / 8.0;
 	float GL = dotNL / (dotNL * (1.0 - k) + k);
 	float GV = dotNV / (dotNV * (1.0 - k) + k);
 	return GL * GV;
@@ -41,7 +41,7 @@ vec3 d_lambert(vec3 kS, vec3 albedo, float metallic)
 	vec3 kD = vec3(1.0) - kS;
 	// multiply kD by the inverse metalness as metals don't have diffuse lighting
 	kD *= 1.0 - metallic; 
-	return kD * albedo / PI; // normalize surface color
+	return kD * albedo * INV_PI; // normalize surface color
 }
 
 // Diffuse + Specular BRDF
@@ -63,8 +63,7 @@ vec3 cook_torrance_ggx(vec3 L, vec3 V, vec3 N, vec3 albedo, float metallic, floa
 		float G = g_schlicksmithGGX(dotNL, dotNV, roughness);
 		// Fresnel factor 
 		vec3 F = f_schlick(dotNV, albedo, metallic, specular);
-
-		vec3 S = NDF * F * G / (4.0 * dotNL * dotNV + 0.001); // add 0.001 to prevent divide by zero
+		vec3 S = NDF * F * G / (4.0 * dotNL * dotNV + 0.001); // add delta to prevent division by zero
 
 		color = d_lambert(F, albedo, metallic) + S;
 	}

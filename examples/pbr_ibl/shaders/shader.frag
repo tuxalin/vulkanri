@@ -42,6 +42,7 @@ layout(location = 2) in vec2 inUV;
 layout(location = 0) out vec4 outColor;
 
 const vec3 lightColor = vec3(1.0);
+const float lightAttenuation = 500.0; // unit distance
 
 void main() 
 {
@@ -63,7 +64,7 @@ void main()
 
 		// light radiance
         float distance = length(L);
-        float attenuation = clamp(500.0 / (1.0 + distance * distance), 0.0, 1.0);
+        float attenuation = clamp(lightAttenuation / (1.0 + distance * distance), 0.0, 1.0);
         float lightIntensity = lightParams.lights[i].a;
         vec3 radiance = lightColor * lightIntensity * attenuation;
 
