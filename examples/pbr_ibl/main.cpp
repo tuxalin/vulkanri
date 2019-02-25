@@ -509,6 +509,7 @@ private:
                 // env maps
                 {7, ri::ShaderStage::eFragment, ri::DescriptorType::eCombinedSampler},
                 {8, ri::ShaderStage::eFragment, ri::DescriptorType::eCombinedSampler},
+                {9, ri::ShaderStage::eFragment, ri::DescriptorType::eCombinedSampler},
             });
 
             descriptorLayout     = m_descriptorPool->createLayout(layoutsParams);
@@ -522,6 +523,31 @@ private:
 
             m_uniformBuffers[1].reset(new ri::Buffer(*m_context, ri::BufferUsageFlags::eUniform, sizeof(LightParams)));
             m_uniformBuffers[1]->setTagName("LightsUBO");
+        }
+        size_t brfdLutTexIndex = 0;
+        {
+            ri::TextureParams params;
+            params.type                       = ri::TextureType::e2D;
+            params.size                       = ri::Sizei(512);
+            params.samplerParams.addressModeU = ri::SamplerParams::eClampToEdge;
+            params.samplerParams.addressModeV = ri::SamplerParams::eClampToEdge;
+            params.samplerParams.minFilter    = ri::SamplerParams::eLinear;
+            params.samplerParams.magFilter    = ri::SamplerParams::eLinear;
+            params.format                     = ri::ColorFormat::eRG16f;
+            params.mipLevels                  = 1;
+
+            params.flags = ri::TextureUsageFlags::eDst | ri::TextureUsageFlags::eSrc |
+                           // texture will be sampled in the fragment shader and used as storage in the compute shader
+                           ri::TextureUsageFlags::eSampled | ri::TextureUsageFlags::eStorage;
+
+            brfdLutTexIndex = m_textures.size();
+            m_textures.emplace_back(new ri::Texture(*m_context, params));
+            m_textures.back()->setTagName("BrdfLutTex");
+
+            ri::CommandBuffer commandBuffer = commandPool.begin();
+            m_textures[brfdLutTexIndex]->transitionImageLayout(ri::TextureLayoutType::eUndefined,
+                                                               ri::TextureLayoutType::eGeneral, commandBuffer);
+            commandPool.end(commandBuffer);
         }
 
         // create material for the skybox
@@ -641,6 +667,7 @@ private:
             auto& occlusionMapInfo = descriptorParams.infos.back();
             descriptorParams.add(7, m_textures[m_irradianceTexIndex].get());
             descriptorParams.add(8, m_textures[m_prefilteredTexIndex].get());
+            descriptorParams.add(9, m_textures[brfdLutTexIndex].get());
 
             m_materials.reserve(model.materials.size());
             for (const tinygltf::Material& mat : model.materials)
@@ -726,7 +753,7 @@ private:
         {
             std::unique_ptr<ri::DescriptorPool> descriptorPool;
             descriptorPool.reset(new ri::DescriptorPool(*m_context, 1 + 1 + maxMipLevels,
-                                                        {{ri::DescriptorType::eImage, 2 + 1 * maxMipLevels},
+                                                        {{ri::DescriptorType::eImage, 2 + 1 * maxMipLevels + 1},
                                                          {ri::DescriptorType::eCombinedSampler, 1 * maxMipLevels}},
                                                         ri::DescriptorPool::eFreeDescriptorSet));
 
@@ -798,12 +825,35 @@ private:
                 }
             }
 
+            // execute the GGX BRDF LUT compute shader
+            {
+                ri::DescriptorLayoutParam              layoutsParams({
+                    // brdf LUT, write only
+                    {0, ri::ShaderStage::eCompute, ri::DescriptorType::eImage},
+                });
+                ri::DescriptorPool::CreateLayoutResult descriptorLayout = descriptorPool->createLayout(layoutsParams);
+
+                shader.reset(
+                    new ri::ShaderModule(*m_context, shadersPath + "integrateGGX.comp", ri::ShaderStage::eCompute));
+                m_computePipelines[2].reset(new ri::ComputePipeline(*m_context, descriptorLayout.layout, *shader));
+                m_computePipelines[2]->setTagName("IntegrateBrdfComputePipeline");
+
+                const ri::DescriptorSetParams descriptorParams = {
+                    {0, m_textures[brfdLutTexIndex].get(), ri::DescriptorSetParams::eImage}};
+                ri::DescriptorSet descriptor = descriptorPool->create(descriptorLayout.index, descriptorParams);
+
+                const auto textureSize = m_textures[brfdLutTexIndex]->size().width;
+                m_computePipelines[2]->bind(commandBuffer, descriptor);
+                m_computePipelines[2]->dispatch(commandBuffer, textureSize / 16, textureSize / 16, 1);
+            }
+
             // transition the cubemaps to an optimized format
             std::array<ri::TextureLayoutType, 2> layouts = {ri::TextureLayoutType::eGeneral,
                                                             ri::TextureLayoutType::eShaderReadOnly};
             m_textures[m_skyboxTexIndex]->transitionImageLayout(layouts, commandBuffer);
             m_textures[m_irradianceTexIndex]->transitionImageLayout(layouts, commandBuffer);
             m_textures[m_prefilteredTexIndex]->transitionImageLayout(layouts, commandBuffer);
+            m_textures[brfdLutTexIndex]->transitionImageLayout(layouts, commandBuffer);
 
             commandPool.end(commandBuffer);
         }

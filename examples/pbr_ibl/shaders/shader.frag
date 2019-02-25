@@ -35,6 +35,7 @@ layout(binding = 6) uniform Material {
 } material;
 layout(binding = 7) uniform samplerCube irradianceMap;
 layout(binding = 8) uniform samplerCube prefilteredMap;
+layout(binding = 9) uniform sampler2D brdfLUT;
 
 layout(location = 0) in vec3 inWorldPos;
 layout(location = 1) in vec3 inNormal;
@@ -76,14 +77,13 @@ void main()
 		Lo += brdf * radiance * diffuse_lambert(L, N); 
 	}
 
-	// apply roughness term in the Fresnel-Schlick equation as described by Sebastien Lagarde
-	// to reduce the indirect Fresnel reflection for dielectric materials
-	vec3 kS = f_schlick_roughness(max(dot(N, V), 0.0), albedo, metallic, specular, roughness);
-	vec3 kD = (1.0 - kS) * (1.0 - metallic);	
-	vec3 irradiance = texture(irradianceMap, N).rgb; 
-	irradiance = vec3(1.0) - exp(-irradiance * lightParams.exposure); // apply exposure
-	vec3 diffuse = kD * albedo * irradiance;
-	vec3 ambient = lightParams.ambient + diffuse;
+	float envExposure = lightParams.exposure;
+	float dotNV = max(dot(N, V), 0.0);
+	vec3 kS = f_schlick_roughness(dotNV, albedo, metallic, specular, roughness);
+	vec3 diffuse = ibl_diffuse(N, kS, albedo, metallic, irradianceMap, envExposure);
+    vec3 indirectSpecular = ibl_specular(N, V, kS, roughness, prefilteredMap, envExposure, brdfLUT);
+
+	vec3 ambient = lightParams.ambient + diffuse + indirectSpecular;
 	vec3 color = (ambient + Lo) * ao;
 	color = gammaCorrection(color);
 

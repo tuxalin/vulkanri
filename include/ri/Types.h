@@ -171,17 +171,22 @@ SAFE_ENUM_DECLARE(DescriptorType,
                   eStorageBufferDynamic = VK_DESCRIPTOR_TYPE_STORAGE_BUFFER_DYNAMIC);
 
 SAFE_ENUM_DECLARE(ColorFormat,
-                  eRed             = VK_FORMAT_R8G8_UNORM,           //
-                  eRGB565          = VK_FORMAT_R5G6B5_UNORM_PACK16,  //
-                  eBGRA            = VK_FORMAT_B8G8R8A8_UNORM,       //
-                  eRGBA            = VK_FORMAT_R8G8B8A8_UNORM,       //
-                  eRGB16f          = VK_FORMAT_R16G16B16_SFLOAT,     //
-                  eRGBA16f         = VK_FORMAT_R16G16B16A16_SFLOAT,  //
-                  eRGB32f          = VK_FORMAT_R32G32B32_SFLOAT,     //
-                  eRGBA32f         = VK_FORMAT_R32G32B32A32_SFLOAT,  //
-                  eDepth32         = VK_FORMAT_D32_SFLOAT,           //
-                  eDepth24Stencil8 = VK_FORMAT_D32_SFLOAT_S8_UINT,   //
-                  eDepth32Stencil8 = VK_FORMAT_D24_UNORM_S8_UINT,    //
+                  eRed             = VK_FORMAT_R8G8_UNORM,             //
+                  eRG              = VK_FORMAT_R8G8_UNORM,             //
+                  eRGB             = VK_FORMAT_R8G8B8_UNORM,           //
+                  eRGB565          = VK_FORMAT_R5G6B5_UNORM_PACK16,    //
+                  eRGBA            = VK_FORMAT_R8G8B8A8_UNORM,         //
+                  eRGBA5551        = VK_FORMAT_R5G5B5A1_UNORM_PACK16,  //
+                  eBGRA            = VK_FORMAT_B8G8R8A8_UNORM,         //
+                  eRG16f           = VK_FORMAT_R16G16_SFLOAT,          //
+                  eRGB16f          = VK_FORMAT_R16G16B16_SFLOAT,       //
+                  eRGBA16f         = VK_FORMAT_R16G16B16A16_SFLOAT,    //
+                  eRG32f           = VK_FORMAT_R32G32_SFLOAT,          //
+                  eRGB32f          = VK_FORMAT_R32G32B32_SFLOAT,       //
+                  eRGBA32f         = VK_FORMAT_R32G32B32A32_SFLOAT,    //
+                  eDepth32         = VK_FORMAT_D32_SFLOAT,             //
+                  eDepth24Stencil8 = VK_FORMAT_D32_SFLOAT_S8_UINT,     //
+                  eDepth32Stencil8 = VK_FORMAT_D24_UNORM_S8_UINT,      //
                   eUndefined       = VK_FORMAT_UNDEFINED);
 
 SAFE_ENUM_DECLARE(ComponentSwizzle,                           //

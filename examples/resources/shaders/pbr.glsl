@@ -11,12 +11,26 @@ float d_ggx(float dotNH, float roughness)
 }
 
 // Geometric Shadowing
-float g_schlicksmithGGX(float dotNL, float dotNV, float roughness)
+float g_schlickSmithGGX(float dotN, float k)
 {
-	float r = (roughness + 1.0);
-	float k = (r * r) / 8.0;
-	float GL = dotNL / (dotNL * (1.0 - k) + k);
-	float GV = dotNV / (dotNV * (1.0 - k) + k);
+	return dotN / (dotN * (1.0 - k) + k);
+}
+
+float g_schlickSmithGGX(float dotNL, float dotNV, float roughness)
+{
+	float alpha = (roughness + 1.0);
+	float k = (alpha * alpha) / 8.0;
+	float GL = g_schlickSmithGGX(dotNL, k);
+	float GV = g_schlickSmithGGX(dotNV, k);
+	return GL * GV;
+}
+
+float g_ibl_schlickSmithGGX(float dotNL, float dotNV, float roughness)
+{
+	float alpha = roughness;
+	float k = (alpha * alpha) / 2.0; // special remap of k for IBL lighting
+	float GL = g_schlickSmithGGX(dotNL, k);
+	float GV = g_schlickSmithGGX(dotNV, k);
 	return GL * GV;
 }
 
@@ -30,6 +44,8 @@ vec3 f_schlick(float cosTheta, vec3 albedo, float metallic, float specular)
 
 vec3 f_schlick_roughness(float cosTheta, vec3 albedo, float metallic, float specular, float roughness)
 {
+	// apply roughness term in the Fresnel-Schlick equation as described by Sebastien Lagarde
+	// to reduce the indirect Fresnel reflection for dielectric materials
 	vec3 F0 = mix(vec3(0.04), albedo, metallic) * specular;
     return F0 + (max(vec3(1.0 - roughness), F0) - F0) * pow(1.0 - cosTheta, 5.0);
 } 
@@ -60,7 +76,7 @@ vec3 cook_torrance_ggx(vec3 L, vec3 V, vec3 N, vec3 albedo, float metallic, floa
 		// Normal distribution function
 		float NDF = d_ggx(dotNH, roughness); 
 		// Geometric shadowing term 
-		float G = g_schlicksmithGGX(dotNL, dotNV, roughness);
+		float G = g_schlickSmithGGX(dotNL, dotNV, roughness);
 		// Fresnel factor 
 		vec3 F = f_schlick(dotNV, albedo, metallic, specular);
 		vec3 S = NDF * F * G / (4.0 * dotNL * dotNV + 0.001); // add delta to prevent division by zero
@@ -74,4 +90,30 @@ vec3 cook_torrance_ggx(vec3 L, vec3 V, vec3 N, vec3 albedo, float metallic, floa
 float diffuse_lambert(vec3 L, vec3 N) 
 {
 	return clamp(dot(N, L), 0.0, 1.0);
+}
+
+vec3 ibl_diffuse(vec3 N, vec3 kS, vec3 albedo, float metallic, samplerCube irradianceMap, float exposure)
+{
+	vec3 kD = (1.0 - kS) * (1.0 - metallic);	
+	vec3 irradiance = texture(irradianceMap, N).rgb; 
+	irradiance = vec3(1.0) - exp(-irradiance * exposure); // apply exposure
+
+	vec3 diffuse = kD * albedo * irradiance;
+	return diffuse;
+}
+
+vec3 ibl_specular(vec3 N, vec3 V, vec3 F, float roughness, samplerCube prefilteredMap, float exposure, sampler2D brdfLUT)
+{
+	const float maxReflectionLOD = 4.0;
+
+    // sample both the pre-filter map and the BRDF lut
+    vec3 R = reflect(-V, N); 
+    vec3 prefilteredColor = textureLod(prefilteredMap, R,  roughness * maxReflectionLOD).rgb;    
+    prefilteredColor = vec3(1.0) - exp(-prefilteredColor * exposure); // apply exposure
+    float dotNV = max(dot(N, V), 0.005);
+    vec2 brdf  = texture(brdfLUT, vec2(dotNV, roughness)).rg;
+
+    // combine them together as per the Split-Sum approximation to get the IBL specular part
+    vec3 indirectSpecular = prefilteredColor * (F * brdf.x + brdf.y);
+    return indirectSpecular;
 }

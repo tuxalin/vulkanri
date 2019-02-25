@@ -55,7 +55,7 @@ struct TextureParams
     TextureType type   = TextureType::e2D;
     ColorFormat format = ColorFormat::eRGBA;
     ///@see ri::TextureUsageFlags
-    uint32_t flags;
+    uint32_t flags = 0;
     Sizei    size;
     /// Depth of a texture, eg. a 3D texture is described as width x height x depth
     uint32_t depth = 1;

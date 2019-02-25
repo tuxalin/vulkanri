@@ -96,6 +96,7 @@ Texture::Texture(const DeviceContext& device, const TextureParams& params)
                                    : (uint32_t)floor(log2(std::max(params.size.width, params.size.height))) + 1)
     , m_arrayLevels(m_type == TextureType::eCube ? 6 : params.arrayLevels)
 {
+    assert(params.flags);
 #ifndef NDEBUG
     const TextureProperties props =
         device.textureProperties(params.format, params.type, TextureTiling::eOptimal, params.flags);
