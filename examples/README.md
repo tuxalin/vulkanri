@@ -43,4 +43,17 @@
  * enabling MSAA and sample shading
  * a simple PBR shader with multiple lights
  * displacement mapping with a tesselation shader
+
+ ## 4. pbr_ibl
+
+  ![pic-4](pbr_ibl/screenshot.PNG)
+
+ Covers the following:
+ * loading a GLTF model
+ * using multiple vertex binding for multiple meshes/primitives
+ * creating multiple descriptor set for multiple materials
+ * loading and using a texture cube for a skybox
+ * using multiple compute shaders
+ * using compute pipelines to precompute maps (eg. irradiance, prefiltered, brdf lut) for IBL lighting
+ * changing the image view for a mipmap level of a texture/image target
  

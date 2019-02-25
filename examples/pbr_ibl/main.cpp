@@ -7,8 +7,9 @@
  * - using multiple vertex binding for multiple meshes/primitives
  * - creating multiple descriptor set for multiple materials
  * - loading and using a texture cube for a skybox
- * - using a compute shader to precompute an irradiance map from the skybox
- *
+ * - using a compute shaders
+ * - using and compute pipelines to precompute maps (eg. irradiance, prefiltered, brdf lut) for IBL lighting
+ * - changing the image view for a mipmap level of a texture/image target
  */
 #define NOMINMAX
 
