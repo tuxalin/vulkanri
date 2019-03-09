@@ -2,7 +2,7 @@
 #extension GL_ARB_separate_shader_objects : enable
 
 layout(binding = 0) uniform Camera {
-	vec4 worldPos;
+    vec4 worldPos;
     mat4 model;
     mat4 view;
     mat4 proj;
@@ -20,9 +20,9 @@ layout (location = 2) out vec2 outUV;
 void main(void)
 {
     outUV = inUV;
-	outNormal = normalize(mat3(camera.model) * inNormal);
-	vec4 worldPos = camera.model * vec4(inPos.xyz, 1.0);
-	outWorldPos = worldPos.xyz;
-	
-	gl_Position = camera.viewProj * worldPos;
+    outNormal = normalize(mat3(camera.model) * inNormal);
+    vec4 worldPos = camera.model * vec4(inPos.xyz, 1.0);
+    outWorldPos = worldPos.xyz;
+    
+    gl_Position = camera.viewProj * worldPos;
 }

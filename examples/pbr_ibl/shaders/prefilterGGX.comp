@@ -20,8 +20,8 @@ const uint totalSamples = 1024u;
 vec3 importanceSampleGGX(vec2 Xi, vec3 N, float roughness);
 
 void main()
-{	
-	ivec3 cubeCoord = ivec3(gl_GlobalInvocationID);
+{   
+    ivec3 cubeCoord = ivec3(gl_GlobalInvocationID);
     vec3 worldPos = cubeCoordToWorld(cubeCoord, constants.mipmapSize);
     // tagent space from origin point
     vec3 N = normalize(worldPos);

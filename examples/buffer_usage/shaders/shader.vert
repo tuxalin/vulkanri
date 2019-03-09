@@ -8,7 +8,7 @@ layout(binding = 0) uniform MVP {
 } mvp;
 
 layout(push_constant) uniform TintColor {
-	vec3 tintColor;
+    vec3 tintColor;
 } constants;
 
 layout(location = 0) in vec2 inPosition;
@@ -23,5 +23,5 @@ out gl_PerVertex {
 void main() 
 {
     fragColor = inColor + constants.tintColor;
-   	gl_Position = mvp.proj * mvp.view * mvp.model * vec4(inPosition, 0.0, 1.0);
+    gl_Position = mvp.proj * mvp.view * mvp.model * vec4(inPosition, 0.0, 1.0);
 }
